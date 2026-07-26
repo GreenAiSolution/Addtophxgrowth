@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { BRAND } from "@/lib/brand";
 import type { RequestComment } from "@prisma/client";
 
 /** Read-only rendering of a request's comment thread (forms live in the pages). */
@@ -32,7 +33,7 @@ export function CommentThread({ comments }: { comments: RequestComment[] }) {
                   : "border-cyan/40 text-cyan",
               )}
             >
-              {c.authorRole === "ADMIN" ? "Nexus team" : "Client"}
+              {c.authorRole === "ADMIN" ? BRAND.teamName : "Client"}
             </span>
             <span className="ml-auto font-mono text-[0.6rem] text-muted-foreground">
               {c.createdAt.toISOString().slice(0, 16).replace("T", " ")}

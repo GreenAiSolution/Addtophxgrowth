@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CLIENT_NAV, ADMIN_NAV, isNavActive } from "@/lib/nav";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Mobile top bar + full-screen slide-over menu.
@@ -24,9 +25,9 @@ export function MobileNav({ variant }: { variant: "client" | "admin" }) {
   return (
     <div className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md md:hidden">
       <div className="flex h-14 items-center justify-between px-4">
-        <Link href={variant === "admin" ? "/admin" : "/app"} className="flex items-center gap-2 font-heading text-base font-bold">
+        <Link href={variant === "admin" ? "/admin" : "/app"} className="flex items-center gap-2 whitespace-nowrap font-heading text-sm font-bold">
           <span className="grid h-7 w-7 place-items-center rounded-md bg-primary/15 text-cyan shadow-hud">◈</span>
-          NEXUS
+          {BRAND.shortName}
           {variant === "admin" && (
             <span className="ml-1 rounded-full border border-secondary/40 bg-secondary/10 px-2 py-0.5 font-mono text-[0.55rem] uppercase tracking-widest text-secondary">
               Admin

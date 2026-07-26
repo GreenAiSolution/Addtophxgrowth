@@ -1,4 +1,4 @@
-// Nexus Growth Platform — data model.
+// Add To PHX — data model.
 // Feature gating uses Subscription rows as the source of truth (kept in sync by
 // the Stripe webhook handler). Every client-owned row carries clientId for
 // multi-tenant scoping (see src/lib/tenancy.ts).

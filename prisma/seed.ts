@@ -234,10 +234,10 @@ async function main() {
 
   console.log("→ Seeding admin user…");
   await prisma.user.upsert({
-    where: { email: process.env.SEED_ADMIN_EMAIL ?? "admin@nexusgrowth.app" },
+    where: { email: process.env.SEED_ADMIN_EMAIL ?? "admin@phxgrowth.com" },
     update: { role: "ADMIN" },
     create: {
-      email: process.env.SEED_ADMIN_EMAIL ?? "admin@nexusgrowth.app",
+      email: process.env.SEED_ADMIN_EMAIL ?? "admin@phxgrowth.com",
       name: "Agency Operator",
       role: "ADMIN",
       emailVerified: new Date(),
@@ -246,7 +246,7 @@ async function main() {
 
   console.log("→ Seeding demo client #1 (Scale + Operate)…");
   const c1 = await upsertClient({
-    email: "demo1@nexusgrowth.app",
+    email: "demo1@phxgrowth.com",
     name: "Jordan Vega",
     businessName: "Peak Performance Coaching",
     industry: "Coaching & Consulting",
@@ -265,7 +265,7 @@ async function main() {
 
   console.log("→ Seeding demo client #2 (Launch)…");
   await upsertClient({
-    email: "demo2@nexusgrowth.app",
+    email: "demo2@phxgrowth.com",
     name: "Sam Okafor",
     businessName: "Bright Home Solar",
     industry: "Home Services",

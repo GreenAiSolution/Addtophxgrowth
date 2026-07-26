@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CommentThread } from "@/components/comment-thread";
+import { BRAND } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import type { RequestStatus } from "@prisma/client";
 
@@ -48,7 +49,7 @@ export default async function AdminRequestDetailPage({ params }: { params: { id:
       data: {
         requestId: params.id,
         authorId: admin.userId,
-        authorName: user?.name ?? "Nexus Team",
+        authorName: user?.name ?? BRAND.teamName,
         authorRole: "ADMIN",
         body,
       },
@@ -104,7 +105,7 @@ export default async function AdminRequestDetailPage({ params }: { params: { id:
 
       <Card>
         <form action={addComment} className="space-y-3">
-          <Textarea name="body" required placeholder="Reply as the Nexus team…" />
+          <Textarea name="body" required placeholder={`Reply as the ${BRAND.teamName}…`} />
           <div className="flex justify-end">
             <Button type="submit" size="sm" variant="violet">Post reply</Button>
           </div>

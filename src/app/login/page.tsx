@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/lib/auth";
+import { BRAND } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +18,8 @@ export default async function LoginPage() {
     <div className="grid min-h-screen place-items-center px-4">
       <Card className="w-full max-w-md hud-corners">
         <div className="mb-6 text-center">
-          <Link href="/" className="font-heading text-2xl font-bold">
-            NEXUS<span className="text-gradient">GROWTH</span>
+          <Link href="/" className="whitespace-nowrap font-heading text-2xl font-bold">
+            {BRAND.wordmarkLead}<span className="text-gradient">{BRAND.wordmarkAccent}</span>
           </Link>
           <p className="mt-2 text-sm text-muted-foreground">Access your growth cockpit.</p>
         </div>

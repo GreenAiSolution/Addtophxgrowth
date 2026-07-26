@@ -1,4 +1,4 @@
-# Nexus Growth Platform
+# Add To PHX — Growth Platform
 
 A production-oriented, self-serve client platform for a growth agency selling two
 subscription product lines:
@@ -61,9 +61,9 @@ pnpm dev                  # http://localhost:3000
 
 | Role   | Email                     | Plans |
 |--------|---------------------------|-------|
-| Admin  | `admin@nexusgrowth.app`   | — |
-| Client | `demo1@nexusgrowth.app`   | Scale (agents) + Operate (ad-ops), 90 days of metrics |
-| Client | `demo2@nexusgrowth.app`   | Launch (agents) |
+| Admin  | `admin@phxgrowth.com`   | — |
+| Client | `demo1@phxgrowth.com`   | Scale (agents) + Operate (ad-ops), 90 days of metrics |
+| Client | `demo2@phxgrowth.com`   | Launch (agents) |
 
 Sign in with the **email magic link** (configure SMTP) or **Google** using
 these addresses. Roles are set by the seed; new Google sign-ins default to
@@ -98,7 +98,7 @@ feature gating.
 
 ## Deploy to Vercel
 
-1. Push this repo; import the `nexus-growth-platform` directory as the Vercel
+1. Push this repo; import this repository as the Vercel
    project root.
 2. Add a Postgres database (Vercel Postgres or Neon) and set `DATABASE_URL`.
 3. Set every variable from `.env.example` in Vercel project settings

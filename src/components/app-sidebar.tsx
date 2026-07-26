@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ShieldHalf } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CLIENT_NAV, ADMIN_NAV, isNavActive } from "@/lib/nav";
+import { BRAND } from "@/lib/brand";
 
 export function AppSidebar({ variant }: { variant: "client" | "admin" }) {
   const pathname = usePathname();
@@ -14,7 +15,7 @@ export function AppSidebar({ variant }: { variant: "client" | "admin" }) {
     <aside className="hidden w-60 shrink-0 flex-col border-r border-border/60 bg-card/40 p-4 md:flex">
       <Link href={variant === "admin" ? "/admin" : "/app"} className="mb-8 flex items-center gap-2 px-2 font-heading text-lg font-bold">
         <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-cyan shadow-hud">◈</span>
-        NEXUS
+        <span className="whitespace-nowrap text-base">{BRAND.shortName}</span>
       </Link>
 
       {variant === "admin" && (
