@@ -1,0 +1,375 @@
+// Nexus Growth Platform — data model.
+// Feature gating uses Subscription rows as the source of truth (kept in sync by
+// the Stripe webhook handler). Every client-owned row carries clientId for
+// multi-tenant scoping (see src/lib/tenancy.ts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+}
+
+enum ProductLineKey {
+  AI_AGENTS
+  AD_OPS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+enum RequestStatus {
+  OPEN
+  IN_PROGRESS
+  DELIVERED
+}
+
+enum RequestKind {
+  NEW_CREATIVE
+  CAMPAIGN_CHANGE
+  STRATEGY_QUESTION
+  OTHER
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// ---------------------------------------------------------------------------
+// Auth.js (NextAuth) core models
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(CLIENT)
+
+  accounts Account[]
+  sessions Session[]
+
+  // A CLIENT user owns exactly one ClientProfile (their tenant).
+  clientProfile ClientProfile?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Tenant + subscription domain
+// ---------------------------------------------------------------------------
+
+model ClientProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  businessName String
+  industry     String?
+  website      String?
+  adPlatforms  String[] @default([])
+  goals        String?
+  voiceTone    String? // saved brand voice used by agents
+  onboardedAt  DateTime?
+
+  stripeCustomerId String? @unique
+
+  subscriptions   Subscription[]
+  conversations   AgentConversation[]
+  usageRecords    UsageRecord[]
+  adAccounts      AdAccount[]
+  requests        Request[]
+  webhookConfigs  WebhookConfig[]
+  agentOverrides  AgentPromptOverride[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductLine {
+  id    String         @id @default(cuid())
+  key   ProductLineKey @unique
+  name  String
+  blurb String
+
+  plans Plan[]
+}
+
+model Plan {
+  id            String         @id @default(cuid())
+  key           String         @unique // launch, scale, command, monitor, operate, dominate
+  name          String
+  lineKey       ProductLineKey
+  productLine   ProductLine    @relation(fields: [lineKey], references: [key])
+  priceMonthly  Int // cents
+  stripePriceId String?
+  tagline       String
+  features      String[]       @default([])
+
+  // Metering limits (null = unlimited / not applicable)
+  maxAgents           Int?
+  maxAgentRunsMonthly Int?
+  maxAdAccounts       Int?
+  unlockedAgents      String[] @default([])
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  lineKey ProductLineKey
+  planKey String
+  plan    Plan   @relation(fields: [planKey], references: [key])
+
+  status               SubscriptionStatus @default(INCOMPLETE)
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One subscription per line per client.
+  @@unique([clientId, lineKey])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Agents
+// ---------------------------------------------------------------------------
+
+model AgentDefinition {
+  id               String  @id @default(cuid())
+  slug             String  @unique
+  name             String
+  persona          String
+  tagline          String
+  accent           String
+  avatar           String
+  baseSystemPrompt String  @db.Text
+  emitsCrmPayload  Boolean @default(false)
+
+  overrides     AgentPromptOverride[]
+  conversations AgentConversation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AgentPromptOverride {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agentId  String
+  agent    AgentDefinition @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  systemPromptOverride String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, agentId])
+}
+
+model AgentConversation {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agentId  String
+  agent    AgentDefinition @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  title    String?
+  messages AgentMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId, agentId])
+}
+
+model AgentMessage {
+  id             String            @id @default(cuid())
+  conversationId String
+  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role    MessageRole
+  content String      @db.Text
+  /// Optional structured JSON payload (e.g. CRM record) attached to the message.
+  payload Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+}
+
+/// One row per completed agent run, used to meter against tier limits.
+model UsageRecord {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  lineKey   ProductLineKey @default(AI_AGENTS)
+  agentSlug String
+  /// Billing period bucket (start-of-month UTC) for fast metering queries.
+  periodStart DateTime
+  tokensIn    Int      @default(0)
+  tokensOut   Int      @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId, periodStart])
+}
+
+// ---------------------------------------------------------------------------
+// Ad operations
+// ---------------------------------------------------------------------------
+
+model AdAccount {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  platform   String // META, GOOGLE, TIKTOK, LINKEDIN…
+  externalId String? // native account id, for a future API sync
+  name       String
+  currency   String  @default("USD")
+
+  metrics AdMetricDaily[]
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+}
+
+/// Daily ad metrics. Ingestion-agnostic: manual entry / CSV now, API sync later
+/// with no schema change (source records how the row arrived).
+model AdMetricDaily {
+  id          String    @id @default(cuid())
+  adAccountId String
+  adAccount   AdAccount @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+
+  date        DateTime
+  spend       Int     @default(0) // cents
+  impressions Int     @default(0)
+  clicks      Int     @default(0)
+  leads       Int     @default(0)
+  conversions Int     @default(0)
+  revenue     Int     @default(0) // cents
+  source      String  @default("MANUAL") // MANUAL | CSV | API
+
+  @@unique([adAccountId, date])
+  @@index([adAccountId, date])
+}
+
+// ---------------------------------------------------------------------------
+// Requests
+// ---------------------------------------------------------------------------
+
+model Request {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  kind        RequestKind   @default(OTHER)
+  title       String
+  body        String        @db.Text
+  status      RequestStatus @default(OPEN)
+
+  comments RequestComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId, status])
+  @@index([status])
+}
+
+model RequestComment {
+  id        String  @id @default(cuid())
+  requestId String
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  authorId   String // User id
+  authorName String
+  authorRole Role
+  body       String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
+}
+
+// ---------------------------------------------------------------------------
+// Integrations
+// ---------------------------------------------------------------------------
+
+model WebhookConfig {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  label   String  @default("Primary CRM")
+  url     String
+  secret  String?
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+}

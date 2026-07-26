@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Cockpit / HUD — dark by default. Near-black base with luminous accents. */
+    --background: 230 25% 5%;
+    --foreground: 210 40% 96%;
+
+    --card: 230 24% 8%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 230 28% 7%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 187 92% 55%;
+    --primary-foreground: 230 40% 6%;
+
+    --secondary: 265 60% 60%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 230 18% 14%;
+    --muted-foreground: 215 20% 62%;
+
+    --accent: 315 90% 60%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 22% 18%;
+    --input: 220 22% 16%;
+    --ring: 187 92% 55%;
+
+    /* HUD signal palette */
+    --hud-cyan: 187 92% 55%;
+    --hud-violet: 265 78% 65%;
+    --hud-magenta: 315 90% 62%;
+
+    --radius: 0.65rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image:
+      radial-gradient(60rem 40rem at 15% -10%, hsl(var(--hud-cyan) / 0.08), transparent 60%),
+      radial-gradient(50rem 40rem at 110% 10%, hsl(var(--hud-violet) / 0.1), transparent 55%),
+      linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
+    background-size: auto, auto, 44px 44px, 44px 44px;
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4, h5 {
+    @apply font-heading tracking-tight;
+  }
+}
+
+@layer components {
+  /* Glass HUD panel */
+  .hud-panel {
+    @apply relative rounded-lg border border-border/70 bg-card/70 backdrop-blur-sm;
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.04);
+  }
+  .hud-label {
+    @apply font-mono text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground;
+  }
+  .hud-value {
+    @apply font-mono tabular-nums;
+  }
+  .text-gradient {
+    @apply bg-gradient-to-r from-cyan via-violet to-magenta bg-clip-text text-transparent;
+  }
+  /* Animated corner ticks for the cockpit look */
+  .hud-corners::before,
+  .hud-corners::after {
+    content: "";
+    @apply pointer-events-none absolute h-3 w-3 border-cyan/60;
+  }
+  .hud-corners::before {
+    @apply left-0 top-0 border-l border-t rounded-tl;
+  }
+  .hud-corners::after {
+    @apply bottom-0 right-0 border-b border-r rounded-br;
+  }
+}
+
+/* Thin cockpit scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+}
