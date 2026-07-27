@@ -13,7 +13,9 @@ import { Button } from "@/components/ui/button";
 
 export default async function DashboardPage() {
   const { client } = await requireClient();
-  if (!client.onboardedAt) redirect("/app/onboarding");
+  // Gate on the intake being *finished*, not merely started — onboardedAt only
+  // means they saw the first screen.
+  if (!client.intakeCompletedAt) redirect("/app/onboarding");
 
   const overview = await getClientOverview(client.id);
   const ads = await getAdMetrics(client.id, 30);

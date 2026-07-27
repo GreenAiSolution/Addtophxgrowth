@@ -116,6 +116,7 @@ async function upsertClient(opts: {
       voiceTone: opts.voiceTone,
       verticalKey: opts.verticalKey ?? null,
       onboardedAt: new Date(),
+      intakeCompletedAt: new Date(),
     },
     create: {
       userId: user.id,
@@ -128,6 +129,7 @@ async function upsertClient(opts: {
       verticalKey: opts.verticalKey ?? null,
       intakeToken: randomBytes(24).toString("base64url"),
       onboardedAt: new Date(),
+      intakeCompletedAt: new Date(),
     },
   });
 

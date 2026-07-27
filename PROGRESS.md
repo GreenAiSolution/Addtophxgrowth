@@ -467,9 +467,68 @@ secret turns the log line into an email.
 
 ---
 
+## Phase 14 — Legal, intake, discoverability ✅
+
+Three things an agency needs that a platform doesn't.
+
+### Legal (`src/lib/legal.ts` → `/legal/[slug]`)
+- **Terms of Service, Privacy Policy and a Master Services Agreement**, written
+  against what this platform actually sells rather than a template with the
+  name swapped in: the real six tiers, the real build fees, the real
+  sub-processor list.
+- Documents are structured data so all three render through one template, and
+  the fee schedule is **generated from `catalog.ts`**. A test asserts every
+  quoted price matches the catalog — a fee table that drifts from the pricing
+  page is the worst kind of stale content on a site that takes money.
+- Clauses that actually protect the business, each pinned by a test: no
+  guaranteed results, ad spend is the client's and paid directly, AI output is
+  a draft a human must review, liability capped at three months of fees,
+  Arizona governing law, and an explicit promise that clients keep their own
+  ad accounts and we never withhold them during a dispute.
+- Build fee refundability stated plainly: refunded in full before build work
+  starts, non-refundable once it has begun.
+- Linked from the site footer, and the login page's "you agree to the terms"
+  line now actually links to them.
+- **Not legal advice.** A careful, specific draft that should be reviewed by an
+  Arizona-licensed lawyer; the judgement calls (governing law, notice periods,
+  liability cap) are stated plainly so a reviewer can find and change them.
+
+### Intake (`/app/onboarding`)
+- Replaced five fields with a six-section intake: business and trade, offer and
+  differentiator, targets, stack and access, voice, approvals.
+- **Answers are applied, not just stored.** The trade sets the industry pack;
+  the budget, cost-per-lead, cost-per-sale and ROAS targets are copied onto
+  every ad account so the three Spend Watch checks that depend on them stop
+  being skipped; and the voice fields compose into the single brand-voice string
+  every agent reads before it writes a word.
+- One long page rather than a wizard — a wizard hides how much is being asked
+  and loses answers on a dropped connection.
+- Completion notifies the agency with a kickoff summary. The dashboard now
+  gates on `intakeCompletedAt` rather than `onboardedAt`, which only ever meant
+  "saw the first screen".
+
+### Discoverability
+- `sitemap.xml` and `robots.txt` generated from the same sources as the pages,
+  so a new trade or tier is discoverable the moment it ships. Console and admin
+  are disallowed; `/api` especially, since the intake endpoint takes a token in
+  the query string.
+- **Open Graph card** generated at the edge rather than a static PNG, so it
+  can't drift from the brand. Rendering it revealed that the `◈` and `◆` glyphs
+  are missing from the OG renderer's default font and came out as tofu boxes —
+  they are drawn as rotated squares now.
+- `metadataBase` set, which is what makes shared links resolve an image at all;
+  without it every paste into Slack or a Facebook group rendered blank.
+- `ProfessionalService` structured data on the landing page, with the offer
+  catalogue and price range derived from `catalog.ts`.
+
+**Operational note:** `NEXT_PUBLIC_APP_URL` must be set in production. Without
+it the sitemap advertises `localhost` URLs to Google.
+
+---
+
 ## Verified this session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
-  pages: 6 plan systems + 6 vertical packs) · `pnpm test` ✅ (233 tests, 9 files).
+  pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (251 tests, 10 files).
 - Landing page, both new plan pages and `/cockpit` rendered against a production
   server and read back — and `/cockpit` screenshotted at desktop and mobile
   widths, which is how the sticky-rail defect above was found.

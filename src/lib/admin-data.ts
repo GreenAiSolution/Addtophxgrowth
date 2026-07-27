@@ -37,7 +37,7 @@ export async function getAdminClientRows() {
         mrr,
         runs,
         lastActivity: lastMsg?.createdAt ?? c.updatedAt,
-        onboarded: Boolean(c.onboardedAt),
+        onboarded: Boolean(c.intakeCompletedAt),
       };
     }),
   );

@@ -179,13 +179,24 @@ export default async function LoginPage({
         )}
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          {canSignIn
-            ? "By continuing you agree to the terms. Roles are assigned by the agency."
-            : "Prefer to look around first? "}
+          By continuing you agree to our{" "}
+          <Link href="/legal/terms" className="text-cyan hover:underline">
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/legal/privacy" className="text-cyan hover:underline">
+            Privacy Policy
+          </Link>
+          .
           {!canSignIn && (
-            <Link href="/cockpit" className="text-cyan hover:underline">
-              Build a cockpit
-            </Link>
+            <>
+              {" "}
+              Prefer to look around first?{" "}
+              <Link href="/cockpit" className="text-cyan hover:underline">
+                Build a cockpit
+              </Link>
+              .
+            </>
           )}
         </p>
       </Card>

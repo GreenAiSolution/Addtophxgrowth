@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { AGENTS } from "@/lib/agents";
 import { BRAND } from "@/lib/brand";
-import { PRODUCT_LINES } from "@/lib/catalog";
+import { PRODUCT_LINES, PLANS } from "@/lib/catalog";
+import { env } from "@/lib/env";
 import { RobotAvatar } from "@/components/robot-avatar";
 import { Pricing } from "@/components/marketing/pricing";
 import { LeadForm } from "@/components/marketing/lead-form";
@@ -29,9 +30,50 @@ import { Badge } from "@/components/ui/badge";
  * table in town, run with cockpit discipline. Fully static, no client bloat
  * beyond the pricing + lead-form islands.
  */
+/**
+ * Structured data. Tells Google this is a real business with a service catalogue
+ * and a price range, which is what earns the richer result for searches like
+ * "roofing marketing agency phoenix". Derived from the catalog so it can't
+ * quote a price we no longer charge.
+ */
+function structuredData() {
+  const agentPlans = PLANS.filter((p) => p.line === "AI_AGENTS");
+  const cheapest = Math.min(...PLANS.map((p) => p.priceMonthly));
+  const dearest = Math.max(...PLANS.map((p) => p.priceMonthly));
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    name: BRAND.name,
+    description: BRAND.tagline,
+    url: env.appUrl,
+    email: BRAND.notifyEmail,
+    areaServed: "United States",
+    priceRange: `$${Math.round(cheapest / 100)}–$${Math.round(dearest / 100)} per month`,
+    serviceType: [PRODUCT_LINES.AI_AGENTS.name, PRODUCT_LINES.AD_OPS.name],
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "Growth systems",
+      itemListElement: agentPlans.map((p) => ({
+        "@type": "Offer",
+        name: p.name,
+        description: p.tagline,
+        price: (p.priceMonthly / 100).toFixed(2),
+        priceCurrency: "USD",
+        url: `${env.appUrl}/plans/${p.key}`,
+      })),
+    },
+  };
+}
+
 export default function MarketingHome() {
   return (
     <div className="relative">
+      {/* eslint-disable-next-line react/no-danger */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData()) }}
+      />
       {/* Nav */}
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-md">
         <div className="container flex h-16 items-center justify-between">
@@ -464,9 +506,19 @@ export default function MarketingHome() {
 
       {/* Footer */}
       <footer className="border-t border-border/60 py-10">
-        <div className="container flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground sm:flex-row">
-          <span>© {new Date().getFullYear()} {BRAND.name}</span>
-          <span className="font-mono text-xs uppercase tracking-widest">Cockpit online · systems nominal</span>
+        <div className="container space-y-5">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            <Link href="/cockpit" className="hover:text-foreground">Build a cockpit</Link>
+            <Link href="/verticals" className="hover:text-foreground">Your trade</Link>
+            <a href="#pricing" className="hover:text-foreground">Pricing</a>
+            <Link href="/legal/terms" className="hover:text-foreground">Terms</Link>
+            <Link href="/legal/privacy" className="hover:text-foreground">Privacy</Link>
+            <Link href="/legal/msa" className="hover:text-foreground">Services agreement</Link>
+          </div>
+          <div className="flex flex-col items-center justify-between gap-4 border-t border-border/40 pt-5 text-sm text-muted-foreground sm:flex-row">
+            <span>© {new Date().getFullYear()} {BRAND.name}</span>
+            <span className="font-mono text-xs uppercase tracking-widest">Cockpit online · systems nominal</span>
+          </div>
         </div>
       </footer>
     </div>

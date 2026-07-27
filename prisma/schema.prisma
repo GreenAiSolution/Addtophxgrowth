@@ -184,6 +184,31 @@ model ClientProfile {
   /// matrix, voice profile and playbook prompts at provisioning time.
   verticalKey String?
 
+  // --- Intake. Captured at onboarding; these are the answers the build phase
+  // --- would otherwise extract on a call, repeated for every single client.
+  serviceArea        String?
+  offerSummary       String?   @db.Text
+  priceRange         String?
+  differentiator     String?   @db.Text
+  proofPoints        String?   @db.Text
+  /// Targets, in cents. Copied onto the client's ad accounts so the Spend Watch
+  /// checks that depend on them stop being skipped.
+  monthlyBudgetCents Int?
+  targetCplCents     Int?
+  targetCpaCents     Int?
+  targetRoas         Float?
+  crmPlatform        String?
+  leadDestination    String?
+  approverName       String?
+  approverEmail      String?
+  wordsWeUse         String?
+  wordsWeAvoid       String?
+  /// Anything the structured columns don't cover, kept verbatim.
+  intakeAnswers      Json?
+  /// Set when the client finishes the intake, as distinct from onboardedAt
+  /// which only means they saw the first screen.
+  intakeCompletedAt  DateTime?
+
   /// Secret for this tenant's public lead-intake endpoint. Rotatable.
   intakeToken String? @unique
 
