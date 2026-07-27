@@ -24,6 +24,7 @@ import { checkAgentRun, recordRun, getActiveSubscription } from "@/lib/entitleme
 import { memoryDigest } from "@/lib/memory";
 import { resolveVertical } from "@/lib/verticals";
 import { postWebhook } from "@/lib/webhooks";
+import { sendNotification } from "@/lib/notify";
 import { env } from "@/lib/env";
 
 export type BriefCadence = "DAILY" | "WEEKLY";
@@ -580,6 +581,28 @@ export async function runNightShift(clientId: string, now = new Date()): Promise
       },
       { label: "zapier-night-shift" },
     );
+
+    // The whole promise is "waiting before your first coffee" — which only
+    // works if something tells them it's there. Skipped when the brief has
+    // nothing to say, because a daily "nothing happened" email is how people
+    // learn to filter you.
+    if (plan.sections.some((sec) => sec.priority !== "LOW")) {
+      const recipient = await prisma.clientProfile.findUnique({
+        where: { id: clientId },
+        select: { user: { select: { email: true } } },
+      });
+      await sendNotification({
+        kind: "BRIEF_READY",
+        to: recipient?.user.email,
+        payload: {
+          businessName: client.businessName,
+          title: plan.headline,
+          detail: summary ?? undefined,
+          lines: plan.sections.filter((sec) => sec.priority === "HIGH").map((sec) => sec.title),
+          path: "/app/brief",
+        },
+      });
+    }
 
     return { clientId, status: "COMPLETE", leadsScored: scored.length, briefId: brief.id };
   } catch (err) {

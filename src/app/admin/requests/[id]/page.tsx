@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ArrowLeft } from "lucide-react";
 import { requireAdmin } from "@/lib/tenancy";
 import { prisma } from "@/lib/prisma";
+import { sendNotification } from "@/lib/notify";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,7 +55,28 @@ export default async function AdminRequestDetailPage({ params }: { params: { id:
         body,
       },
     });
-    console.info(`[notify] Admin replied on request ${params.id}`);
+    // Tell the client somebody answered. The reply is already saved, so a mail
+    // failure costs a notification and never the message itself.
+    const target = await prisma.request.findUnique({
+      where: { id: params.id },
+      select: {
+        title: true,
+        client: { select: { businessName: true, user: { select: { email: true } } } },
+      },
+    });
+    if (target) {
+      await sendNotification({
+        kind: "REQUEST_REPLY_TO_CLIENT",
+        to: target.client.user.email,
+        payload: {
+          businessName: target.client.businessName,
+          title: target.title,
+          detail: body.slice(0, 500),
+          path: `/app/requests/${params.id}`,
+        },
+      });
+    }
+
     revalidatePath(`/admin/requests/${params.id}`);
   }
 

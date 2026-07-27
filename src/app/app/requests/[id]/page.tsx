@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ArrowLeft } from "lucide-react";
 import { requireClient } from "@/lib/tenancy";
 import { prisma } from "@/lib/prisma";
+import { notifyAgency } from "@/lib/notify";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,8 +47,13 @@ export default async function RequestDetailPage({ params }: { params: { id: stri
         body,
       },
     });
-    // Email notification stub (wire Resend later).
-    console.info(`[notify] New client comment on request ${target.id}`);
+    await notifyAgency("REQUEST_REPLY_TO_AGENCY", {
+      businessName: c.businessName,
+      title: target.title,
+      detail: body.slice(0, 500),
+      path: `/admin/requests/${target.id}`,
+    });
+
     revalidatePath(`/app/requests/${target.id}`);
   }
 

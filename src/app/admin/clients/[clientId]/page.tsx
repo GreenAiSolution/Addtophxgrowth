@@ -10,6 +10,7 @@ import { UsageMeter } from "@/components/usage-meter";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CapacityGrants } from "@/components/admin/capacity-grants";
+import { ClientSystems } from "@/components/admin/client-systems";
 
 /**
  * The admin's view of one client: what they see, plus the one mutation the
@@ -93,6 +94,9 @@ export default async function AdminClientViewPage({ params }: { params: { client
         <StatTile label="CPL" value={formatCurrency(ads.cpl)} accent="magenta" />
         <StatTile label="ROAS" value={`${ads.roas.toFixed(2)}×`} accent="cyan" />
       </div>
+
+      {/* What the unattended systems produced for this client. */}
+      <ClientSystems clientId={client.id} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div>

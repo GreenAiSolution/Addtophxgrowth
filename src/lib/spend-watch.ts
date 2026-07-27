@@ -27,6 +27,7 @@
 import { prisma } from "@/lib/prisma";
 import { blueprintFor } from "@/lib/systems";
 import { postWebhook } from "@/lib/webhooks";
+import { sendNotification, notifyAgency } from "@/lib/notify";
 import { env } from "@/lib/env";
 
 export type AdAlertKind =
@@ -578,20 +579,38 @@ export async function runSpendWatch(clientId: string, now = new Date()): Promise
     }
   }
 
-  if (allFindings.some((f) => f.severity === "CRITICAL")) {
+  const critical = allFindings.filter((f) => f.severity === "CRITICAL");
+  if (critical.length > 0) {
     await postWebhook(
       env.zapierOnboardHook,
       {
         source: "spend_watch_critical",
         clientId,
         planKey: sub.planKey,
-        findings: allFindings
-          .filter((f) => f.severity === "CRITICAL")
-          .map((f) => ({ kind: f.kind, title: f.title })),
+        findings: critical.map((f) => ({ kind: f.kind, title: f.title })),
         at: now.toISOString(),
       },
       { label: "zapier-spend-watch" },
     );
+
+    // A dead ad account costs money every hour it goes unnoticed — this is the
+    // one finding severe enough to interrupt someone's day for. Warnings stay
+    // in the dashboard; only CRITICAL emails.
+    const profile = await prisma.clientProfile.findUnique({
+      where: { id: clientId },
+      select: { businessName: true, user: { select: { email: true } } },
+    });
+    if (profile) {
+      const payload = {
+        businessName: profile.businessName,
+        title: critical[0].title,
+        detail: critical[0].detail,
+        lines: critical.slice(1).map((f) => f.title),
+        path: "/app/ads",
+      };
+      await sendNotification({ kind: "ALERT_CRITICAL", to: profile.user.email, payload });
+      await notifyAgency("ALERT_CRITICAL", { ...payload, path: `/admin/clients/${clientId}` });
+    }
   }
 
   await prisma.clientProfile.update({

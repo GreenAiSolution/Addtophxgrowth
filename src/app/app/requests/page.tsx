@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireClient } from "@/lib/tenancy";
 import { prisma } from "@/lib/prisma";
+import { notifyAgency } from "@/lib/notify";
 import { revalidatePath } from "next/cache";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,9 +25,19 @@ async function createRequest(formData: FormData) {
   const kind = String(formData.get("kind") || "OTHER") as RequestKind;
   if (!title || !body) return;
 
-  await prisma.request.create({ data: { clientId: client.id, title, body, kind } });
-  // Email notification stub (wire Resend later).
-  console.info(`[notify] New request "${title}" from client ${client.id}`);
+  const created = await prisma.request.create({
+    data: { clientId: client.id, title, body, kind },
+  });
+
+  // Tell the agency. Fire-and-forget by construction — a mail failure must not
+  // lose the client's request, which is already safely written above.
+  await notifyAgency("REQUEST_FILED", {
+    businessName: client.businessName,
+    title,
+    detail: body.slice(0, 500),
+    path: `/admin/requests/${created.id}`,
+  });
+
   revalidatePath("/app/requests");
 }
 

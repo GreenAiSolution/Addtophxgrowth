@@ -354,9 +354,70 @@ into a table with no screen.
 
 ---
 
+## Phase 12 — Closing dead ends 4 and 5 ✅
+
+### 4. Everything notifies now
+Two `wire Resend later` stubs meant a client could file a request and the
+agency was never told; the agency could reply and the client was never told;
+a brief could land at 6am and nothing tapped anyone on the shoulder. A system
+that only works if you remember to check it is one people stop checking.
+
+- `src/lib/notify.ts`: `renderNotification` is pure — kind and payload in,
+  subject and body out — so every template is tested without a mail server
+  (11 tests). `sendNotification` handles delivery and **never throws**; every
+  caller sits inside a user flow or a webhook that must not fail because SMTP
+  hiccuped.
+- Six notifications wired: request filed → agency; agency reply → client;
+  client reply → agency; morning brief → client; critical Spend Watch finding →
+  client *and* agency; cockpit configured → agency.
+- Plain text on purpose. These are read on a phone at 6am, and plain text
+  can't render broken.
+- Every notification also mirrors to the Zapier hook, so an agency living in
+  Slack gets the same signal with no SMTP configured at all. With neither
+  configured it logs and reports "skipped" — the app has always had to run
+  without secrets.
+- Judgement calls worth recording: the brief email uses **the brief's own
+  headline as the subject** (it's already written to be read at a glance;
+  wrapping it in "Your brief is ready" buries the useful part), and it is
+  **skipped entirely when the brief has nothing above LOW priority** — a daily
+  "nothing happened" email is how people learn to filter you. Only CRITICAL
+  Spend Watch findings email; warnings stay in the dashboard.
+- `AGENCY_NOTIFY_EMAIL` added to `.env.example`, falling back to
+  `SEED_ADMIN_EMAIL`.
+
+### 5. Admin can see the whole platform
+The three unattended systems built in phases 8-9 were invisible to admins. A
+client could ring about an alert and nobody in the console could look it up,
+and the failure modes were worse: a failed brief, a stalled sweep, an account
+whose checks are all asleep — none of it surfaced anywhere.
+
+- **`/admin/signals`** — the agency's morning triage. Only what is wrong,
+  ordered so **silently broken outranks loudly wrong**: a stalled Spend Watch
+  or a failed brief means a client is getting nothing and doesn't know it,
+  whereas a critical alert has already emailed them. `rankSignals` is pure
+  (20 tests) and `collectSignals` runs one query per concern rather than one
+  per client.
+- Signals covered: stalled sweeps, failed briefs, open critical alerts,
+  unscored leads (urgent on an auto-scoring tier, an upgrade conversation on a
+  manual one), qualified leads going cold, requests aging past a day, and ad
+  accounts with checks asleep for want of a target.
+- Healthy clients are deliberately not listed. A board showing every tenant
+  with a green tick is a board nobody scans.
+- **Per-client**: `/admin/clients/[clientId]` now shows the latest brief with
+  its high-priority items, open alerts with the account and whether the client
+  has seen them, recent leads with scores, what their system memory has
+  learned with confidence and evidence counts, and how many modules are live
+  versus scheduled. Read-only — this is for answering a phone call, not for
+  editing someone else's data behind their back.
+
+### Remaining
+6. `/login?plan=` is accepted and dropped — the smallest one, still open.
+
+---
+
 ## Verified this session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
-  pages: 6 plan systems + 6 vertical packs) · `pnpm test` ✅ (199 tests, 7 files).
+  pages: 6 plan systems + 6 vertical packs) · `pnpm test` ✅ (230 tests, 9 files).
 - Landing page, both new plan pages and `/cockpit` rendered against a production
   server and read back — and `/cockpit` screenshotted at desktop and mobile
   widths, which is how the sticky-rail defect above was found.

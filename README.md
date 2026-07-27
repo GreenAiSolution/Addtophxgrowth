@@ -137,6 +137,15 @@ feature gating.
   Ads sync can be added later with no schema change.
 - **Validation** — Zod on every API input. Agent routes are rate-limited
   (`src/lib/rate-limit.ts`; swap for Upstash in multi-instance prod).
+- **Notifications** (`src/lib/notify.ts`) — pure, tested templates plus a
+  delivery function that never throws. Requests, replies, morning briefs,
+  critical Spend Watch findings and cockpit builds all notify. Mirrors to the
+  Zapier hook as well as SMTP, and degrades to a log line when neither is
+  configured. Set `AGENCY_NOTIFY_EMAIL` for agency-bound mail.
+- **Agency signals** (`src/lib/signals.ts` -> `/admin/signals`) — cross-client
+  triage listing only what is wrong, with silently-broken states (stalled
+  sweeps, failed briefs) ranked above loud ones (critical alerts, which have
+  already emailed the client). `rankSignals` is pure and tested.
 - **Cockpit configurator** (`src/lib/cockpit.ts` -> `/cockpit`) — signature
   builds plus a custom configurator over both product lines, add-ons and the
   industry pack. `priceCockpit` is pure and is the only place any total is

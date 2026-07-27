@@ -10,6 +10,7 @@ import {
   Moon,
   Brain,
   Target,
+  Activity,
 } from "lucide-react";
 
 export interface NavItem {
@@ -32,6 +33,7 @@ export const CLIENT_NAV: NavItem[] = [
 
 export const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/signals", label: "Signals", icon: Activity },
   { href: "/admin/clients", label: "Clients", icon: Users },
   { href: "/admin/requests", label: "Request Queue", icon: Inbox },
   { href: "/admin/metrics", label: "Ad Metrics", icon: BarChart3 },

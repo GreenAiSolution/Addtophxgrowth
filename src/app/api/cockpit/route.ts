@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireClient, AuthError } from "@/lib/tenancy";
 import { planByKey } from "@/lib/catalog";
 import { postWebhook } from "@/lib/webhooks";
+import { notifyAgency } from "@/lib/notify";
 import { env } from "@/lib/env";
 import {
   priceCockpit,
@@ -82,6 +83,15 @@ export async function POST(req: Request) {
       data: { clientId: client.id, kind: "OTHER", title, body: sheet },
     });
   }
+
+  // Somebody just assembled a five-figure cockpit. That is the single most
+  // sales-relevant event on the whole site and it used to be silent.
+  await notifyAgency("COCKPIT_CONFIGURED", {
+    businessName: client.businessName,
+    title: signature ? signature.name : "Custom build",
+    detail: sheet,
+    path: `/admin/clients/${client.id}`,
+  });
 
   await postWebhook(
     env.zapierOnboardHook,
