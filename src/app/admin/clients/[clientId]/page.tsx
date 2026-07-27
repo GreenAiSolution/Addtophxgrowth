@@ -9,10 +9,12 @@ import { StatTile } from "@/components/stat-tile";
 import { UsageMeter } from "@/components/usage-meter";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CapacityGrants } from "@/components/admin/capacity-grants";
 
 /**
- * Read-only impersonation: the admin sees what the client sees, scoped by an
- * explicit clientId. No mutations are exposed from this view.
+ * The admin's view of one client: what they see, plus the one mutation the
+ * agency genuinely needs here — granting a capacity add-on once it's agreed.
+ * Everything else on this page stays read-only.
  */
 export default async function AdminClientViewPage({ params }: { params: { clientId: string } }) {
   await requireAdmin();
@@ -69,7 +71,7 @@ export default async function AdminClientViewPage({ params }: { params: { client
           </div>
           {overview.agentSub && (
             <div className="mt-4">
-              <UsageMeter used={overview.agentRunsThisPeriod} limit={overview.agentSub.plan.maxAgentRunsMonthly} />
+              <UsageMeter used={overview.agentRunsThisPeriod} limit={overview.limits?.maxAgentRunsMonthly ?? null} />
             </div>
           )}
         </Card>
@@ -93,6 +95,9 @@ export default async function AdminClientViewPage({ params }: { params: { client
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <div>
+          <CapacityGrants clientId={client.id} />
+        </div>
         <div>
           <h2 className="mb-3 font-heading text-lg font-semibold">Recent requests</h2>
           <div className="space-y-2">

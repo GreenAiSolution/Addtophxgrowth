@@ -444,6 +444,36 @@ async function seedSpendWatchDemo(clientId: string) {
   console.log(`   \u00b7 spend watch: ${result.raised ?? 0} alerts raised`);
 }
 
+/**
+ * Capacity add-ons granted to demo client #1 (Scale). Scale unlocks 4 agents and
+ * 10,000 runs; these grants take that to 5 agents and 15,000 runs — the point
+ * being that the meter on /app/billing and the gate in checkAgentRun both move,
+ * which is exactly what buying a capacity add-on used to fail to do.
+ */
+async function seedCapacityGrants(clientId: string) {
+  const existing = await prisma.clientEntitlement.count({ where: { clientId } });
+  if (existing > 0) return;
+
+  await prisma.clientEntitlement.createMany({
+    data: [
+      {
+        clientId,
+        addonKey: "extra-agent",
+        quantity: 1,
+        agentSlug: "objection-handler",
+        note: "Agreed on the Q3 review call \u2014 demo data",
+      },
+      {
+        clientId,
+        addonKey: "run-pack",
+        quantity: 1,
+        note: "Peak season top-up \u2014 demo data",
+      },
+    ],
+  });
+  console.log("   \u00b7 granted 2 capacity add-ons (extra agent + run pack)");
+}
+
 async function main() {
   console.log("→ Seeding catalog (product lines + plans)…");
   await seedCatalog();
@@ -494,6 +524,7 @@ async function main() {
   });
   await seedSampleConversation(c1.id);
   await seedSpendWatchDemo(c1.id);
+  await seedCapacityGrants(c1.id);
 
   console.log("→ Seeding demo client #2 (Launch)…");
   await upsertClient({

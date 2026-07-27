@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Lock } from "lucide-react";
 import { requireClient } from "@/lib/tenancy";
-import { getActiveSubscription } from "@/lib/entitlements";
+import { getActiveSubscription, resolveLimits } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { AGENTS } from "@/lib/agents";
 import { RobotAvatar } from "@/components/robot-avatar";
@@ -14,7 +14,9 @@ import type { AgentAccent } from "@/lib/agents";
 export default async function AgentsPage() {
   const { client } = await requireClient();
   const sub = await getActiveSubscription(client.id, "AI_AGENTS");
-  const unlocked = new Set(sub?.plan.unlockedAgents ?? []);
+  // Resolved, not raw: a client who bought "Additional Agent" must see it here.
+  const resolved = await resolveLimits(client.id, "AI_AGENTS");
+  const unlocked = new Set(resolved?.limits.unlockedAgents ?? []);
   const used = await prisma.usageRecord.count({
     where: { clientId: client.id, lineKey: "AI_AGENTS", periodStart: sub?.currentPeriodStart ?? startOfMonthUTC() },
   });
@@ -28,7 +30,7 @@ export default async function AgentsPage() {
         </div>
         {sub && (
           <div className="w-56">
-            <UsageMeter used={used} limit={sub.plan.maxAgentRunsMonthly} />
+            <UsageMeter used={used} limit={resolved?.limits.maxAgentRunsMonthly ?? null} />
           </div>
         )}
       </div>

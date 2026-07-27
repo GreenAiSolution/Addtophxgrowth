@@ -9,6 +9,7 @@ import {
   Sliders,
   Moon,
   Brain,
+  Target,
 } from "lucide-react";
 
 export interface NavItem {
@@ -20,6 +21,7 @@ export interface NavItem {
 export const CLIENT_NAV: NavItem[] = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard },
   { href: "/app/brief", label: "Morning Brief", icon: Moon },
+  { href: "/app/leads", label: "Leads", icon: Target },
   { href: "/app/agents", label: "Agent Workspace", icon: Bot },
   { href: "/app/memory", label: "System Memory", icon: Brain },
   { href: "/app/ads", label: "Ad Ops", icon: BarChart3 },

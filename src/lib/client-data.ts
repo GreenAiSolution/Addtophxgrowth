@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { startOfMonthUTC } from "@/lib/utils";
+import { getCapacityGrants } from "@/lib/entitlements";
+import { applyCapacity } from "@/lib/capacity";
 import type { ProductLineKey } from "@prisma/client";
 
 /** Ensure a CLIENT user has a ClientProfile tenant row (created on first visit). */
@@ -22,7 +24,31 @@ export async function getClientOverview(clientId: string) {
   const agentSub = subs.find((s) => s.lineKey === "AI_AGENTS");
   const adOpsSub = subs.find((s) => s.lineKey === "AD_OPS");
 
-  return { subs, agentSub, adOpsSub, agentRunsThisPeriod, adAccountCount: adAccounts.length, openRequests };
+  // Capacity add-ons are folded in here so every surface that shows a limit
+  // shows the same one the gate enforces.
+  const grants = await getCapacityGrants(clientId);
+  const limits = agentSub
+    ? applyCapacity(
+        {
+          unlockedAgents: agentSub.plan.unlockedAgents,
+          maxAgents: agentSub.plan.maxAgents,
+          maxAgentRunsMonthly: agentSub.plan.maxAgentRunsMonthly,
+          maxAdAccounts: agentSub.plan.maxAdAccounts,
+        },
+        grants,
+      )
+    : null;
+
+  return {
+    subs,
+    agentSub,
+    adOpsSub,
+    agentRunsThisPeriod,
+    adAccountCount: adAccounts.length,
+    openRequests,
+    grants,
+    limits,
+  };
 }
 
 export async function getAdMetrics(clientId: string, days = 30) {

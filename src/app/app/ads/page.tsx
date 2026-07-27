@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { Radar, AlertTriangle, CheckCircle2, ArrowUpCircle, Target } from "lucide-react";
+import { Radar, AlertTriangle, CheckCircle2, ArrowUpCircle } from "lucide-react";
 import { requireClient } from "@/lib/tenancy";
 import { prisma } from "@/lib/prisma";
 import { getAdMetrics } from "@/lib/client-data";
@@ -12,6 +12,7 @@ import { AdCharts } from "@/components/ad-charts";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AdAccountTargets } from "@/components/ad-account-targets";
 
 const SEVERITY_STYLE: Record<string, string> = {
   CRITICAL: "border-l-2 border-l-red-500/70",
@@ -181,22 +182,7 @@ export default async function AdsPage({ searchParams }: { searchParams: { days?:
             </div>
           </div>
 
-          {cadence && (
-            <Card>
-              <div className="flex items-start gap-3">
-                <Target className="mt-0.5 h-5 w-5 shrink-0 text-secondary" />
-                <div>
-                  <CardTitle>Targets sharpen the watch</CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Monthly budget, target cost per sale and target return on ad spend are set per
-                    account during onboarding. Checks with no target are skipped rather than
-                    guessed — an alert fired against a number we invented would be worse than no
-                    alert at all. Ask your ad-ops lead to set or change them any time.
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
+          {cadence && <AdAccountTargets clientId={client.id} planKey={sub?.planKey} />}
         </>
       )}
     </div>

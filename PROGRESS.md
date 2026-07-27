@@ -283,9 +283,80 @@ itself now instead.
 
 ---
 
+## Phase 11 — Closing the dead ends (1-3 of 7) ✅
+
+An audit of the whole platform found seven places where something we sell or
+promise stops short. Every link resolves and there are no 404s; these are all
+the second kind of dead end. Three fixed here, the rest queued.
+
+### 1. Capacity add-ons now do something
+The three Capacity add-ons — Additional Agent ($500/mo), Agent Run Pack
+($400/mo), Additional Ad Account ($600/mo) — were **sold and had no effect**.
+`checkAgentRun` read limits straight off the Plan row and nothing in the
+codebase referenced those add-on keys, so a client could pay $500/mo and hit
+the identical locked agent.
+
+- New `ClientEntitlement` model: one row per granted add-on, with quantity, the
+  agent an extra-agent grant unlocks, an optional expiry and a `grantedBy`
+  audit trail.
+- `applyCapacity` (pure, 20 tests) folds active grants onto plan limits.
+  `null` means unlimited and **stays** unlimited — adding a run pack to Command
+  must never quietly turn it into a 5,000-run cap. Expired and zero-quantity
+  grants are ignored; unknown add-on keys are skipped rather than thrown.
+- **Every** limit read in the app now goes through the resolver — the agent
+  roster, the agent workspace gate, the dashboard, billing and the admin client
+  view. Previously six places read `plan.maxAgentRunsMonthly` directly, which is
+  exactly how one gate ends up honouring an add-on and another ignoring it.
+- Admin can grant and revoke on `/admin/clients/[clientId]`, matching the
+  conversation-first flow the rest of the add-ons already use. Clients see what
+  they're paying for listed under their usage meter on `/app/billing`.
+- A test asserts the resolver knows every add-on in the capacity group, so a
+  fourth one can't be added and silently sold as another no-op.
+
+### 2. Ad account targets can be set
+Three of the seven Spend Watch checks — pacing, cost-per-sale breach, ROAS
+decline — measure against a number only the client knows, and the engine
+correctly skips a check with no target rather than guessing. But **nothing in
+the app could write those values**: only the seed script set them. In
+production every account would have had nulls, permanently disabling three
+checks, while `/app/ads` told clients targets were "set during onboarding".
+
+- A per-account editor on `/app/ads` for monthly budget, target cost per sale
+  and target ROAS. Dollars in, cents stored; clearing a field is a legitimate
+  choice that switches that check back off.
+- Each account shows how many of its checks are armed versus asleep, and names
+  the specific check each missing target would wake up.
+
+### 3. Leads have a home
+The intake endpoint had been writing `Lead` rows since it shipped and the only
+reader was the night shift — which **Launch doesn't get**. A Launch client
+could point their form at the endpoint we handed them and watch leads vanish
+into a table with no screen.
+
+- `/app/leads`: filters by state with live counts, score and tier, source, age,
+  a "going cold" flag past `STALE_AFTER_HOURS`, and the qualifier's reasoning
+  and next action inline.
+- **Manual scoring** via `scoreLeadNow`, which shares the exact code path the
+  night shift uses — the per-lead prompt builder and the score-and-persist step
+  were extracted rather than duplicated, so a Launch client scoring by hand and
+  a Command client scoring at 3am get identical output. Metered like any other
+  run.
+- Marking a lead won or lost routes through `recordOutcome`, so closing a lead
+  feeds system memory instead of being a dead status change.
+- Nav entry, plus dashboard tiles for the brief, leads and memory — those were
+  reachable only from the sidebar, so the daily-habit features were invisible
+  from the page clients actually land on.
+
+### Still open
+4. Nothing notifies anyone (two Resend stubs, no email on requests, briefs or
+   critical alerts). 5. Admin is blind to leads, briefs, alerts and memory.
+6. `/login?plan=` is accepted and dropped. 7. — folded into 3 above.
+
+---
+
 ## Verified this session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
-  pages: 6 plan systems + 6 vertical packs) · `pnpm test` ✅ (176 tests, 6 files).
+  pages: 6 plan systems + 6 vertical packs) · `pnpm test` ✅ (199 tests, 7 files).
 - Landing page, both new plan pages and `/cockpit` rendered against a production
   server and read back — and `/cockpit` screenshotted at desktop and mobile
   widths, which is how the sticky-rail defect above was found.

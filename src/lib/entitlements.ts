@@ -1,12 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { startOfMonthUTC } from "@/lib/utils";
 import { agentBySlug } from "@/lib/agents";
+import { applyCapacity, type CapacityGrant, type ResolvedLimits } from "@/lib/capacity";
 import type { ProductLineKey } from "@prisma/client";
 
 /**
  * Feature gating. Subscription rows (kept in sync by the Stripe webhook) are the
- * single source of truth. These helpers answer: is the line active? is this
- * agent unlocked? how many runs remain this billing period?
+ * single source of truth for the plan; `ClientEntitlement` rows are folded on
+ * top for capacity add-ons a client has actually been granted. These helpers
+ * answer: is the line active? is this agent unlocked? how many runs remain this
+ * billing period?
+ *
+ * Nothing here reads a plan's limits directly any more — everything goes
+ * through `resolveLimits`, so an add-on someone paid for can never be silently
+ * ignored by one gate and honoured by another.
  */
 
 const ACTIVE_STATUSES = ["ACTIVE", "TRIALING"] as const;
@@ -22,6 +29,40 @@ export async function getActiveSubscription(clientId: string, lineKey: ProductLi
   return sub;
 }
 
+/** Capacity grants for a tenant, in the shape the pure resolver expects. */
+export async function getCapacityGrants(clientId: string): Promise<CapacityGrant[]> {
+  const rows = await prisma.clientEntitlement.findMany({
+    where: { clientId },
+    select: { addonKey: true, quantity: true, agentSlug: true, expiresAt: true },
+  });
+  return rows;
+}
+
+/**
+ * A client's real limits: their plan, plus every active capacity add-on.
+ * Returns null when the line has no active subscription.
+ */
+export async function resolveLimits(
+  clientId: string,
+  lineKey: ProductLineKey,
+): Promise<{ planName: string; planKey: string; limits: ResolvedLimits } | null> {
+  const sub = await getActiveSubscription(clientId, lineKey);
+  if (!sub) return null;
+
+  const grants = await getCapacityGrants(clientId);
+  const limits = applyCapacity(
+    {
+      unlockedAgents: sub.plan.unlockedAgents,
+      maxAgents: sub.plan.maxAgents,
+      maxAgentRunsMonthly: sub.plan.maxAgentRunsMonthly,
+      maxAdAccounts: sub.plan.maxAdAccounts,
+    },
+    grants,
+  );
+
+  return { planName: sub.plan.name, planKey: sub.planKey, limits };
+}
+
 export interface RunAvailability {
   allowed: boolean;
   reason?: "NO_SUBSCRIPTION" | "AGENT_LOCKED" | "LIMIT_REACHED";
@@ -29,6 +70,8 @@ export interface RunAvailability {
   limit: number | null; // null = unlimited
   remaining: number | null;
   planName?: string;
+  /** True when a capacity add-on is part of why this is allowed. */
+  addonsApplied?: boolean;
 }
 
 /**
@@ -50,30 +93,53 @@ export async function checkAgentRun(
     return { allowed: false, reason: "NO_SUBSCRIPTION", used, limit: 0, remaining: 0 };
   }
 
+  // Plan limits plus any capacity add-on this client has been granted.
+  const grants = await getCapacityGrants(clientId);
+  const resolved = applyCapacity(
+    {
+      unlockedAgents: sub.plan.unlockedAgents,
+      maxAgents: sub.plan.maxAgents,
+      maxAgentRunsMonthly: sub.plan.maxAgentRunsMonthly,
+      maxAdAccounts: sub.plan.maxAdAccounts,
+    },
+    grants,
+  );
+
+  const limit = resolved.maxAgentRunsMonthly;
+  const remaining = limit == null ? null : Math.max(0, limit - used);
+
   const agent = agentBySlug(agentSlug);
-  const unlocked = sub.plan.unlockedAgents;
-  if (!agent || !unlocked.includes(agentSlug)) {
+  if (!agent || !resolved.unlockedAgents.includes(agentSlug)) {
     return {
       allowed: false,
       reason: "AGENT_LOCKED",
       used,
-      limit: sub.plan.maxAgentRunsMonthly,
-      remaining: sub.plan.maxAgentRunsMonthly == null ? null : Math.max(0, sub.plan.maxAgentRunsMonthly - used),
+      limit,
+      remaining,
       planName: sub.plan.name,
+      addonsApplied: resolved.hasGrants,
     };
   }
 
-  const limit = sub.plan.maxAgentRunsMonthly;
   if (limit != null && used >= limit) {
-    return { allowed: false, reason: "LIMIT_REACHED", used, limit, remaining: 0, planName: sub.plan.name };
+    return {
+      allowed: false,
+      reason: "LIMIT_REACHED",
+      used,
+      limit,
+      remaining: 0,
+      planName: sub.plan.name,
+      addonsApplied: resolved.hasGrants,
+    };
   }
 
   return {
     allowed: true,
     used,
     limit,
-    remaining: limit == null ? null : limit - used,
+    remaining,
     planName: sub.plan.name,
+    addonsApplied: resolved.hasGrants,
   };
 }
 

@@ -303,6 +303,109 @@ function leadToPrompt(lead: {
   ].join("\n");
 }
 
+/** The qualifier's system prompt for one tenant. Shared by both scoring paths. */
+export function qualifierSystemPrompt(
+  basePrompt: string,
+  client: { businessName: string; industry?: string | null; voiceTone?: string | null; verticalKey?: string | null },
+  memory: string,
+): string {
+  const pack = resolveVertical(client);
+  return [
+    basePrompt,
+    client.businessName ? `Client business: ${client.businessName} (${client.industry ?? "n/a"}).` : "",
+    client.voiceTone ? `Brand voice to honor: ${client.voiceTone}` : "",
+    pack ? `\n\nQualification bar for this business:\n${pack.assetBodies["asset-qualification-rubric"]}` : "",
+    memory,
+    JSON_INSTRUCTION,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** Run the qualifier against one lead and persist the result. Meters the run. */
+async function scoreAndPersist(
+  clientId: string,
+  lead: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    company: string | null;
+    message: string | null;
+    source: string;
+    createdAt: Date;
+  },
+  systemPrompt: string,
+): Promise<ParsedScore> {
+  const res = await anthropic().messages.create({
+    model: ANTHROPIC_MODEL,
+    max_tokens: 700,
+    system: systemPrompt,
+    messages: [{ role: "user", content: leadToPrompt(lead) }],
+  });
+  const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+  const parsed = parseScore(text);
+  await recordRun(clientId, QUALIFIER_SLUG, res.usage.input_tokens, res.usage.output_tokens);
+
+  await prisma.lead.update({
+    where: { id: lead.id },
+    data: {
+      status: "SCORED",
+      score: parsed.score,
+      tier: parsed.tier,
+      reasoning: parsed.reasoning,
+      nextAction: parsed.nextAction,
+      scoredAt: new Date(),
+    },
+  });
+
+  return parsed;
+}
+
+export type ScoreLeadOutcome =
+  | { ok: true; parsed: ParsedScore }
+  | { ok: false; reason: "NOT_FOUND" | "ALREADY_SCORED" | "NOT_ALLOWED" | "ERROR"; detail?: string };
+
+/**
+ * Score a single lead on demand — the same code path the night shift uses, so a
+ * Launch client scoring by hand and a Command client scoring at 3am get
+ * identical output. Tiers without a night shift would otherwise have leads pile
+ * up unscored forever, which is exactly the hole this closes.
+ */
+export async function scoreLeadNow(clientId: string, leadId: string): Promise<ScoreLeadOutcome> {
+  const lead = await prisma.lead.findFirst({ where: { id: leadId, clientId } });
+  if (!lead) return { ok: false, reason: "NOT_FOUND" };
+  if (lead.scoredAt) return { ok: false, reason: "ALREADY_SCORED" };
+
+  // The manual path is metered exactly like the unattended one.
+  const availability = await checkAgentRun(clientId, QUALIFIER_SLUG);
+  if (!availability.allowed) {
+    return { ok: false, reason: "NOT_ALLOWED", detail: availability.reason };
+  }
+
+  const [client, agent, digest] = await Promise.all([
+    prisma.clientProfile.findUnique({
+      where: { id: clientId },
+      select: { businessName: true, industry: true, verticalKey: true, voiceTone: true },
+    }),
+    prisma.agentDefinition.findUnique({ where: { slug: QUALIFIER_SLUG } }),
+    memoryDigest(clientId),
+  ]);
+  if (!client || !agent) return { ok: false, reason: "ERROR", detail: "Agent not seeded" };
+
+  try {
+    const parsed = await scoreAndPersist(
+      clientId,
+      lead,
+      qualifierSystemPrompt(agent.baseSystemPrompt, client, digest),
+    );
+    return { ok: true, parsed };
+  } catch (err) {
+    console.error(`[score-lead] failed for ${leadId}:`, err);
+    return { ok: false, reason: "ERROR", detail: (err as Error).message };
+  }
+}
+
 export interface NightShiftResult {
   clientId: string;
   status: "COMPLETE" | "SKIPPED" | "FAILED";
@@ -375,17 +478,7 @@ export async function runNightShift(clientId: string, now = new Date()): Promise
     ]);
     if (!agent) throw new Error("lead-qualifier agent definition is not seeded");
 
-    const pack = resolveVertical(client);
-    const systemPrompt = [
-      agent.baseSystemPrompt,
-      client.businessName ? `Client business: ${client.businessName} (${client.industry ?? "n/a"}).` : "",
-      client.voiceTone ? `Brand voice to honor: ${client.voiceTone}` : "",
-      pack ? `\n\nQualification bar for this business:\n${pack.assetBodies["asset-qualification-rubric"]}` : "",
-      digest,
-      JSON_INSTRUCTION,
-    ]
-      .filter(Boolean)
-      .join(" ");
+    const systemPrompt = qualifierSystemPrompt(agent.baseSystemPrompt, client, digest);
 
     const queue = selectLeadsToScore(newLeads);
     const scored: ScoredLead[] = [];
@@ -396,33 +489,13 @@ export async function runNightShift(clientId: string, now = new Date()): Promise
       const availability = await checkAgentRun(clientId, QUALIFIER_SLUG);
       if (!availability.allowed) break;
 
-      let parsed: ParsedScore = { score: null, tier: null, reasoning: null, nextAction: null };
+      let parsed: ParsedScore;
       try {
-        const res = await anthropic().messages.create({
-          model: ANTHROPIC_MODEL,
-          max_tokens: 700,
-          system: systemPrompt,
-          messages: [{ role: "user", content: leadToPrompt(lead) }],
-        });
-        const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
-        parsed = parseScore(text);
-        await recordRun(clientId, QUALIFIER_SLUG, res.usage.input_tokens, res.usage.output_tokens);
+        parsed = await scoreAndPersist(clientId, lead, systemPrompt);
       } catch (err) {
         console.error(`[night-shift] scoring failed for lead ${lead.id}:`, err);
         continue; // one bad lead must not end the night
       }
-
-      await prisma.lead.update({
-        where: { id: lead.id },
-        data: {
-          status: "SCORED",
-          score: parsed.score,
-          tier: parsed.tier,
-          reasoning: parsed.reasoning,
-          nextAction: parsed.nextAction,
-          scoredAt: new Date(),
-        },
-      });
 
       scored.push({
         id: lead.id,

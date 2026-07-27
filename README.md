@@ -126,6 +126,10 @@ feature gating.
 - **Entitlements / metering** — `src/lib/entitlements.ts` checks the active
   subscription, whether the agent is unlocked, and remaining runs this billing
   period before any model call, and records one `UsageRecord` per completed run.
+  Plan limits are never read directly: everything goes through `resolveLimits`,
+  which folds `ClientEntitlement` rows (granted capacity add-ons) on top via the
+  pure `applyCapacity` in `src/lib/capacity.ts`. `null` means unlimited and stays
+  unlimited. Admins grant capacity on `/admin/clients/[clientId]`.
 - **Agent prompts live in the DB** (`AgentDefinition` + per-client
   `AgentPromptOverride`) — never hardcoded at call time. Edit them in
   `/admin/agents`.

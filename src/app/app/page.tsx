@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Bot, BarChart3, Inbox } from "lucide-react";
+import { ArrowRight, Bot, BarChart3, Inbox, Moon, Target, Brain } from "lucide-react";
 import { requireClient } from "@/lib/tenancy";
+import { prisma } from "@/lib/prisma";
 import { getClientOverview, getAdMetrics } from "@/lib/client-data";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { StatTile } from "@/components/stat-tile";
@@ -17,7 +18,17 @@ export default async function DashboardPage() {
   const overview = await getClientOverview(client.id);
   const ads = await getAdMetrics(client.id, 30);
 
-  const runLimit = overview.agentSub?.plan.maxAgentRunsMonthly ?? null;
+  const [latestBrief, unscoredLeads, openLeads] = await Promise.all([
+    prisma.briefRun.findFirst({
+      where: { clientId: client.id, status: "COMPLETE" },
+      orderBy: { runDate: "desc" },
+      select: { headline: true },
+    }),
+    prisma.lead.count({ where: { clientId: client.id, status: "NEW" } }),
+    prisma.lead.count({ where: { clientId: client.id, status: { in: ["SCORED", "WORKING"] } } }),
+  ]);
+
+  const runLimit = overview.limits?.maxAgentRunsMonthly ?? null;
 
   return (
     <div className="space-y-8">
@@ -73,10 +84,33 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Quick links */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* Quick links. The brief, leads and memory belong here as much as
+          anywhere — they were reachable only from the sidebar, which meant the
+          daily-habit features were invisible from the page clients land on. */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <QuickLink
+          href="/app/brief"
+          icon={Moon}
+          title="Morning Brief"
+          desc={
+            latestBrief
+              ? latestBrief.headline ?? "Waiting for you"
+              : "What the desk did overnight"
+          }
+        />
+        <QuickLink
+          href="/app/leads"
+          icon={Target}
+          title="Leads"
+          desc={
+            unscoredLeads > 0
+              ? `${unscoredLeads} waiting to be scored`
+              : `${openLeads} open`
+          }
+        />
         <QuickLink href="/app/agents" icon={Bot} title="Agent Workspace" desc="Run your AI crew" />
         <QuickLink href="/app/ads" icon={BarChart3} title="Ad Ops Dashboard" desc="Spend, CPL, ROAS" />
+        <QuickLink href="/app/memory" icon={Brain} title="System Memory" desc="What your desk has learned" />
         <QuickLink href="/app/requests" icon={Inbox} title="Requests" desc="Ask the ad-ops team" />
       </div>
     </div>

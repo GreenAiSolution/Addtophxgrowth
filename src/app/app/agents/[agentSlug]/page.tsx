@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireClient } from "@/lib/tenancy";
-import { getActiveSubscription } from "@/lib/entitlements";
+import { getActiveSubscription, resolveLimits } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { agentBySlug } from "@/lib/agents";
 import { playbooksForAgent } from "@/lib/systems";
@@ -16,7 +16,10 @@ export default async function AgentWorkspacePage({ params }: { params: { agentSl
 
   const { client } = await requireClient();
   const sub = await getActiveSubscription(client.id, "AI_AGENTS");
-  const unlocked = sub?.plan.unlockedAgents.includes(agent.slug);
+  // Gate on resolved limits so a granted "Additional Agent" actually opens the
+  // door — this check used to read the plan row and ignore the add-on.
+  const resolved = await resolveLimits(client.id, "AI_AGENTS");
+  const unlocked = resolved?.limits.unlockedAgents.includes(agent.slug);
   if (!unlocked) redirect("/app/billing");
 
   const [convo, used] = await Promise.all([
@@ -57,7 +60,7 @@ export default async function AgentWorkspacePage({ params }: { params: { agentSl
           content: m.content,
         }))}
         used={used}
-        limit={sub?.plan.maxAgentRunsMonthly ?? null}
+        limit={resolved?.limits.maxAgentRunsMonthly ?? null}
         playbooks={playbooksForAgent(sub?.planKey ?? "", agent.slug).map((p) => ({
           name: p.name,
           description: p.description,

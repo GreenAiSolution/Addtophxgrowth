@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ManageBillingButton, CheckoutButton } from "@/components/billing-actions";
 import { AddonMenu } from "@/components/addon-request";
 import { UsageMeter } from "@/components/usage-meter";
+import { describeGrant } from "@/lib/capacity";
 
 const LINES: ProductLineKey[] = ["AI_AGENTS", "AD_OPS"];
 
@@ -39,12 +40,26 @@ export default async function BillingPage() {
           </div>
           {overview.agentSub && (
             <div className="mt-4 space-y-2">
-              <UsageMeter used={overview.agentRunsThisPeriod} limit={overview.agentSub.plan.maxAgentRunsMonthly} />
+              <UsageMeter used={overview.agentRunsThisPeriod} limit={overview.limits?.maxAgentRunsMonthly ?? null} />
               <p className="text-xs text-muted-foreground">
                 {formatCurrency(overview.agentSub.plan.priceMonthly)}/mo
                 {overview.agentSub.currentPeriodEnd &&
                   ` · renews ${overview.agentSub.currentPeriodEnd.toISOString().slice(0, 10)}`}
               </p>
+              {/* Capacity add-ons, shown where the limit is — so a client can
+                  see the thing they pay extra for is actually switched on. */}
+              {overview.limits?.hasGrants && (
+                <div className="rounded-md border border-cyan/25 bg-primary/5 p-2.5">
+                  <div className="hud-label">Add-ons on your meter</div>
+                  <ul className="mt-1 space-y-0.5">
+                    {overview.grants.map((g, i) => (
+                      <li key={`${g.addonKey}-${i}`} className="text-xs text-muted-foreground">
+                        {describeGrant(g)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </Card>
