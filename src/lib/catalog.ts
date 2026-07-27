@@ -46,13 +46,21 @@ export const ALL_AGENT_SLUGS = [
   "objection-handler",
 ] as const;
 
+/**
+ * Price ladder. All prices end in 7 and sit just under a psychological wall
+ * ($2K, $3.5K, $4.5K, $8K) so each tier reads as a considered number rather
+ * than a round one. The two `highlight` tiers (Scale, Operate) are deliberately
+ * priced below a straight 3× of the original ladder — they are the tiers most
+ * clients land on, so they stay the obvious-value pick, with the flagship
+ * anchoring above them.
+ */
 export const PLANS: PlanDef[] = [
   // ---- AI Automation Agents ----
   {
     key: "launch",
     line: "AI_AGENTS",
     name: "Launch",
-    priceMonthly: 29700,
+    priceMonthly: 89700,
     stripePriceEnv: "STRIPE_PRICE_LAUNCH",
     tagline: "Deploy your first agent.",
     features: ["1 agent", "500 agent runs / mo", "Email support"],
@@ -63,7 +71,7 @@ export const PLANS: PlanDef[] = [
     key: "scale",
     line: "AI_AGENTS",
     name: "Scale",
-    priceMonthly: 69700,
+    priceMonthly: 199700,
     stripePriceEnv: "STRIPE_PRICE_SCALE",
     tagline: "A working squad of agents.",
     features: [
@@ -80,7 +88,7 @@ export const PLANS: PlanDef[] = [
     key: "command",
     line: "AI_AGENTS",
     name: "Command",
-    priceMonthly: 149700,
+    priceMonthly: 449700,
     stripePriceEnv: "STRIPE_PRICE_COMMAND",
     tagline: "Full autonomy. All five agents.",
     features: [
@@ -97,7 +105,7 @@ export const PLANS: PlanDef[] = [
     key: "monitor",
     line: "AD_OPS",
     name: "Monitor",
-    priceMonthly: 49700,
+    priceMonthly: 149700,
     stripePriceEnv: "STRIPE_PRICE_MONITOR",
     tagline: "Eyes on every dollar.",
     features: ["Spend tracking", "Weekly report", "1 ad account"],
@@ -108,7 +116,7 @@ export const PLANS: PlanDef[] = [
     key: "operate",
     line: "AD_OPS",
     name: "Operate",
-    priceMonthly: 129700,
+    priceMonthly: 349700,
     stripePriceEnv: "STRIPE_PRICE_OPERATE",
     tagline: "Hands on the controls.",
     features: [
@@ -125,7 +133,7 @@ export const PLANS: PlanDef[] = [
     key: "dominate",
     line: "AD_OPS",
     name: "Dominate",
-    priceMonthly: 299700,
+    priceMonthly: 799700,
     stripePriceEnv: "STRIPE_PRICE_DOMINATE",
     tagline: "Own the whole funnel.",
     features: [
