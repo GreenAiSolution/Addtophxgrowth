@@ -133,6 +133,14 @@ feature gating.
   Ads sync can be added later with no schema change.
 - **Validation** — Zod on every API input. Agent routes are rate-limited
   (`src/lib/rate-limit.ts`; swap for Upstash in multi-instance prod).
+- **Cockpit configurator** (`src/lib/cockpit.ts` -> `/cockpit`) — signature
+  builds plus a custom configurator over both product lines, add-ons and the
+  industry pack. `priceCockpit` is pure and is the only place any total is
+  computed, so the running total, the build sheet and the invoice cannot
+  disagree. Picking all three foundations applies the bundle price rather than
+  the higher a la carte sum. `/api/cockpit` files the build sheet as a Request
+  and hands the primary line to `/api/checkout`; it never creates two
+  subscriptions from one click.
 - **Vertical packs** (`src/lib/verticals.ts`) — per-trade content that overrides
   the three ASSET bodies and selected PLAYBOOK prompts at provisioning time. A
   pack can never change *which* modules a tier provisions, only what they say;

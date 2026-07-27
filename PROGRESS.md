@@ -229,11 +229,66 @@ dashboard, a monthly report, and trust. This closes that gap.
 
 ---
 
+## Phase 10 — The cockpit configurator ✅
+
+"Reserve your cockpit" used to drop a visitor straight onto a login form, which
+asks someone to commit before they've decided anything. It now opens `/cockpit`.
+
+### The page (`/cockpit`)
+- Three **signature builds** first — The First Seat, The House Favourite, The
+  Chef's Table — because editing something opinionated is a far easier decision
+  than assembling from a blank slate. Clicking one loads it into the
+  configurator, where it can be argued with.
+- Four modules below: automation crew, ad operations desk, trade, pairings.
+  **"None" is a first-class option on both product lines** — someone who only
+  wants ad-ops shouldn't have to feel like they're buying the wrong package.
+- A sticky summary rail carries the itemised build, the monthly total, the
+  one-time build total and the first-invoice figure, each tweening as choices
+  change. On mobile a pinned bottom bar carries the running total instead,
+  since the rail would otherwise sit far below the fold.
+- The selection survives a login round-trip via sessionStorage, and `/login`
+  now honours a `next` param (internal paths only — `//` and schemes fall back
+  to `/app`, so it can't be used as an open redirect).
+
+### Pricing (`src/lib/cockpit.ts`)
+- `priceCockpit` is pure and the single source of every number on the page. The
+  total a client watches assemble is the same arithmetic the build sheet and
+  invoice use; two implementations would eventually disagree and the trust cost
+  of that is permanent.
+- Selecting all three foundations individually **silently applies the bundle
+  price** rather than charging the higher a la carte sum. A configurator that
+  lets you pay more than the advertised bundle for an identical basket is a dark
+  pattern, and there's a test pinning it.
+- Unknown or cross-line keys are ignored rather than throwing — a hand-edited
+  URL putting an ad-ops tier in the agents slot can't produce a double charge.
+- 28 tests.
+
+### `/api/cockpit`
+- Zod-validated against the real catalog, records the client's trade, files the
+  build sheet as a Request (upserted by title, so re-configuring updates rather
+  than duplicating), fires a Zapier event, then hands the primary line to the
+  existing `/api/checkout`.
+- Deliberately does **not** subscribe both product lines in one Stripe session.
+  Each line is its own subscription in the schema and the webhook maps one
+  Stripe subscription to one line; quietly creating two from one click would be
+  both a schema lie and a nasty surprise on a five-figure invoice. The second
+  line and the pairings ride on the build sheet, picked up at onboarding.
+
+### Caught in review
+Screenshotting the real page found a defect worth recording: `overflow-hidden`
+on the page wrapper made that element the scroll container and silently broke
+`position: sticky` on the summary rail — so the running total, the entire point
+of a configurator, scrolled out of view. The ambient background layer clips
+itself now instead.
+
+---
+
 ## Verified this session
-- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (39 static
-  pages: 6 plan systems + 6 vertical packs) · `pnpm test` ✅ (148 tests, 5 files).
-- Landing page and both new plan pages rendered against a production server and
-  read back as text, not just compiled.
+- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
+  pages: 6 plan systems + 6 vertical packs) · `pnpm test` ✅ (176 tests, 6 files).
+- Landing page, both new plan pages and `/cockpit` rendered against a production
+  server and read back — and `/cockpit` screenshotted at desktop and mobile
+  widths, which is how the sticky-rail defect above was found.
 - Not yet run against a live DB / Stripe / Anthropic (no credentials in this
   environment) — those are the 🟡 items above.
 

@@ -58,7 +58,7 @@ export default function MarketingHome() {
               <Link href="/login">Sign in</Link>
             </Button>
             <Button asChild size="sm">
-              <Link href="/login" className="whitespace-nowrap">
+              <Link href="/cockpit" className="whitespace-nowrap">
                 <span className="sm:hidden">Reserve</span>
                 <span className="hidden sm:inline">Reserve your cockpit</span>
               </Link>
@@ -80,7 +80,7 @@ export default function MarketingHome() {
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg">
-              <Link href="/login">
+              <Link href="/cockpit">
                 Reserve your cockpit <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -297,6 +297,27 @@ export default function MarketingHome() {
           </p>
         </div>
         <Pricing />
+
+        <div className="mx-auto mt-12 max-w-3xl">
+          <div className="hud-panel hud-corners flex flex-col items-center gap-4 p-7 text-center sm:flex-row sm:text-left">
+            <SlidersHorizontal className="h-8 w-8 shrink-0 text-cyan" />
+            <div className="flex-1">
+              <h3 className="font-heading text-lg font-bold">
+                None of these is quite your shape?
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Build your own cockpit instead — pick a crew, an ad desk, your trade and any
+                pairings, and watch the price add up as you go. Take either line on its own if
+                that&apos;s all you need.
+              </p>
+            </div>
+            <Button asChild size="lg" className="shrink-0">
+              <Link href="/cockpit">
+                Build your cockpit <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
       </section>
 
       {/* À la carte add-ons */}
@@ -416,7 +437,7 @@ export default function MarketingHome() {
           </p>
           <div className="relative mt-7">
             <Button asChild size="lg">
-              <Link href="/login">
+              <Link href="/cockpit">
                 Claim your seat <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>

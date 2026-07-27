@@ -260,7 +260,7 @@ export default function VerticalPage({ params }: { params: { verticalKey: string
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Button asChild size="lg">
-              <Link href="/login">Activate the {pack.name} →</Link>
+              <Link href="/cockpit">Build your {pack.trade.toLowerCase()} cockpit →</Link>
             </Button>
             <Button asChild variant="outline" size="lg">
               <Link href="/#contact">Talk to a strategist</Link>

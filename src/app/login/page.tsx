@@ -7,9 +7,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 
-export default async function LoginPage() {
+/**
+ * Only ever redirect back to a path on this site. A `next` value that starts
+ * with `//` or a scheme is an open-redirect, so anything that isn't a plain
+ * internal path falls back to the console.
+ */
+function safeNext(next: string | undefined): string {
+  if (!next) return "/app";
+  if (!next.startsWith("/") || next.startsWith("//")) return "/app";
+  return next;
+}
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: { next?: string; plan?: string };
+}) {
   const session = await auth();
-  if (session?.user) redirect(session.user.role === "ADMIN" ? "/admin" : "/app");
+  const next = safeNext(searchParams.next);
+  if (session?.user) redirect(session.user.role === "ADMIN" ? "/admin" : next);
 
   const emailEnabled = Boolean(process.env.EMAIL_SERVER_HOST);
   const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID);
@@ -21,7 +37,11 @@ export default async function LoginPage() {
           <Link href="/" className="whitespace-nowrap font-heading text-2xl font-bold">
             {BRAND.wordmarkLead}<span className="text-gradient">{BRAND.wordmarkAccent}</span>
           </Link>
-          <p className="mt-2 text-sm text-muted-foreground">Access your growth cockpit.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {next === "/cockpit"
+              ? "Sign in and we'll take you straight back to your build."
+              : "Access your growth cockpit."}
+          </p>
         </div>
 
         {emailEnabled && (
@@ -30,7 +50,7 @@ export default async function LoginPage() {
               "use server";
               await signIn("nodemailer", {
                 email: String(formData.get("email")),
-                redirectTo: "/app",
+                redirectTo: next,
               });
             }}
             className="space-y-3"
@@ -53,7 +73,7 @@ export default async function LoginPage() {
           <form
             action={async () => {
               "use server";
-              await signIn("google", { redirectTo: "/app" });
+              await signIn("google", { redirectTo: next });
             }}
           >
             <Button type="submit" variant="outline" className="w-full">
