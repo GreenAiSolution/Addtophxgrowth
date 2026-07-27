@@ -57,10 +57,13 @@ const config: Config = {
         cyan: { DEFAULT: "hsl(var(--hud-cyan))" },
         violet: { DEFAULT: "hsl(var(--hud-violet))" },
         magenta: { DEFAULT: "hsl(var(--hud-magenta))" },
+        // The parent's apex and guarantee accents.
+        gold: { DEFAULT: "hsl(var(--hud-gold))" },
+        signal: { DEFAULT: "hsl(var(--hud-green))" },
       },
       fontFamily: {
-        sans: ["var(--font-space-grotesk)", "system-ui", "sans-serif"],
-        heading: ["var(--font-space-grotesk)", "system-ui", "sans-serif"],
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        heading: ["var(--font-inter)", "system-ui", "sans-serif"],
         mono: ["var(--font-jetbrains-mono)", "ui-monospace", "monospace"],
       },
       borderRadius: {

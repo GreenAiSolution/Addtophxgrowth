@@ -1,89 +1,105 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Phone,
-  Radar,
-  Search,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 import {
   PARENT_SERVICES,
+  FLIGHT_PLANS,
   UPGRADES,
   upgradesFor,
   entryPrice,
   THESIS,
-  TERMS,
+  FLIGHT_CHECK,
+  FAIR_QUESTIONS,
   type ServiceKey,
   type Upgrade,
 } from "@/lib/upgrades";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { env } from "@/lib/env";
 import { Enquiry, AddUpgradeButton } from "@/components/marketing/enquiry";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Wordmark } from "@/components/marketing/site-chrome";
 
 /**
  * The site. One page.
  *
  * DIRECTION
- *   PHX Growth Plus is not an agency and does not sell a growth programme —
- *   phxgrowth.com does that. This sells specialised upgrades that bolt onto the
- *   three services PHX Growth already runs, chosen because demand for each is
- *   visibly rising into 2027. Everything else that used to be here — six
- *   subscription tiers, a showroom, trade pages, a configurator — was a second
- *   agency competing with the first, and is gone.
+ *   PHX/GROWTH PLUS is the upgrade counter for phxgrowth.com, not a second
+ *   agency. It sells nine specialised upgrades, each bolted onto one of the
+ *   three services PHX/GROWTH already runs, chosen because demand for each is
+ *   visibly rising into 2027.
  *
- * HOW THIS IS BUILT TO BE LOOKED AT
- *   "Attractive" is not a mood here, it is a set of decisions:
+ * ALIGNMENT
+ *   The layout language is lifted from the parent's pricing page rather than
+ *   invented, because a client moving between the two properties should never
+ *   feel a seam:
  *
- *   - ONE focal point per screen. The eye lands on the largest, highest-contrast
- *     element first; if two things compete for that, neither wins. Each section
- *     has exactly one.
- *   - Contrast carries hierarchy, colour carries meaning. Cyan means "you can
- *     act on this" and is used nowhere decorative, so a call to action is found
- *     without reading. Body copy stays under a comfortable measure (~65
- *     characters) because line length, not font size, is what makes long text
- *     tiring.
- *   - Motion only where it explains something — ambient drift in the
- *     background, a sweep on hover. Nothing animates on a timer near text,
- *     because movement beside words costs comprehension. All of it stands down
- *     under prefers-reduced-motion.
- *   - Proximity does the grouping. Related things sit close and unrelated
- *     things sit far apart, so the structure is legible before a word is read.
+ *   - Sections open with a wide-tracked coloured eyebrow on the left and a
+ *     muted lower-case descriptor on the right ("à la carte — done for you").
+ *   - Headlines are sentence-case with the second line in the cyan→violet→
+ *     magenta gradient.
+ *   - Prices read `from` · big coloured numeral · muted unit, with the colour
+ *     matching the service: magenta for Premium AI Ads, violet for AI
+ *     Employees, cyan for Website Creation — their own coding, mirrored.
+ *   - One gradient pill per section, gold reserved for the apex item, exactly
+ *     as they reserve it for Fleet Command.
+ *   - The voice is aviation throughout, because theirs is.
  *
- *   And trust is a design surface too: the price is on every card, the terms
- *   are in a section of their own rather than a footnote, and there is not a
- *   single countdown, fake scarcity marker, or invented statistic on the page.
+ * WHY IT IS ORGANISED THIS WAY
+ *   A visitor arrives asking three questions in order: what is this, does it
+ *   apply to me, and what does it cost. So the page answers them in that
+ *   order — what bolts onto what, then each upgrade with the argument for it,
+ *   then the guarantee and the fine print, then one place to act. Nothing is
+ *   held back to force an enquiry.
  *
  * BLUEPRINTS
- *   Fully static and fully server-rendered apart from two small islands — the
- *   enquiry form and the "add" buttons that talk to it.
+ *   Fully static and server-rendered apart from two small islands: the enquiry
+ *   form and the "add" buttons that talk to it.
  */
 
-const SERVICE_ICONS: Record<ServiceKey, typeof Radar> = {
-  "ai-employees": Phone,
-  "ad-growth": Radar,
-  "web-seo-ads": Search,
+/** Their own colour coding, service by service. */
+const SERVICE_ACCENT: Record<ServiceKey, { text: string; dot: string; card: string }> = {
+  "premium-ai-ads": { text: "text-magenta", dot: "bg-magenta", card: "" },
+  "ai-employees": { text: "text-violet", dot: "bg-violet", card: "phx-card-violet" },
+  "website-creation": { text: "text-cyan", dot: "bg-cyan", card: "" },
 };
 
-/** The three shifts the catalogue is downstream of. Stated once, up front. */
-const SHIFTS = [
-  {
-    title: "Answers replaced links",
-    body: "Buyers ask an assistant and get two or three names. Ranking fourth on a page nobody opens is worth nothing — being the source that gets quoted is a different job entirely.",
-  },
-  {
-    title: "The signal is disappearing",
-    body: "The tracking most accounts still run was built on cookies and identifiers that keep being taken away. Measurement now has to sit on data the business owns.",
-  },
-  {
-    title: "Speed became the product",
-    body: "When every competitor advertises the same offer at the same price, the one that answers in seconds books the job. That used to be a staffing problem.",
-  },
-];
+function SectionHead({
+  label,
+  note,
+  tone = "text-cyan",
+}: {
+  label: string;
+  note: string;
+  tone?: string;
+}) {
+  return (
+    <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+      <h2 className={cn("eyebrow", tone)}>{label}</h2>
+      <p className="max-w-sm text-sm text-muted-foreground sm:text-right">{note}</p>
+    </div>
+  );
+}
+
+function Price({
+  amount,
+  unit,
+  tone,
+  prefix = "from",
+}: {
+  amount: number;
+  unit: string;
+  tone: string;
+  prefix?: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-2">
+      <span className="text-sm text-muted-foreground">{prefix}</span>
+      <span className={cn("text-4xl font-bold tracking-tight", tone)}>
+        {formatCurrency(amount)}
+      </span>
+      <span className="text-sm text-muted-foreground">{unit}</span>
+    </div>
+  );
+}
 
 function structuredData() {
   return {
@@ -94,10 +110,15 @@ function structuredData() {
     url: env.appUrl,
     email: BRAND.notifyEmail,
     areaServed: "United States",
-    parentOrganization: { "@type": "Organization", name: BRAND.parent.name, url: BRAND.parent.url },
+    parentOrganization: {
+      "@type": "Organization",
+      name: BRAND.parent.name,
+      url: BRAND.parent.url,
+      description: BRAND.parent.tagline,
+    },
     hasOfferCatalog: {
       "@type": "OfferCatalog",
-      name: "Growth upgrades",
+      name: "Upgrades & add-ons",
       itemListElement: UPGRADES.map((u) => ({
         "@type": "Offer",
         name: u.name,
@@ -109,45 +130,63 @@ function structuredData() {
   };
 }
 
-function UpgradeCard({ upgrade, index }: { upgrade: Upgrade; index: number }) {
+function UpgradeCard({ upgrade }: { upgrade: Upgrade }) {
+  const accent = SERVICE_ACCENT[upgrade.attachesTo];
   return (
-    <article className="hud-panel lift flex flex-col p-6">
+    <article
+      className={cn(
+        "phx-card lift flex flex-col p-7",
+        accent.card,
+        upgrade.apex && "phx-card-gold",
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
-        <span className="hud-value text-xs text-cyan/50">
-          {String(index + 1).padStart(2, "0")}
-        </span>
-        {upgrade.leading && <Badge variant="violet">Taken first</Badge>}
+        <h3 className="text-xl font-bold tracking-tight">{upgrade.name}</h3>
+        {upgrade.apex ? (
+          <span className="chip shrink-0 border-gold/40 bg-gold/10 text-gold">Apex</span>
+        ) : upgrade.leading ? (
+          <span className="chip shrink-0 border-violet/40 bg-violet/10 text-violet">
+            Most added
+          </span>
+        ) : null}
       </div>
 
-      <h3 className="mt-3 font-heading text-xl font-bold">{upgrade.name}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-foreground/90">{upgrade.promise}</p>
+      <div className="mt-4">
+        <Price
+          amount={upgrade.price}
+          unit={upgrade.billing === "monthly" ? "/mo" : "one-time"}
+          tone={upgrade.apex ? "text-gold" : accent.text}
+          prefix=""
+        />
+      </div>
 
-      {/* The demand argument. This is the reason the upgrade is on the page at
-          all, so it gets real space rather than a tooltip. */}
-      <p className="mt-4 border-l-2 border-magenta/40 pl-4 text-[0.78rem] leading-relaxed text-muted-foreground">
-        {upgrade.demandCase}
-      </p>
+      <p className="mt-4 text-[0.95rem] leading-relaxed text-foreground/90">{upgrade.promise}</p>
 
-      <ul className="mt-5 flex-1 space-y-2">
+      <ul className="mt-5 space-y-2.5">
         {upgrade.delivers.map((line) => (
-          <li key={line} className="flex items-start gap-2 text-[0.8rem] leading-relaxed text-foreground/80">
-            <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-cyan" />
+          <li key={line} className="flex items-start gap-2.5 text-sm leading-relaxed text-muted-foreground">
+            <span className={cn("mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full", accent.dot)} />
             {line}
           </li>
         ))}
       </ul>
 
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-border/50 pt-4">
-        <div>
-          <div className="hud-label">{upgrade.fixes}</div>
-          <div className="mt-1 flex items-baseline gap-1.5">
-            <span className="hud-value text-2xl font-bold">{formatCurrency(upgrade.price)}</span>
-            <span className="text-xs text-muted-foreground">
-              {upgrade.billing === "monthly" ? "/mo" : "one-time"}
-            </span>
-          </div>
+      {/* Argument and action pinned to the bottom as one block, so the "Add"
+          buttons land on the same line across a row of cards. Left to flow,
+          they staggered by however long each argument happened to be — which
+          reads as a layout bug rather than as varying content. */}
+      <div className="mt-auto pt-6">
+        <div className="rounded-xl border border-white/[0.06] bg-black/25 p-4">
+          <div className="eyebrow mb-2 text-[0.6rem] text-muted-foreground">Why now</div>
+          <p className="text-[0.8rem] leading-relaxed text-muted-foreground">
+            {upgrade.demandCase}
+          </p>
         </div>
-        <AddUpgradeButton upgradeKey={upgrade.key} name={upgrade.name} />
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.07] pt-5">
+          <span className="text-xs text-muted-foreground">Fixes: {upgrade.fixes}</span>
+          <AddUpgradeButton upgradeKey={upgrade.key} name={upgrade.name} />
+        </div>
       </div>
     </article>
   );
@@ -164,202 +203,204 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData()) }}
       />
 
-      {/* ---------------------------------------------------------------- */}
-      {/* Hero. One focal point: the headline. Everything else is quieter   */}
-      {/* on purpose, including the nav, which is a single link home.       */}
-      {/* ---------------------------------------------------------------- */}
-      <header className="absolute inset-x-0 top-0 z-20">
-        <div className="container flex h-20 items-center justify-between">
-          <span className="flex items-center gap-2.5 font-heading text-base font-bold sm:text-lg">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-primary/15 shadow-hud">
-              <span className="h-2.5 w-2.5 rotate-45 rounded-[2px] bg-gradient-to-br from-cyan via-violet to-magenta" />
-            </span>
-            {BRAND.wordmarkLead}
-            <span className="text-gradient">{BRAND.wordmarkAccent}</span>
-          </span>
-          <a
-            href={BRAND.parent.url}
-            className="hidden items-center gap-1.5 font-mono text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
-          >
-            {BRAND.parent.name} <ArrowUpRight className="h-3 w-3" />
-          </a>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-background/80 backdrop-blur-xl">
+        <div className="container flex h-[4.5rem] items-center justify-between gap-4">
+          <Wordmark />
+          <div className="flex items-center gap-3">
+            <a
+              href={BRAND.parent.url}
+              className="hidden items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
+            >
+              {BRAND.parent.name} <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
+            {/* Short label below sm — "Add upgrades" wrapped to two lines at
+                390px and shunted the wordmark off its baseline. */}
+            <a href="#enquiry" className="pill-primary px-4 py-2.5 text-sm sm:px-5">
+              <span className="sm:hidden">Upgrades</span>
+              <span className="hidden sm:inline">Add upgrades</span>
+            </a>
+          </div>
         </div>
       </header>
 
-      <section className="relative grain flex min-h-[92vh] items-center overflow-hidden py-28">
+      {/* ── Hero ───────────────────────────────────────────────────────── */}
+      <section className="relative grain overflow-hidden py-24 md:py-32">
         <div className="aurora" />
         <div className="container relative text-center">
-          <Badge className="mx-auto animate-pulse-glow">{THESIS.eyebrow}</Badge>
+          <p className="eyebrow text-gold">—— {THESIS.eyebrow}</p>
 
-          <h1 className="mx-auto mt-8 max-w-5xl font-heading text-[2.75rem] font-bold leading-[1.02] sm:text-6xl md:text-7xl lg:text-8xl">
-            The parts of <span className="text-kinetic">2027</span>
-            <br className="hidden sm:block" /> nobody has staffed yet.
+          <h1 className="mx-auto mt-7 max-w-4xl text-[2.6rem] font-bold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl">
+            Every upgrade.
+            <br />
+            <span className="text-gradient">One flight plan.</span>
           </h1>
 
-          {/* Measure held to ~62 characters. Long lines, not small type, are
-              what make a hero paragraph go unread. */}
-          <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-            {BRAND.parent.name} runs your AI employees, your ad growth and your search. This is
-            where you bolt on the specialised work that decides who wins locally next.
+          <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+            {BRAND.parent.name} flies your account. This is the specialised work that bolts onto it
+            — the parts of 2027 nobody has staffed yet. Nothing here replaces your crew, restarts
+            your onboarding, or duplicates a single thing you already pay for.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <Button asChild size="lg">
-              <a href="#upgrades">
-                See the {UPGRADES.length} upgrades <ArrowRight className="h-4 w-4" />
-              </a>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <a href="#enquiry">Talk to us</a>
-            </Button>
+            <a href="#upgrades" className="pill-primary">
+              See the {UPGRADES.length} upgrades <ArrowRight className="h-4 w-4" />
+            </a>
+            <a href="#enquiry" className="pill-ghost">
+              Talk to your pilot
+            </a>
           </div>
 
-          <p className="mt-8 font-mono text-[0.65rem] uppercase tracking-[0.25em] text-muted-foreground">
-            From {formatCurrency(from)}/mo · Month to month · Nothing charged today
+          <p className="mt-9 text-sm text-muted-foreground">
+            From {formatCurrency(from)}/mo · Month to month · Covered by the 30-Day Flight Check
           </p>
         </div>
       </section>
 
-      {/* ---------------------------------------------------------------- */}
-      {/* What this is. Said second, plainly, before anything is sold —     */}
-      {/* a visitor who cannot tell how this relates to PHX Growth will     */}
-      {/* not read the prices.                                             */}
-      {/* ---------------------------------------------------------------- */}
-      <section className="border-y border-border/60 bg-card/30 py-16">
-        <div className="container">
-          <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
-            <Sparkles className="h-9 w-9 shrink-0 text-magenta" />
-            <div>
-              <h2 className="font-heading text-xl font-bold">
-                {BRAND.name} is the upgrade counter for {BRAND.parent.name}.
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Nothing here replaces your team or restarts your onboarding. Every upgrade assumes
-                the service it attaches to is already running, and simply makes it do more. If
-                you&apos;re not a {BRAND.parent.name} client yet,{" "}
-                <a href={BRAND.parent.url} className="text-cyan hover:underline">
-                  start there
-                </a>{" "}
-                — this only makes sense on top.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ── Where they bolt on ─────────────────────────────────────────── */}
+      <section className="container py-20">
+        <SectionHead
+          label="Where they bolt on"
+          note="your existing PHX/GROWTH services — nothing here replaces them"
+        />
 
-      {/* ---------------------------------------------------------------- */}
-      {/* Why these, and not fifty others.                                  */}
-      {/* ---------------------------------------------------------------- */}
-      <section className="container py-24">
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="section-index">The argument</span>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-5xl">
-            Three things changed. Most local businesses have staffed for none of them.
-          </h2>
-          <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
-            Every upgrade on this page is downstream of one of these. If a service isn&apos;t, it
-            isn&apos;t here — which is why there are {UPGRADES.length} of them and not fifty.
-          </p>
-        </div>
+        <div className="grid gap-5 lg:grid-cols-3">
+          {PARENT_SERVICES.map((service) => {
+            const accent = SERVICE_ACCENT[service.key];
+            return (
+              <div key={service.key} className={cn("phx-card flex flex-col p-7", accent.card)}>
+                <h3 className="text-xl font-bold tracking-tight">{service.name}</h3>
+                <p className={cn("mt-2 text-sm font-semibold", accent.text)}>
+                  {service.priceLabel}
+                  {service.feeLabel && (
+                    <span className="ml-2 font-normal text-magenta">{service.feeLabel}</span>
+                  )}
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{service.role}</p>
 
-        <div className="mt-14 grid gap-5 md:grid-cols-3">
-          {SHIFTS.map((s, i) => (
-            <div key={s.title} className="hud-panel hud-corners p-7">
-              <span className="hud-value text-3xl font-bold text-cyan/40">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <h3 className="mt-3 font-heading text-lg font-bold">{s.title}</h3>
-              <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------------------- */}
-      {/* The catalogue, grouped by the service each upgrade bolts onto.    */}
-      {/* Grouping by parent service is what keeps this from reading as a   */}
-      {/* rival menu — every heading is one of PHX Growth's own services.   */}
-      {/* ---------------------------------------------------------------- */}
-      <section id="upgrades" className="scroll-mt-4 py-10">
-        {PARENT_SERVICES.map((service, si) => {
-          const Icon = SERVICE_ICONS[service.key];
-          const items = upgradesFor(service.key);
-          return (
-            <div key={service.key} className="container py-14">
-              <hr className="rule-glow mb-10" />
-
-              <div className="grid gap-8 lg:grid-cols-[22rem_1fr] lg:items-start">
-                <div className="lg:sticky lg:top-24">
-                  <span className="section-index">
-                    {String(si + 1).padStart(2, "0")} — Bolts onto
-                  </span>
-                  <h2 className="mt-2 flex items-center gap-3 font-heading text-3xl font-bold md:text-4xl">
-                    <Icon className="h-7 w-7 shrink-0 text-cyan" />
-                    {service.name}
-                  </h2>
-                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-                    {service.role}
-                  </p>
-                  {/* The ceiling. Naming the limit of the service honestly is
-                      what earns the right to sell the upgrade — and PHX Growth
-                      sells that service, so this has to be fair to it. */}
-                  <p className="mt-4 border-l-2 border-cyan/40 pl-4 text-sm leading-relaxed text-foreground/85">
-                    {service.ceiling}
-                  </p>
-                  <p className="hud-label mt-5">
-                    {items.length} upgrades · from{" "}
-                    {formatCurrency(Math.min(...items.map((u) => u.price)))}
-                  </p>
-                </div>
-
-                <div className="grid gap-5 xl:grid-cols-2">
-                  {items.map((u, i) => (
-                    <UpgradeCard key={u.key} upgrade={u} index={i} />
+                <ul className="mt-4 space-y-1.5">
+                  {service.includes.map((line) => (
+                    <li key={line} className="flex items-start gap-2 text-[0.8rem] text-muted-foreground">
+                      <Check className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", accent.text)} />
+                      {line}
+                    </li>
                   ))}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </section>
+                </ul>
 
-      {/* ---------------------------------------------------------------- */}
-      {/* Terms. A section, not a footnote — on four-figure monthly work    */}
-      {/* the commitment is the objection, and answering it in public is    */}
-      {/* worth more than any badge.                                        */}
-      {/* ---------------------------------------------------------------- */}
-      <section className="border-y border-border/60 bg-card/30 py-20">
-        <div className="container">
-          <div className="mx-auto max-w-2xl text-center">
-            <span className="section-index">Before you ask</span>
-            <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
-              What you&apos;re actually committing to.
-            </h2>
+                {/* The ceiling. Naming the limit of a service PHX/GROWTH sells
+                    is what earns the right to sell the upgrade — so it has to
+                    be fair to the service, not a swipe at it. */}
+                <p className="mt-5 flex-1 border-t border-white/[0.07] pt-4 text-[0.82rem] leading-relaxed text-foreground/75">
+                  <span className="eyebrow mb-1.5 block text-[0.58rem] text-muted-foreground">
+                    Where it stops
+                  </span>
+                  {service.ceiling}
+                </p>
+
+                <p className="mt-4 text-xs text-muted-foreground">
+                  {upgradesFor(service.key).length} upgrades bolt on here
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Their managed tiers, so a visitor already flying one can see that
+            upgrades sit alongside rather than replacing. */}
+        <div className="phx-card mt-5 p-7">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+            <span className="eyebrow text-gold">Managed flight plans</span>
+            <span className="text-sm text-muted-foreground">
+              already flying with us? upgrades bolt onto these too
+            </span>
           </div>
-          <div className="mx-auto mt-12 grid max-w-4xl gap-5 sm:grid-cols-2">
-            {TERMS.map((t) => (
-              <div key={t.term} className="flex gap-4">
-                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
-                <div>
-                  <h3 className="font-heading text-base font-bold">{t.term}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{t.detail}</p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            {FLIGHT_PLANS.map((plan) => (
+              <div key={plan.key} className="border-l border-white/10 pl-4">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{plan.name}</span>
+                  {plan.badge && (
+                    <span
+                      className={cn(
+                        "chip",
+                        plan.badge === "Apex"
+                          ? "border-gold/40 bg-gold/10 text-gold"
+                          : "border-violet/40 bg-violet/10 text-violet",
+                      )}
+                    >
+                      {plan.badge}
+                    </span>
+                  )}
                 </div>
+                <div className="mt-1 text-sm text-muted-foreground">{plan.promise}</div>
+                <div className="mt-2 text-sm">
+                  <span className="font-semibold">{plan.price}</span>{" "}
+                  <span className="text-magenta">{plan.fee}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">{plan.ceilingNote}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ---------------------------------------------------------------- */}
-      {/* The one thing to do.                                              */}
-      {/* ---------------------------------------------------------------- */}
-      <section id="enquiry" className="container scroll-mt-8 py-24">
+      {/* ── The upgrades ───────────────────────────────────────────────── */}
+      <section id="upgrades" className="scroll-mt-20">
+        {PARENT_SERVICES.map((service) => {
+          const accent = SERVICE_ACCENT[service.key];
+          const items = upgradesFor(service.key);
+          return (
+            <div key={service.key} className="container py-12">
+              <SectionHead
+                label={`On ${service.name}`}
+                note={`${items.length} upgrades · from ${formatCurrency(
+                  Math.min(...items.map((u) => u.price)),
+                )}`}
+                tone={accent.text}
+              />
+              <div className="grid gap-5 lg:grid-cols-3">
+                {items.map((u) => (
+                  <UpgradeCard key={u.key} upgrade={u} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* ── The guarantee ──────────────────────────────────────────────── */}
+      <section className="container py-16">
+        <div className="phx-card mx-auto max-w-3xl border-signal/25 p-9 text-center">
+          <p className="eyebrow text-signal">{FLIGHT_CHECK.label}</p>
+          <p className="mx-auto mt-4 max-w-2xl text-[1.05rem] leading-relaxed text-foreground/90">
+            {FLIGHT_CHECK.body}
+          </p>
+        </div>
+      </section>
+
+      {/* ── Fair questions ─────────────────────────────────────────────── */}
+      <section className="container py-16">
+        <SectionHead label="Fair questions" note="— the fine print, in plain English" />
+        <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
+          {FAIR_QUESTIONS.map((f) => (
+            <div key={f.q} className="phx-card p-6">
+              <h3 className="text-base font-bold tracking-tight">{f.q}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Enquiry ────────────────────────────────────────────────────── */}
+      <section id="enquiry" className="container scroll-mt-20 py-20">
         <div className="mx-auto mb-12 max-w-2xl text-center">
-          <span className="section-index">Start</span>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-5xl">
-            Pick what you want. We&apos;ll price it in writing.
+          <p className="eyebrow text-cyan">Pre-flight</p>
+          <h2 className="mt-4 text-3xl font-bold tracking-tight md:text-5xl">
+            Pick what you want.
+            <br />
+            <span className="text-gradient">We&apos;ll price it in writing.</span>
           </h2>
-          <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-6 text-[0.95rem] leading-relaxed text-muted-foreground">
             Tick the upgrades you&apos;re interested in and the total assembles as you go. This
             sends an enquiry to a human — no card, no automated sequence, and nothing on your
             account changes until you agree the scope.
@@ -368,37 +409,100 @@ export default function Home() {
         <Enquiry />
       </section>
 
-      {/* ---------------------------------------------------------------- */}
-      <footer className="border-t border-border/60 py-12">
-        <div className="container space-y-6">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <a
-              href={BRAND.parent.url}
-              className="inline-flex items-center gap-2 font-heading text-lg font-bold transition-colors hover:text-cyan"
-            >
-              {BRAND.parent.name} <ArrowUpRight className="h-4 w-4" />
+      {/* ── Close ──────────────────────────────────────────────────────── */}
+      <section className="container py-24 text-center">
+        <h2 className="mx-auto max-w-3xl text-[2.2rem] font-bold leading-[1.08] tracking-tight md:text-6xl">
+          Stop guessing what&apos;s next.
+          <br />
+          <span className="text-gradient">Start flying it.</span>
+        </h2>
+        <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
+          Your competitors are still writing ads. Bolt on the work that decides who wins locally
+          before they notice it exists.
+        </p>
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <a href="#enquiry" className="pill-primary">
+            Add upgrades <ArrowRight className="h-4 w-4" />
+          </a>
+          <a href={BRAND.parent.url} className="pill-ghost">
+            See {BRAND.parent.name} pricing
+          </a>
+        </div>
+      </section>
+
+      {/* ── Footer ─────────────────────────────────────────────────────── */}
+      <footer className="border-t border-white/[0.06] py-14">
+        <div className="container grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
+          <div>
+            <a href={BRAND.parent.url} className="text-xl font-bold tracking-[0.12em] text-cyan">
+              {BRAND.parent.name}
             </a>
-            <p className="max-w-md text-sm text-muted-foreground">
-              {BRAND.name} is the upgrade counter for {BRAND.parent.name}. The agency, the team and
-              the relationship all live over there.
+            <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+              {BRAND.parent.tagline}
             </p>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 border-t border-border/40 pt-6 text-sm text-muted-foreground">
-            <a href="#upgrades" className="hover:text-foreground">Upgrades</a>
-            <a href="#enquiry" className="hover:text-foreground">Enquire</a>
-            <a href={`mailto:${BRAND.notifyEmail}`} className="hover:text-foreground">
-              {BRAND.notifyEmail}
+            <a
+              href={`mailto:${BRAND.parent.email}`}
+              className="mt-3 inline-block text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {BRAND.parent.email}
             </a>
-            <Link href="/legal/terms" className="hover:text-foreground">Terms</Link>
-            <Link href="/legal/privacy" className="hover:text-foreground">Privacy</Link>
-            <Link href="/legal/msa" className="hover:text-foreground">Services agreement</Link>
-            <Link href="/login" className="hover:text-foreground">Client sign-in</Link>
           </div>
 
-          <div className="text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} {BRAND.name}
+          <div>
+            <p className="eyebrow text-muted-foreground">Upgrade</p>
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              {PARENT_SERVICES.map((s) => (
+                <li key={s.key}>
+                  <a href="#upgrades" className="transition-colors hover:text-foreground">
+                    On {s.name}
+                  </a>
+                </li>
+              ))}
+              <li>
+                <a href="#enquiry" className="transition-colors hover:text-foreground">
+                  Enquire
+                </a>
+              </li>
+            </ul>
           </div>
+
+          <div>
+            <p className="eyebrow text-muted-foreground">Fly</p>
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <a href={BRAND.parent.url} className="transition-colors hover:text-foreground">
+                  {BRAND.parent.name} pricing
+                </a>
+              </li>
+              <li>
+                <Link href="/login" className="transition-colors hover:text-foreground">
+                  Client sign-in
+                </Link>
+              </li>
+              <li>
+                <Link href="/legal/terms" className="transition-colors hover:text-foreground">
+                  Terms
+                </Link>
+              </li>
+              <li>
+                <Link href="/legal/privacy" className="transition-colors hover:text-foreground">
+                  Privacy
+                </Link>
+              </li>
+              <li>
+                <Link href="/legal/msa" className="transition-colors hover:text-foreground">
+                  Services agreement
+                </Link>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="container mt-10 border-t border-white/[0.06] pt-6 text-sm text-muted-foreground">
+          © {new Date().getFullYear()} {BRAND.name} · an upgrade counter for{" "}
+          <a href={BRAND.parent.url} className="text-cyan hover:underline">
+            {BRAND.parent.name}
+          </a>
         </div>
       </footer>
     </div>

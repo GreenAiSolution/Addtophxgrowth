@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { BRAND } from "@/lib/brand";
 import { env } from "@/lib/env";
 
-const spaceGrotesk = Space_Grotesk({
+/**
+ * Inter, because that is what phxgrowth.com sets. The site previously used
+ * Space Grotesk — a good face, but a visibly different one, and typography is
+ * the first thing that tells a visitor they have landed somewhere else.
+ */
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-space-grotesk",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -18,7 +23,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 const DESCRIPTION =
-  "Specialised upgrades that bolt onto PHX Growth's AI Employees, Ad Growth Management and Web / SEO / Paid Ads. Be the business an AI assistant names, own the map pack, answer every call in one ring, and measure it all on data you actually own. Priced on the page, month to month, nothing charged today.";
+  "Specialised upgrades that bolt onto your PHX/GROWTH services — Premium AI Ads, AI Employees and Website Creation. Be the business an AI assistant names, own the map pack, answer every call on the first ring, and measure it on data you actually own. Month to month, covered by the 30-Day Flight Check.";
 
 /**
  * `metadataBase` is what makes relative OG image paths resolve to absolute URLs.
@@ -52,7 +57,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
-      <body className={cn(spaceGrotesk.variable, jetbrainsMono.variable, "min-h-screen")}>
+      <body className={cn(inter.variable, jetbrainsMono.variable, "min-h-screen")}>
         {children}
       </body>
     </html>

@@ -1,37 +1,61 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { BRAND } from "@/lib/brand";
+import { cn } from "@/lib/utils";
 
 /**
- * Chrome for the pages that are not the page — legal documents, essentially.
+ * The mark, and the plain chrome that legal pages wear.
  *
- * There is exactly one marketing page now, and it carries its own header and
- * footer because both are part of its composition. This is the plain version
- * everything else wears: a way back, the mark, and the relationship to the
- * parent agency. It deliberately has no nav, because there is nowhere else to
- * navigate to, and a nav bar full of anchors into another page is how the old
- * site accumulated dead links.
+ * ALIGNMENT
+ *   The mark is phxgrowth.com's, not a variant of it: a diamond in a glowing
+ *   gradient disc, then `PHX` in the cyan→magenta gradient and `/GROWTH` solid
+ *   white, heavily letter-spaced. The only addition is a gold PLUS chip, using
+ *   the parent's own apex accent — a separate logo here would read as a
+ *   separate company, which is exactly the confusion this property must avoid.
+ *
+ *   There is one marketing page, and it carries its own header and footer
+ *   because both are part of its composition. This is the plain version legal
+ *   documents wear: a way back, the mark, and the parent relationship. No nav,
+ *   because there is nowhere else to navigate to.
  */
+
+export function Wordmark({ size = "sm" }: { size?: "sm" | "lg" }) {
+  return (
+    <Link
+      href="/"
+      aria-label={`${BRAND.name} — home`}
+      className="group flex shrink-0 items-center gap-2.5 whitespace-nowrap"
+    >
+      {/* Drawn rather than typed: the diamond glyph this replaces rendered as
+          tofu in the OG image renderer and in a couple of Android fonts. */}
+      <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan via-violet to-magenta transition-transform duration-500 group-hover:rotate-90">
+        <span className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan via-violet to-magenta blur-md opacity-60" />
+        <span className="relative h-3 w-3 rotate-45 rounded-[2px] bg-white" />
+      </span>
+      <span
+        className={cn(
+          "font-bold tracking-[0.16em]",
+          size === "lg" ? "text-lg sm:text-xl" : "text-base sm:text-lg",
+        )}
+      >
+        <span className="text-gradient">{BRAND.wordmarkLead}</span>
+        <span className="text-foreground">{BRAND.wordmarkMid}</span>
+      </span>
+      <span className="chip border-gold/40 bg-gold/10 text-gold">{BRAND.wordmarkAccent}</span>
+    </Link>
+  );
+}
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-md">
-      <div className="container flex h-16 items-center justify-between gap-4">
+    <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-background/80 backdrop-blur-xl">
+      <div className="container flex h-[4.5rem] items-center justify-between gap-4">
+        <Wordmark />
         <Link
           href="/"
-          className="group flex shrink-0 items-center gap-2 whitespace-nowrap font-heading text-base font-bold"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-primary/15 shadow-hud transition-transform duration-500 group-hover:rotate-90">
-            <span className="h-2.5 w-2.5 rotate-45 rounded-[2px] bg-gradient-to-br from-cyan via-violet to-magenta" />
-          </span>
-          {BRAND.wordmarkLead}
-          <span className="text-gradient">{BRAND.wordmarkAccent}</span>
-        </Link>
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 font-mono text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-3 w-3" /> Back
+          <ArrowLeft className="h-3.5 w-3.5" /> Back
         </Link>
       </div>
     </header>
@@ -40,25 +64,28 @@ export function SiteHeader() {
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-border/60 py-10">
-      <div className="container space-y-5">
+    <footer className="border-t border-white/[0.06] py-12">
+      <div className="container space-y-6">
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-          <Link href="/" className="hover:text-foreground">Upgrades</Link>
-          <a href={`mailto:${BRAND.notifyEmail}`} className="hover:text-foreground">
-            {BRAND.notifyEmail}
+          <Link href="/" className="transition-colors hover:text-foreground">Upgrades</Link>
+          <a
+            href={`mailto:${BRAND.parent.email}`}
+            className="transition-colors hover:text-foreground"
+          >
+            {BRAND.parent.email}
           </a>
-          <Link href="/legal/terms" className="hover:text-foreground">Terms</Link>
-          <Link href="/legal/privacy" className="hover:text-foreground">Privacy</Link>
-          <Link href="/legal/msa" className="hover:text-foreground">Services agreement</Link>
-          <Link href="/login" className="hover:text-foreground">Client sign-in</Link>
+          <Link href="/legal/terms" className="transition-colors hover:text-foreground">Terms</Link>
+          <Link href="/legal/privacy" className="transition-colors hover:text-foreground">Privacy</Link>
+          <Link href="/legal/msa" className="transition-colors hover:text-foreground">Services agreement</Link>
+          <Link href="/login" className="transition-colors hover:text-foreground">Client sign-in</Link>
         </div>
 
-        <div className="flex flex-col items-center gap-2 border-t border-border/40 pt-5 text-center">
+        <div className="flex flex-col items-center gap-2 border-t border-white/[0.06] pt-6 text-center">
           <a
             href={BRAND.parent.url}
-            className="inline-flex items-center gap-1.5 font-mono text-[0.68rem] uppercase tracking-[0.2em] text-cyan transition-colors hover:text-foreground"
+            className="inline-flex items-center gap-1.5 text-sm text-cyan transition-colors hover:text-foreground"
           >
-            A {BRAND.parent.name} property <ArrowUpRight className="h-3 w-3" />
+            An upgrade counter for {BRAND.parent.name} <ArrowUpRight className="h-3.5 w-3.5" />
           </a>
           <span className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} {BRAND.name}

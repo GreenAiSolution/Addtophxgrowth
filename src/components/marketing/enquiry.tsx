@@ -2,12 +2,20 @@
 
 import * as React from "react";
 import { Loader2, CheckCircle2, Check, ArrowRight } from "lucide-react";
-import { PARENT_SERVICES, UPGRADES, upgradesFor, type Upgrade } from "@/lib/upgrades";
+import {
+  PARENT_SERVICES,
+  UPGRADES,
+  upgradesFor,
+  type ServiceKey,
+  type Upgrade,
+} from "@/lib/upgrades";
 import { formatCurrency, cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+
+/** Plain sentence-case label — the console's mono HUD label is wrong here. */
+const FIELD_LABEL = "font-sans text-xs normal-case tracking-normal text-muted-foreground";
 
 /**
  * The only interactive thing on the site.
@@ -97,12 +105,12 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
 
   if (state === "done") {
     return (
-      <div className="hud-panel hud-corners mx-auto flex max-w-xl flex-col items-center gap-3 p-10 text-center">
-        <CheckCircle2 className="h-12 w-12 text-emerald-400" />
-        <h3 className="font-heading text-2xl font-bold">That&apos;s with us.</h3>
+      <div className="phx-card mx-auto flex max-w-xl flex-col items-center gap-3 border-signal/25 p-10 text-center">
+        <CheckCircle2 className="h-12 w-12 text-signal" />
+        <h3 className="text-2xl font-bold tracking-tight">Cleared for pre-flight.</h3>
         <p className="text-sm leading-relaxed text-muted-foreground">
           You&apos;ll hear back today with the exact scope and the exact number in writing.
-          Nothing has been charged, and nothing changes on your PHX Growth account until you say so.
+          Nothing has been charged, and nothing on your account changes until you say so.
         </p>
       </div>
     );
@@ -114,7 +122,7 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
       <div className="space-y-7">
         {PARENT_SERVICES.map((service) => (
           <div key={service.key}>
-            <div className="hud-label mb-3 border-b border-border/60 pb-2">
+            <div className="eyebrow mb-3 border-b border-white/[0.07] pb-2 text-muted-foreground">
               On {service.name}
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -132,19 +140,17 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
       </div>
 
       {/* Send */}
-      <form onSubmit={onSubmit} className="hud-panel hud-corners space-y-3 p-6 lg:sticky lg:top-24">
-        <div className="border-b border-border/50 pb-4">
-          <div className="hud-label">Your selection</div>
+      <form onSubmit={onSubmit} className="phx-card space-y-3 p-6 lg:sticky lg:top-24">
+        <div className="border-b border-white/[0.07] pb-4">
+          <div className="eyebrow text-muted-foreground">Your selection</div>
           <div className="mt-1.5 flex items-baseline gap-1.5">
-            <span className="hud-value text-3xl font-bold text-gradient">
+            <span className="text-3xl font-bold tracking-tight text-gradient">
               {formatCurrency(monthly)}
             </span>
             <span className="text-sm text-muted-foreground">/mo</span>
           </div>
           {oneTime > 0 && (
-            <div className="mt-1 font-mono text-xs text-secondary">
-              + {formatCurrency(oneTime)} one-time
-            </div>
+            <div className="mt-1 text-xs text-gold">+ {formatCurrency(oneTime)} one-time</div>
           )}
           <p className="mt-2 text-[0.7rem] leading-relaxed text-muted-foreground">
             {picked.length === 0
@@ -154,11 +160,11 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
         </div>
 
         <div>
-          <Label htmlFor="eq-name">Your name</Label>
+          <Label htmlFor="eq-name" className={FIELD_LABEL}>Your name</Label>
           <Input id="eq-name" name="name" required placeholder="Alex Rivera" autoComplete="name" />
         </div>
         <div>
-          <Label htmlFor="eq-email">Email</Label>
+          <Label htmlFor="eq-email" className={FIELD_LABEL}>Email</Label>
           <Input
             id="eq-email"
             name="email"
@@ -169,15 +175,15 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
           />
         </div>
         <div>
-          <Label htmlFor="eq-company">Business</Label>
+          <Label htmlFor="eq-company" className={FIELD_LABEL}>Business</Label>
           <Input id="eq-company" name="company" placeholder="Company, Inc." autoComplete="organization" />
         </div>
         <div>
-          <Label htmlFor="eq-phone">Phone (optional)</Label>
+          <Label htmlFor="eq-phone" className={FIELD_LABEL}>Phone (optional)</Label>
           <Input id="eq-phone" name="phone" placeholder="(602) 555-0142" autoComplete="tel" />
         </div>
         <div>
-          <Label htmlFor="eq-note">Anything we should know?</Label>
+          <Label htmlFor="eq-note" className={FIELD_LABEL}>Anything we should know?</Label>
           <Textarea id="eq-note" name="note" rows={2} placeholder="Optional" />
         </div>
 
@@ -187,15 +193,15 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
           </p>
         )}
 
-        <Button type="submit" size="lg" className="w-full" disabled={state === "loading"}>
+        <button type="submit" className="pill-primary w-full" disabled={state === "loading"}>
           {state === "loading" ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>
-              Send this to PHX Growth <ArrowRight className="h-4 w-4" />
+              Send this to PHX/GROWTH <ArrowRight className="h-4 w-4" />
             </>
           )}
-        </Button>
+        </button>
         <p className="text-center text-[0.65rem] leading-relaxed text-muted-foreground">
           A human reads every one of these and replies the same day. No automated sequence, no card
           required.
@@ -228,10 +234,10 @@ export function AddUpgradeButton({ upgradeKey, name }: { upgradeKey: string; nam
       aria-pressed={added}
       aria-label={added ? `Remove ${name} from your enquiry` : `Add ${name} to your enquiry`}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 font-mono text-[0.62rem] uppercase tracking-widest transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition-colors",
         added
-          ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
-          : "border-cyan/40 text-cyan hover:border-cyan hover:bg-cyan/10",
+          ? "border-signal/50 bg-signal/10 text-signal"
+          : "border-white/20 text-foreground hover:border-white/45 hover:bg-white/[0.05]",
       )}
     >
       {added ? (
@@ -247,6 +253,22 @@ export function AddUpgradeButton({ upgradeKey, name }: { upgradeKey: string; nam
   );
 }
 
+/** The parent's own colour coding, repeated so the two pages agree. */
+const TOGGLE_ACCENT: Record<ServiceKey, { on: string; box: string }> = {
+  "premium-ai-ads": {
+    on: "border-magenta/60 bg-magenta/[0.07]",
+    box: "border-magenta bg-magenta/20 text-magenta",
+  },
+  "ai-employees": {
+    on: "border-violet/60 bg-violet/[0.07]",
+    box: "border-violet bg-violet/20 text-violet",
+  },
+  "website-creation": {
+    on: "border-cyan/60 bg-cyan/[0.07]",
+    box: "border-cyan bg-cyan/20 text-cyan",
+  },
+};
+
 function UpgradeToggle({
   upgrade,
   on,
@@ -256,30 +278,29 @@ function UpgradeToggle({
   on: boolean;
   onToggle: () => void;
 }) {
+  const accent = TOGGLE_ACCENT[upgrade.attachesTo];
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-pressed={on}
       className={cn(
-        "flex items-start gap-3 rounded-lg border p-3 text-left transition-all duration-200",
-        on
-          ? "border-cyan/70 bg-primary/5 ring-1 ring-cyan/30"
-          : "border-border hover:border-cyan/40",
+        "flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all duration-200",
+        on ? accent.on : "border-white/[0.08] hover:border-white/25",
       )}
     >
       <span
         aria-hidden
         className={cn(
-          "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded border transition-colors",
-          on ? "border-cyan bg-cyan/20 text-cyan" : "border-border text-transparent",
+          "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-colors",
+          on ? accent.box : "border-white/20 text-transparent",
         )}
       >
         <Check className="h-3 w-3" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium">{upgrade.name}</span>
-        <span className="mt-0.5 block font-mono text-[0.68rem] text-muted-foreground">
+        <span className="mt-0.5 block text-[0.72rem] text-muted-foreground">
           {formatCurrency(upgrade.price)}
           {upgrade.billing === "monthly" ? "/mo" : " once"}
         </span>

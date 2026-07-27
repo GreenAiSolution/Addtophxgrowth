@@ -1,28 +1,35 @@
-# PHX Growth Plus
+# PHX/GROWTH PLUS
 
-The upgrade counter for [PHX Growth](https://phxgrowth.com).
+The upgrade counter for [PHX/GROWTH](https://phxgrowth.com).
 
-**The public site is one page.** PHX Growth sells the growth programme across
-three services — AI Employees, Ad Growth Management, and Web / SEO / Paid Ads.
-This property sells nine specialised upgrades that bolt onto those three,
-chosen because demand for each is visibly rising into 2027: being the business
-an AI assistant names, owning the map pack, answering every call in one ring,
-and measuring it on first-party data.
+**The public site is one page.** PHX/GROWTH — "the autonomous media buyer that
+flies your ad spend to profit" — sells three à la carte services (Premium AI
+Ads, AI Employees, Website Creation) and three managed flight plans on top of
+them (Pilot, Squadron, Fleet Command). This property sells nine specialised
+upgrades that bolt onto those services, chosen because demand for each is
+visibly rising into 2027.
 
-Everything that used to be here — six subscription tiers, a showroom, per-trade
-landing pages, a cockpit configurator — was a second agency competing with the
-first, and has been removed. `src/lib/upgrades.ts` is the whole public
-catalogue, and a test enforces the rule the site depends on: **every upgrade
-must attach to one of PHX Growth's three real services.** An upgrade that
-attaches to nothing is a rival agency in disguise.
+`src/lib/upgrades.ts` is the entire public catalogue and `upgrades.test.ts`
+enforces the two rules the site depends on:
 
-Behind the page, the client platform is unchanged and still runs: sign-in, the
+1. **Attached** — every upgrade names a real PHX/GROWTH service. One that
+   attaches to nothing is a second agency in disguise.
+2. **Additive** — no upgrade may sell something that service already includes.
+   `PARENT_SERVICES[].includes` is a verbatim copy of their own bullet list and
+   the test reads it, so if the parent ever ships call answering as standard,
+   the Voice Employee has to change or go.
+
+Design, typography and voice are taken from phxgrowth.com rather than invented:
+the `PHX/GROWTH` wordmark with a gold PLUS chip, Inter, the cyan → violet →
+magenta gradient with gold reserved for apex and green for the guarantee, the
+wide-tracked section eyebrow, gradient pill buttons, per-service price colours,
+and the aviation vocabulary throughout. The 30-Day Flight Check is quoted from
+their page rather than replaced with a different promise.
+
+Behind the page the client platform is unchanged and still runs: sign-in, the
 agent workspace, ad dashboards, the Spend Watch, the morning brief, requests,
-reports and Stripe billing, plus an admin console for the agency operator.
-Those surfaces are for existing clients and are not part of the pitch.
-
-Built in the **cockpit / HUD aesthetic**: near-black base, cyan / violet /
-magenta accents, Space Grotesk headings, JetBrains Mono for data.
+reports and Stripe billing, plus an admin console. Those surfaces are for
+existing clients and are not part of the pitch.
 
 ---
 
@@ -125,14 +132,17 @@ feature gating.
 
 ## Architecture notes
 
-- **The public catalogue** (`src/lib/upgrades.ts`) — the three PHX Growth
-  services and the upgrades that bolt onto each, with the demand argument for
-  every one. `upgrades.test.ts` enforces the rules that keep the page honest:
-  every upgrade attaches to a real service, each service keeps at least three,
-  each group is listed most-expensive-first, and **no copy anywhere quotes a
-  percentage or an "N× better" claim** — the pitch of the page is that it tells
-  the truth about what it sells, and a fabricated statistic is the easiest
-  thing in the world to add later without thinking.
+- **The public catalogue** (`src/lib/upgrades.ts`) — the three PHX/GROWTH
+  services, their three managed flight plans, and the upgrades that bolt onto
+  each, with the demand argument for every one. `upgrades.test.ts` enforces
+  attached and additive (above) plus the rules that keep the page honest: each
+  service keeps at least three upgrades, each group is listed
+  most-expensive-first, every upgrade costs less than the service it upgrades,
+  gold is spent exactly once, the stated performance fees match the parent's
+  real 8/6/4%, and **no copy anywhere quotes a percentage or an "N× better"
+  claim** — the pitch of the page is that it tells the truth about what it
+  sells, and a fabricated statistic is the easiest thing in the world to add
+  later without thinking.
 - **One conversion path** — `/api/reserve` takes the enquiry. It recomputes the
   quote from `UPGRADES` rather than trusting any total the browser sent, and
   deliberately touches no database, no auth and no Stripe, because those are the

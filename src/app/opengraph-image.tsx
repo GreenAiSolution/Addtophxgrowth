@@ -57,8 +57,9 @@ export default function OpengraphImage() {
             />
           </div>
           <div style={{ display: "flex", fontSize: 34, fontWeight: 700, letterSpacing: -0.5 }}>
-            <span style={{ color: "#fafafa", marginRight: 12 }}>{BRAND.wordmarkLead.trim()}</span>
-            <span style={{ color: "#22d3ee" }}>{BRAND.wordmarkAccent}</span>
+            <span style={{ color: "#22d3ee" }}>{BRAND.wordmarkLead}</span>
+            <span style={{ color: "#fafafa", marginRight: 14 }}>{BRAND.wordmarkMid}</span>
+            <span style={{ color: "#f0b429" }}>{BRAND.wordmarkAccent}</span>
           </div>
         </div>
 
@@ -73,7 +74,7 @@ export default function OpengraphImage() {
               letterSpacing: -2,
             }}
           >
-            The parts of 2027
+            Every upgrade.
           </div>
           <div
             style={{
@@ -85,7 +86,7 @@ export default function OpengraphImage() {
               letterSpacing: -2,
             }}
           >
-            nobody has staffed.
+            One flight plan.
           </div>
         </div>
 
@@ -99,9 +100,9 @@ export default function OpengraphImage() {
             textTransform: "uppercase",
           }}
         >
-          <span>Upgrades for PHX Growth clients</span>
+          <span>Upgrades for PHX/GROWTH clients</span>
           <div style={{ display: "flex", width: 8, height: 8, background: "#22d3ee", transform: "rotate(45deg)", marginTop: 8 }} />
-          <span>Upgrades, not another agency</span>
+          <span>Bolts onto what you already fly</span>
           <div style={{ display: "flex", width: 8, height: 8, background: "#e879f9", transform: "rotate(45deg)", marginTop: 8 }} />
           {/* The differentiator, on the card itself. Somebody scrolling a
               Slack channel gets one line to understand why this link is worth

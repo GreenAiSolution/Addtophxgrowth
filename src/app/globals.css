@@ -33,10 +33,17 @@
     --input: 220 22% 16%;
     --ring: 187 92% 55%;
 
-    /* HUD signal palette */
-    --hud-cyan: 187 92% 55%;
-    --hud-violet: 265 78% 65%;
-    --hud-magenta: 315 90% 62%;
+    /* Signal palette, sampled from phxgrowth.com so the two properties are
+       literally the same colours rather than approximately the same ones.
+       Cyan opens the gradient, magenta closes it, violet is the midpoint.
+       Gold is the parent's apex accent (their Fleet Command tier) and is what
+       marks this property as the upgrade counter. Green appears exactly once,
+       on the guarantee, just as it does over there. */
+    --hud-cyan: 190 95% 55%;
+    --hud-violet: 255 90% 68%;
+    --hud-magenta: 322 92% 58%;
+    --hud-gold: 42 88% 62%;
+    --hud-green: 158 72% 52%;
 
     --radius: 0.65rem;
   }
@@ -48,12 +55,13 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    /* Matched to phxgrowth.com: near-black with two soft light sources and
+       no ruled grid. The grid that used to be here was this site's own
+       invention and was the most obvious visual tell that the two properties
+       were built by different hands. */
     background-image:
-      radial-gradient(60rem 40rem at 15% -10%, hsl(var(--hud-cyan) / 0.08), transparent 60%),
-      radial-gradient(50rem 40rem at 110% 10%, hsl(var(--hud-violet) / 0.1), transparent 55%),
-      linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
-    background-size: auto, auto, 44px 44px, 44px 44px;
+      radial-gradient(70rem 45rem at 12% -12%, hsl(var(--hud-cyan) / 0.07), transparent 62%),
+      radial-gradient(60rem 45rem at 108% 6%, hsl(var(--hud-magenta) / 0.07), transparent 58%);
     background-attachment: fixed;
   }
   h1, h2, h3, h4, h5 {
@@ -75,6 +83,76 @@
   }
   .text-gradient {
     @apply bg-gradient-to-r from-cyan via-violet to-magenta bg-clip-text text-transparent;
+  }
+
+  /* ------------------------------------------------------------------
+     PHX/GROWTH house styles.
+
+     Lifted from the parent site rather than invented, so a client moving
+     between the two properties never feels the seam: the section eyebrow,
+     the card with a lit top edge, and the pill buttons.
+     ------------------------------------------------------------------ */
+
+  /* The wide-tracked coloured eyebrow that opens every section over there. */
+  .eyebrow {
+    @apply font-semibold uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.28em;
+  }
+
+  /* The card: a hair lighter than the page, with a gradient hairline across
+     the top edge that reads as light catching a bevel. */
+  .phx-card {
+    @apply relative rounded-2xl border border-white/[0.07] bg-white/[0.025];
+  }
+  .phx-card::before {
+    content: "";
+    @apply pointer-events-none absolute inset-x-8 top-0 h-px;
+    background: linear-gradient(to right, transparent, hsl(var(--hud-cyan) / 0.5), transparent);
+  }
+  .phx-card-violet::before {
+    background: linear-gradient(to right, transparent, hsl(var(--hud-violet) / 0.6), transparent);
+  }
+  .phx-card-gold::before {
+    background: linear-gradient(to right, transparent, hsl(var(--hud-gold) / 0.6), transparent);
+  }
+
+  /* Primary action: the violet→magenta pill. Used at most once per section,
+     because over there it marks the single thing they want you to press. */
+  .pill-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-semibold text-white transition-transform duration-200;
+    background: linear-gradient(100deg, hsl(var(--hud-violet)), hsl(var(--hud-magenta)));
+    box-shadow: 0 10px 34px -12px hsl(var(--hud-magenta) / 0.7);
+  }
+  .pill-primary:hover {
+    @apply -translate-y-0.5;
+  }
+
+  /* The gold pill, reserved for the apex action — the parent uses it only on
+     Fleet Command, so it appears here only on the apex upgrade. */
+  .pill-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-semibold transition-transform duration-200;
+    color: hsl(230 35% 8%);
+    background: linear-gradient(100deg, hsl(var(--hud-gold)), hsl(18 92% 58%));
+    box-shadow: 0 10px 34px -12px hsl(var(--hud-gold) / 0.7);
+  }
+  .pill-gold:hover {
+    @apply -translate-y-0.5;
+  }
+
+  /* Secondary action: hairline outline pill. */
+  .pill-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/15 px-7 py-3.5 font-medium text-foreground transition-colors duration-200;
+  }
+  .pill-ghost:hover {
+    @apply border-white/35 bg-white/[0.04];
+  }
+
+  /* Small capsule badge — POPULAR, MOST FLOWN, APEX. */
+  .chip {
+    @apply inline-flex items-center rounded-full border px-3 py-1 font-semibold uppercase;
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
   }
   /* Animated corner ticks for the cockpit look */
   .hud-corners::before,
