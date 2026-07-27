@@ -54,6 +54,26 @@ async function main() {
     }
 
     envLines.push(`${plan.stripePriceEnv}=${price.id}`);
+
+    // One-time build fee — a separate non-recurring Price on the same product,
+    // added as a second line item at checkout for new clients.
+    if (plan.setupFee && plan.setupPriceEnv) {
+      let setupPrice = prices.data.find(
+        (p) => p.unit_amount === plan.setupFee && !p.recurring,
+      );
+      if (!setupPrice) {
+        setupPrice = await stripe.prices.create({
+          product: product.id,
+          unit_amount: plan.setupFee,
+          currency: "usd",
+          metadata: { planKey: plan.key, kind: "setup_fee" },
+        });
+        console.log(`  ↳ created one-time build fee ${setupPrice.id} (${plan.setupFee / 100} USD)`);
+      } else {
+        console.log(`  ↳ build fee price exists ${setupPrice.id}`);
+      }
+      envLines.push(`${plan.setupPriceEnv}=${setupPrice.id}`);
+    }
   }
 
   console.log("\n# ---- Paste these into your .env ----");

@@ -76,6 +76,17 @@ export default async function BillingPage() {
                     {isCurrent && <Badge variant="success">Current</Badge>}
                   </div>
                   <div className="hud-value mt-2 text-2xl font-bold">{formatCurrency(plan.priceMonthly)}<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                  {plan.setupFee && !isCurrent ? (
+                    activeByLine[line] ? (
+                      <div className="mt-1 font-mono text-[0.65rem] text-emerald-400">
+                        Build fee waived — already onboarded
+                      </div>
+                    ) : (
+                      <div className="mt-1 font-mono text-[0.65rem] text-secondary">
+                        + {formatCurrency(plan.setupFee)} one-time build
+                      </div>
+                    )
+                  ) : null}
                   <ul className="mt-3 flex-1 space-y-1 text-xs text-muted-foreground">
                     {plan.features.map((f) => (
                       <li key={f}>› {f}</li>

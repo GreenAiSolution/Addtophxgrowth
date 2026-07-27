@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, Wrench } from "lucide-react";
 import { PLANS, PRODUCT_LINES, type ProductLineKey } from "@/lib/catalog";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,14 @@ export function Pricing() {
                   </span>
                   <span className="text-sm text-muted-foreground">/mo</span>
                 </div>
+                {plan.setupFee ? (
+                  <div className="mt-2 flex items-center gap-1.5 rounded-md border border-violet/30 bg-secondary/10 px-2.5 py-1.5">
+                    <Wrench className="h-3.5 w-3.5 shrink-0 text-secondary" />
+                    <span className="font-mono text-[0.68rem] leading-tight text-secondary">
+                      + {formatCurrency(plan.setupFee)} one-time build
+                    </span>
+                  </div>
+                ) : null}
                 <ul className="mt-5 flex-1 space-y-2.5">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm">

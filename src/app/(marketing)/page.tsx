@@ -236,6 +236,12 @@ export default function MarketingHome() {
             One subscription per line. Upgrade, downgrade, or cancel anytime from the console —
             no lock-in, no awkward phone call.
           </p>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+            Agent plans include a <span className="text-secondary">one-time build</span>: we wire
+            the agents into your CRM and ad accounts, train them on your brand voice, tune every
+            prompt against your real leads, and run a supervised pilot before you go live. Billed
+            once, on your first invoice — never again when you change tiers.
+          </p>
         </div>
         <Pricing />
       </section>
@@ -299,6 +305,10 @@ export default function MarketingHome() {
             {
               q: "Can I hold subscriptions on both product lines?",
               a: "Yes — one subscription per line, simultaneously. Many clients run Scale (agents) alongside Operate (ad-ops). Each line is billed and managed independently from your console.",
+            },
+            {
+              q: "What is the one-time build fee, and why is there one?",
+              a: "An agent that hasn't been trained on your business is a demo, not an asset. The build is where we earn the monthly: we connect your CRM and ad accounts, load your brand voice, write and tune each agent's prompts against your actual leads and offers, then run a supervised pilot until the output is something you'd send without editing. It's $2,500 on Launch, $3,000 on Scale, and $3,500 on Command — billed once on your first invoice, alongside month one. Change tiers later and you are never charged it again.",
             },
             {
               q: "What counts as an agent run?",

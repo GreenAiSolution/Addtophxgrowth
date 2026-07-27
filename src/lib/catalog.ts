@@ -14,6 +14,13 @@ export interface PlanDef {
   priceMonthly: number; // cents
   /** Env var that holds the Stripe Price ID for this plan. */
   stripePriceEnv: string;
+  /**
+   * One-time onboarding/build fee in cents, billed on the first invoice
+   * alongside the first month. Omit for plans with no build phase.
+   */
+  setupFee?: number;
+  /** Env var holding the Stripe one-time Price ID for the build fee. */
+  setupPriceEnv?: string;
   tagline: string;
   features: string[];
   /** Metering limits. null = unlimited. */
@@ -67,6 +74,8 @@ export const PLANS: PlanDef[] = [
     name: "Launch",
     priceMonthly: 129700,
     stripePriceEnv: "STRIPE_PRICE_LAUNCH",
+    setupFee: 250000,
+    setupPriceEnv: "STRIPE_PRICE_LAUNCH_SETUP",
     tagline: "Two agents, working your inbound.",
     features: [
       "2 agents — Lead Qualifier + Follow-Up Sequencer",
@@ -83,6 +92,8 @@ export const PLANS: PlanDef[] = [
     name: "Scale",
     priceMonthly: 299700,
     stripePriceEnv: "STRIPE_PRICE_SCALE",
+    setupFee: 300000,
+    setupPriceEnv: "STRIPE_PRICE_SCALE_SETUP",
     tagline: "A working squad of agents.",
     features: [
       "4 agents",
@@ -106,6 +117,8 @@ export const PLANS: PlanDef[] = [
     name: "Command",
     priceMonthly: 699700,
     stripePriceEnv: "STRIPE_PRICE_COMMAND",
+    setupFee: 350000,
+    setupPriceEnv: "STRIPE_PRICE_COMMAND_SETUP",
     tagline: "Full autonomy. All five agents.",
     features: [
       "All 5 agents",

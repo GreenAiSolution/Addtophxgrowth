@@ -53,10 +53,29 @@ export async function POST(req: Request) {
     });
   }
 
+  // One-time build fee, billed on the first invoice alongside month one.
+  // Charged only when the client is new to this product line — upgrading or
+  // downgrading between tiers must not re-bill onboarding work already done.
+  const lineItems: { price: string; quantity: number }[] = [
+    { price: priceId, quantity: 1 },
+  ];
+
+  const existing = await prisma.subscription.findUnique({
+    where: { clientId_lineKey: { clientId: client.id, lineKey: plan.line } },
+    select: { status: true },
+  });
+  const alreadyOnboarded =
+    existing?.status === "ACTIVE" || existing?.status === "TRIALING";
+
+  const setupPriceId = plan.setupPriceEnv ? process.env[plan.setupPriceEnv] : undefined;
+  if (plan.setupFee && setupPriceId && !alreadyOnboarded) {
+    lineItems.push({ price: setupPriceId, quantity: 1 });
+  }
+
   const session = await stripe().checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: lineItems,
     success_url: `${env.appUrl}/app/billing?checkout=success`,
     cancel_url: `${env.appUrl}/app/billing?checkout=cancelled`,
     metadata: { clientId: client.id, planKey: plan.key, lineKey: plan.line },
