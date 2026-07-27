@@ -9,6 +9,8 @@ import {
   AUTOMATION_LOOPS,
   FLAGSHIP,
   RESULTS_WORK,
+  HOUSE_STRIP,
+  HOME_CLAIMS,
   PROOF_POSTURE,
   CREATION_DISCLAIMER,
   UPGRADES,
@@ -176,6 +178,11 @@ describe("rule three: nothing an operator already does", () => {
 });
 
 describe("rule four: nothing the Manifest already promises", () => {
+  it("carries the house credential strip", () => {
+    expect(HOUSE_STRIP.length).toBeGreaterThanOrEqual(4);
+    expect(HOME_CLAIMS.length).toBeGreaterThanOrEqual(4);
+  });
+
   it("carries the automation spine and the flagship engagement", () => {
     expect(AUTOMATION_LOOPS.length).toBeGreaterThanOrEqual(4);
     for (const l of AUTOMATION_LOOPS) {
@@ -253,6 +260,7 @@ describe("rule four: nothing the Manifest already promises", () => {
       ...AUTOMATION_LOOPS.map((l) => ({ label: `loop "${l.name}"`, text: `${l.name} ${l.detail}` })),
       ...FLAGSHIP.includes.map((b) => ({ label: `${FLAGSHIP.name} engagement`, text: b })),
       ...RESULTS_WORK.map((w) => ({ label: "Results-page work", text: w })),
+      ...HOME_CLAIMS.map((c) => ({ label: "Homepage claim", text: c })),
     ];
 
     for (const u of UPGRADES) {

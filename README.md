@@ -48,9 +48,10 @@ multiple or guaranteed-results phrasing.
 Design, typography and voice are taken from phxgrowth.com rather than invented:
 the `PHX/GROWTH` wordmark with a gold PLUS chip, Inter, the cyan → violet →
 magenta gradient with gold reserved for apex and green for the guarantee, the
-wide-tracked section eyebrow, gradient pill buttons, per-service price colours,
-and the aviation vocabulary throughout. The 30-Day Flight Check is quoted from
-their page rather than replaced with a different promise.
+wide-tracked section eyebrow, the homepage's bordered hero pill with its live
+dot, the dot-separated credential strip, gradient pill buttons, per-service
+price colours, and the aviation vocabulary throughout. The 30-Day Flight Check
+is quoted from their page rather than replaced with a different promise.
 
 Behind the page the client platform is unchanged and still runs: sign-in, the
 agent workspace, ad dashboards, the Spend Watch, the morning brief, requests,

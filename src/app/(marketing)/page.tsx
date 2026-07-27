@@ -9,6 +9,7 @@ import {
   AUTOMATION_LOOPS,
   FLAGSHIP,
   PROOF_POSTURE,
+  HOUSE_STRIP,
   CREATION_DISCLAIMER,
   UPGRADES,
   upgradesFor,
@@ -234,7 +235,10 @@ export default function Home() {
       <section className="relative grain overflow-hidden py-24 md:py-32">
         <div className="aurora" />
         <div className="container relative text-center">
-          <p className="eyebrow text-gold">—— {THESIS.eyebrow}</p>
+          <p className="inline-flex items-center gap-2.5 rounded-full border border-white/10 px-5 py-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-magenta" />
+            <span className="eyebrow text-[0.68rem] text-muted-foreground">{THESIS.eyebrow}</span>
+          </p>
 
           <h1 className="mx-auto mt-7 max-w-4xl text-[2.6rem] font-bold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl">
             Every upgrade.
@@ -257,9 +261,39 @@ export default function Home() {
             </a>
           </div>
 
-          <p className="mt-9 text-sm text-muted-foreground">
-            From {formatCurrency(from)}/mo · Month to month · Covered by the 30-Day Flight Check
-          </p>
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+            {[
+              `From ${formatCurrency(from)}/mo`,
+              "Month to month",
+              "Founding rate locks in",
+              "30-Day Flight Check",
+            ].map((item, i, all) => (
+              <span key={item} className="flex items-center gap-5">
+                <span className="eyebrow text-[0.62rem] text-muted-foreground/70">{item}</span>
+                {i < all.length - 1 && (
+                  <span aria-hidden className="text-muted-foreground/30">
+                    ·
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
+
+          {/* The house strip, verbatim — what PHX/GROWTH is, restated here so
+              a visitor arriving cold knows whose counter this is before they
+              read a single price. */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 opacity-60">
+            {HOUSE_STRIP.map((item, i, all) => (
+              <span key={item} className="flex items-center gap-5">
+                <span className="eyebrow text-[0.62rem] text-muted-foreground">{item}</span>
+                {i < all.length - 1 && (
+                  <span aria-hidden className="text-muted-foreground/30">
+                    ·
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
 

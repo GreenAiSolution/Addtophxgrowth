@@ -339,6 +339,30 @@ export const MANIFEST: { n: string; title: string; detail: string }[] = [
  * first half — no percentage, multiple or outcome claim may appear in any
  * upgrade copy — and the page states the second half in its own section.
  */
+
+/**
+ * The homepage credential strip and its headline claims.
+ *
+ * The last page, and the first that cut nothing — no new service is named on
+ * it. It is here for the check anyway (an upgrade must not restate "A-to-Z ad
+ * management" or "4 native channels" back at a client), and for the strip
+ * itself, which is a house pattern this site was missing.
+ */
+export const HOUSE_STRIP: string[] = [
+  "Profit-optimized",
+  "4 native channels",
+  "A-to-Z ad management",
+  "<60min to live",
+];
+
+export const HOME_CLAIMS: string[] = [
+  "An autonomous media buyer that flies Meta, Google & TikTok to real profit — 24/7, hands off the wheel.",
+  "The incumbents open with logo walls. We open the cockpit: a live demo, math you can audit, and a 30-day flight check.",
+  "Every campaign is reverse-engineered from one goal: bring you buyers who pay.",
+  "Fresh, native creative and tight targeting fill the top of your funnel — daily.",
+  "Put your spend and margins into the Growth Calculator and get the same honest math the pilot flies by.",
+];
+
 export const PROOF_POSTURE = {
   eyebrow: "No numbers yet",
   headline: "We won't show you results we haven't earned.",
