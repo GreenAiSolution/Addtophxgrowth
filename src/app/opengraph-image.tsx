@@ -103,7 +103,10 @@ export default function OpengraphImage() {
           <div style={{ display: "flex", width: 8, height: 8, background: "#22d3ee", transform: "rotate(45deg)", marginTop: 8 }} />
           <span>Creative on a loop</span>
           <div style={{ display: "flex", width: 8, height: 8, background: "#e879f9", transform: "rotate(45deg)", marginTop: 8 }} />
-          <span>Spend watched daily</span>
+          {/* The differentiator, on the card itself. Somebody scrolling a Slack
+              channel gets one line to understand why this link is worth a
+              click, and "you can see the prices" is the strongest one we have. */}
+          <span>Every price on the wall</span>
         </div>
       </div>
     ),

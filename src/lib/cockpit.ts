@@ -22,6 +22,7 @@
 
 import { PLANS, planByKey, type PlanDef } from "@/lib/catalog";
 import { ADDONS, ADDON_BUNDLE, addonByKey, type AddonDef } from "@/lib/addons";
+import { VERTICAL_PACKS } from "@/lib/verticals";
 
 export interface CockpitSelection {
   /** Agent tier key, or null for "no automation crew". */
@@ -280,3 +281,64 @@ export function buildSheet(selection: CockpitSelection, quote: CockpitQuote): st
 export const VALID_AGENT_PLANS = PLANS.filter((p) => p.line === "AI_AGENTS").map((p) => p.key);
 export const VALID_ADOPS_PLANS = PLANS.filter((p) => p.line === "AD_OPS").map((p) => p.key);
 export const VALID_ADDONS = ADDONS.map((a) => a.key);
+
+/** The query a shared or generated cockpit link may carry. */
+export interface CockpitLinkParams {
+  agents?: string;
+  adops?: string;
+  /** Comma-separated add-on keys. */
+  addons?: string;
+  vertical?: string;
+  /** A signature build key — wins over everything else. */
+  build?: string;
+  /** Line-agnostic alias used by the plan pages and the sign-in hand-off. */
+  plan?: string;
+}
+
+/**
+ * Turn a shared link into a starting selection.
+ *
+ * Every value is checked against what we actually sell before it is used, so a
+ * stale link from an old price list opens a smaller cockpit rather than a
+ * broken page — the same forgiving rule `priceCockpit` follows. Returns null
+ * when the URL asked for nothing, which is the signal to fall back to the
+ * saved basket and the usual default.
+ */
+export function parseCockpitLink(params: CockpitLinkParams): CockpitSelection | null {
+  const preset = params.build ? signatureByKey(params.build) : undefined;
+  if (preset) return preset.selection;
+
+  // `?plan=` doesn't say which line it belongs to — the catalog does.
+  const named = params.plan ? planByKey(params.plan) : undefined;
+
+  const agentsPlan =
+    named?.line === "AI_AGENTS"
+      ? named.key
+      : params.agents && VALID_AGENT_PLANS.includes(params.agents)
+        ? params.agents
+        : null;
+
+  const adOpsPlan =
+    named?.line === "AD_OPS"
+      ? named.key
+      : params.adops && VALID_ADOPS_PLANS.includes(params.adops)
+        ? params.adops
+        : null;
+
+  const addons = [
+    ...new Set(
+      (params.addons ?? "")
+        .split(",")
+        .map((k) => k.trim())
+        .filter((k) => VALID_ADDONS.includes(k)),
+    ),
+  ];
+
+  const verticalKey =
+    params.vertical && VERTICAL_PACKS.some((v) => v.key === params.vertical)
+      ? params.vertical
+      : null;
+
+  if (!agentsPlan && !adOpsPlan && addons.length === 0 && !verticalKey) return null;
+  return { agentsPlan, adOpsPlan, addons, verticalKey };
+}

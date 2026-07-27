@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, Check, FileText, ShieldQuestion, Target, Zap } from "lucide-react";
+import { Check, FileText, ShieldQuestion, Target, Zap } from "lucide-react";
 import { VERTICAL_PACKS, verticalByKey } from "@/lib/verticals";
 import { blueprintFor } from "@/lib/systems";
 import { PLANS, planByKey } from "@/lib/catalog";
@@ -11,6 +11,7 @@ import { BRAND } from "@/lib/brand";
 import { RobotAvatar } from "@/components/robot-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import type { AgentAccent } from "@/lib/agents";
 
 /**
@@ -56,25 +57,7 @@ export default function VerticalPage({ params }: { params: { verticalKey: string
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 whitespace-nowrap font-heading text-base font-bold"
-          >
-            <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-cyan shadow-hud">
-              ◈
-            </span>
-            {BRAND.wordmarkLead}
-            <span className="text-gradient">{BRAND.wordmarkAccent}</span>
-          </Link>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/verticals">
-              <ArrowLeft className="h-4 w-4" /> All trades
-            </Link>
-          </Button>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Hero */}
       <section className="container py-16 text-center">
@@ -268,6 +251,8 @@ export default function VerticalPage({ params }: { params: { verticalKey: string
           </div>
         </div>
       </section>
+
+      <SiteFooter />
     </div>
   );
 }

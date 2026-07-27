@@ -88,6 +88,138 @@
   .hud-corners::after {
     @apply bottom-0 right-0 border-b border-r rounded-br;
   }
+
+  /* ------------------------------------------------------------------
+     Creative layer.
+
+     The HUD above is the instrument panel — precise, legible, restrained.
+     This is the light around it. A storefront selling creative work has to
+     look like it can do creative work; a flat page arguing that creative is
+     the lever with no ceiling undermines itself on sight.
+
+     Everything here is decorative and pointer-events-none, so none of it can
+     swallow a click, and all of it stands down under prefers-reduced-motion.
+     ------------------------------------------------------------------ */
+
+  /* Slow-drifting colour fields. Drop inside a `relative` container. */
+  .aurora {
+    @apply pointer-events-none absolute inset-0 -z-10 overflow-hidden;
+  }
+  .aurora::before,
+  .aurora::after {
+    content: "";
+    @apply absolute rounded-full blur-[110px];
+    animation: drift 26s ease-in-out infinite;
+  }
+  .aurora::before {
+    left: -10%;
+    top: -30%;
+    height: 34rem;
+    width: 46rem;
+    background: radial-gradient(circle, hsl(var(--hud-cyan) / 0.22), transparent 68%);
+  }
+  .aurora::after {
+    right: -14%;
+    top: 4%;
+    height: 30rem;
+    width: 38rem;
+    background: radial-gradient(circle, hsl(var(--hud-magenta) / 0.18), transparent 68%);
+    animation-delay: -13s;
+  }
+
+  /* Film grain. Stops the large flat gradients from banding on wide screens,
+     and gives the whole thing a printed rather than rendered feel. */
+  .grain::after {
+    content: "";
+    @apply pointer-events-none absolute inset-0 -z-10 opacity-[0.15];
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
+
+  /* Gradient hairline. Reads as light falling across a rule rather than a
+     border, which is what separates a designed page from a bordered one. */
+  .rule-glow {
+    @apply h-px w-full border-0;
+    background: linear-gradient(
+      to right,
+      transparent,
+      hsl(var(--hud-cyan) / 0.5),
+      hsl(var(--hud-magenta) / 0.4),
+      transparent
+    );
+  }
+
+  /* A card that answers the cursor. Sheen sweeps once on hover. */
+  .lift {
+    @apply relative overflow-hidden transition-all duration-300;
+  }
+  .lift::before {
+    content: "";
+    @apply pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500;
+    background: linear-gradient(115deg, transparent 35%, hsl(var(--hud-cyan) / 0.12) 50%, transparent 65%);
+  }
+  .lift:hover {
+    @apply -translate-y-1 border-cyan/50;
+    box-shadow: 0 18px 40px -24px hsl(var(--hud-cyan) / 0.55);
+  }
+  .lift:hover::before {
+    @apply opacity-100;
+  }
+
+  /* Headline treatment: the gradient moves. Used sparingly — once per page. */
+  .text-kinetic {
+    background: linear-gradient(
+      100deg,
+      hsl(var(--hud-cyan)),
+      hsl(var(--hud-violet)),
+      hsl(var(--hud-magenta)),
+      hsl(var(--hud-violet)),
+      hsl(var(--hud-cyan))
+    );
+    background-size: 200% auto;
+    @apply bg-clip-text text-transparent;
+    animation: shimmer 6s linear infinite;
+  }
+
+  /* Edge-to-edge scrolling strip. The track must contain its children twice
+     for the -50% loop to be seamless. */
+  .marquee-mask {
+    @apply overflow-hidden;
+    mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  }
+  .marquee-track {
+    @apply flex w-max shrink-0 items-center;
+    animation: marquee 42s linear infinite;
+  }
+  .marquee-mask:hover .marquee-track {
+    animation-play-state: paused;
+  }
+
+  /* Numbered eyebrow used to index sections on the long pages. */
+  .section-index {
+    @apply font-mono text-[0.65rem] uppercase tracking-[0.3em] text-cyan/70;
+  }
+}
+
+/* Motion is decoration here, never information — every animation above can be
+   switched off without losing meaning, so under a reduced-motion preference
+   they all stop rather than slow down. */
+@media (prefers-reduced-motion: reduce) {
+  .aurora::before,
+  .aurora::after,
+  .marquee-track,
+  .text-kinetic,
+  .animate-drift,
+  .animate-marquee,
+  .animate-shimmer,
+  .animate-pulse-glow,
+  .animate-scan,
+  .animate-rise-in {
+    animation: none !important;
+  }
+  .lift:hover {
+    transform: none;
+  }
 }
 
 /* Thin cockpit scrollbars */

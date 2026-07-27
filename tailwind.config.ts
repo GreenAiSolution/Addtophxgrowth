@@ -89,12 +89,37 @@ const config: Config = {
           "0%": { transform: "translateY(-100%)" },
           "100%": { transform: "translateY(100%)" },
         },
+        // The ticker. Translating -50% works because the track renders its
+        // children twice — the seam lands exactly where the loop restarts.
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-50%)" },
+        },
+        // Slow drifting light. Deliberately long and offset per-layer so the
+        // background never visibly repeats.
+        drift: {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)" },
+          "33%": { transform: "translate3d(4%, -6%, 0) scale(1.12)" },
+          "66%": { transform: "translate3d(-5%, 4%, 0) scale(0.94)" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "200% center" },
+          "100%": { backgroundPosition: "-200% center" },
+        },
+        "rise-in": {
+          from: { opacity: "0", transform: "translateY(12px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "pulse-glow": "pulse-glow 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         scan: "scan 3s linear infinite",
+        marquee: "marquee 42s linear infinite",
+        drift: "drift 26s ease-in-out infinite",
+        shimmer: "shimmer 6s linear infinite",
+        "rise-in": "rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
       },
     },
   },

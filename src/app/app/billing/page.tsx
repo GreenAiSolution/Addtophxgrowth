@@ -1,6 +1,7 @@
+import { CheckCircle2 } from "lucide-react";
 import { requireClient } from "@/lib/tenancy";
 import { getClientOverview } from "@/lib/client-data";
-import { PLANS, PRODUCT_LINES, type ProductLineKey } from "@/lib/catalog";
+import { PLANS, PRODUCT_LINES, planByKey, type ProductLineKey } from "@/lib/catalog";
 import { formatCurrency, formatNumber, cn } from "@/lib/utils";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,13 +12,25 @@ import { describeGrant } from "@/lib/capacity";
 
 const LINES: ProductLineKey[] = ["AI_AGENTS", "AD_OPS"];
 
-export default async function BillingPage() {
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: { plan?: string };
+}) {
   const { client } = await requireClient();
   const overview = await getClientOverview(client.id);
   const activeByLine: Record<string, string | undefined> = {
     AI_AGENTS: overview.agentSub?.planKey,
     AD_OPS: overview.adOpsSub?.planKey,
   };
+
+  /**
+   * A visitor who chose a tier before signing in arrives here with `?plan=`.
+   * Finishing that purchase must not mean scrolling a six-card grid to find the
+   * thing they already picked, so it gets resumed at the top of the page.
+   */
+  const resuming = searchParams.plan ? planByKey(searchParams.plan) : undefined;
+  const resumingIsActive = resuming ? activeByLine[resuming.line] === resuming.key : false;
 
   return (
     <div className="space-y-8">
@@ -28,6 +41,46 @@ export default async function BillingPage() {
         </div>
         <ManageBillingButton />
       </div>
+
+      {resuming && (
+        <Card className={cn("hud-corners", !resumingIsActive && "ring-1 ring-cyan/40")}>
+          {resumingIsActive ? (
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
+              <div>
+                <CardTitle>You&apos;re already on {resuming.name}</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Nothing to do — it&apos;s live. Change tiers below whenever you like.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <div className="hud-label">Picking up where you left off</div>
+                <CardTitle className="mt-1">Activate {resuming.name}</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">{resuming.tagline}</p>
+                <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="hud-value text-2xl font-bold">
+                    {formatCurrency(resuming.priceMonthly)}
+                    <span className="text-sm font-normal text-muted-foreground">/mo</span>
+                  </span>
+                  {resuming.setupFee ? (
+                    <span className="font-mono text-[0.65rem] text-secondary">
+                      {activeByLine[resuming.line]
+                        ? "Build fee waived — already onboarded"
+                        : `+ ${formatCurrency(resuming.setupFee)} one-time build`}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <div className="w-full shrink-0 sm:w-48">
+                <CheckoutButton planKey={resuming.key} label={`Activate ${resuming.name}`} highlight />
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Current state */}
       <div className="grid gap-4 md:grid-cols-2">

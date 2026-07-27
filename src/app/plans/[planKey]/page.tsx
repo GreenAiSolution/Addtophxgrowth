@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   Bot,
   BookOpen,
   Plug,
@@ -25,11 +24,11 @@ import {
 } from "@/lib/systems";
 import { agentBySlug } from "@/lib/agents";
 import { formatCurrency } from "@/lib/utils";
-import { BRAND } from "@/lib/brand";
 import { RobotAvatar } from "@/components/robot-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckoutButton } from "@/components/billing-actions";
+import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import type { AgentAccent } from "@/lib/agents";
 
 /**
@@ -99,17 +98,7 @@ export default async function PlanPage({ params }: { params: { planKey: string }
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 whitespace-nowrap font-heading text-base font-bold">
-            <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-cyan shadow-hud">◈</span>
-            {BRAND.wordmarkLead}<span className="text-gradient">{BRAND.wordmarkAccent}</span>
-          </Link>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/#pricing"><ArrowLeft className="h-4 w-4" /> All plans</Link>
-          </Button>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Hero */}
       <section className="container py-14 text-center">
@@ -303,6 +292,8 @@ export default async function PlanPage({ params }: { params: { planKey: string }
           </div>
         </div>
       </section>
+
+      <SiteFooter />
     </div>
   );
 }

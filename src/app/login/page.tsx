@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { auth, signIn } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
+import { planByKey } from "@/lib/catalog";
+import { formatCurrency } from "@/lib/utils";
 import { sendNotification, agencyAddress } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,23 @@ function safeNext(next: string | undefined): string {
 }
 
 /**
+ * Where a visitor who arrived mid-purchase should land once they're in.
+ *
+ * `?plan=` used to be accepted here and then quietly dropped: somebody pressed
+ * "Activate Scale", signed in, and arrived at a generic dashboard with no
+ * memory of what they'd chosen. Now the choice survives the round trip — the
+ * plan is validated against the catalog (an unknown key degrades to the normal
+ * console rather than a broken destination) and carried into billing, which
+ * finishes the job it was asked to start.
+ */
+function destinationFor(next: string | undefined, planKey: string | undefined): string {
+  const explicit = safeNext(next);
+  if (next) return explicit; // an explicit `next` always wins
+  const plan = planKey ? planByKey(planKey) : undefined;
+  return plan ? `/app/billing?plan=${plan.key}` : explicit;
+}
+
+/**
  * Sign-in, and — when no auth provider is configured — a way through anyway.
  *
  * This page used to end at "No auth providers configured yet. Set
@@ -36,7 +55,8 @@ export default async function LoginPage({
   searchParams: { next?: string; plan?: string; sent?: string };
 }) {
   const session = await auth();
-  const next = safeNext(searchParams.next);
+  const chosen = searchParams.plan ? planByKey(searchParams.plan) : undefined;
+  const next = destinationFor(searchParams.next, searchParams.plan);
   if (session?.user) redirect(session.user.role === "ADMIN" ? "/admin" : next);
 
   const emailEnabled = Boolean(process.env.EMAIL_SERVER_HOST);
@@ -49,6 +69,9 @@ export default async function LoginPage({
     const name = String(formData.get("name") ?? "").trim().slice(0, 120);
     const email = String(formData.get("email") ?? "").trim().slice(0, 200);
     const note = String(formData.get("note") ?? "").trim().slice(0, 2000);
+    // Re-validate rather than trusting the posted value — a hidden input is
+    // still user input.
+    const wanted = planByKey(String(formData.get("plan") ?? ""));
     if (!name || !email.includes("@")) return;
 
     await sendNotification({
@@ -56,8 +79,15 @@ export default async function LoginPage({
       to: agencyAddress(),
       payload: {
         businessName: name,
-        title: "Access request from the sign-in page",
-        detail: [`Name:  ${name}`, `Email: ${email}`, note ? `\n"${note}"` : ""]
+        title: wanted
+          ? `Access request — wants ${wanted.name}`
+          : "Access request from the sign-in page",
+        detail: [
+          `Name:  ${name}`,
+          `Email: ${email}`,
+          wanted ? `Plan:  ${wanted.name} (${formatCurrency(wanted.priceMonthly)}/mo)` : "",
+          note ? `\n"${note}"` : "",
+        ]
           .filter(Boolean)
           .join("\n"),
         path: "/login",
@@ -78,13 +108,34 @@ export default async function LoginPage({
           <p className="mt-2 text-sm text-muted-foreground">
             {sent
               ? "Thanks — that's with us."
-              : next === "/cockpit"
-                ? "Sign in and we'll take you straight back to your build."
-                : canSignIn
-                  ? "Access your growth cockpit."
-                  : "Tell us where to reach you and we'll open your cockpit."}
+              : chosen
+                ? `Sign in and we'll pick straight back up at ${chosen.name}.`
+                : next === "/cockpit"
+                  ? "Sign in and we'll take you straight back to your build."
+                  : canSignIn
+                    ? "Access your growth cockpit."
+                    : "Tell us where to reach you and we'll open your cockpit."}
           </p>
         </div>
+
+        {/* Hold the choice visible. Somebody who pressed "Activate Scale" and
+            landed on a bare sign-in form has no confirmation their choice
+            registered — showing it back is what makes the round trip feel
+            like one continuous purchase rather than two disconnected steps. */}
+        {chosen && !sent && (
+          <div className="mb-5 flex items-baseline justify-between gap-3 rounded-md border border-cyan/30 bg-primary/5 px-4 py-3">
+            <span className="min-w-0">
+              <span className="hud-label">Continuing with</span>
+              <span className="mt-0.5 block truncate font-heading text-sm font-bold">
+                {chosen.name}
+              </span>
+            </span>
+            <span className="hud-value shrink-0 text-sm font-bold text-cyan">
+              {formatCurrency(chosen.priceMonthly)}
+              <span className="text-[0.65rem] font-normal text-muted-foreground">/mo</span>
+            </span>
+          </div>
+        )}
 
         {sent ? (
           <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-4 text-center">
@@ -148,6 +199,7 @@ export default async function LoginPage({
                 shown a developer's TODO and left with nowhere to go. */}
             {!canSignIn && (
               <form action={requestAccess} className="space-y-3">
+                <input type="hidden" name="plan" value={chosen?.key ?? ""} />
                 <div>
                   <Label htmlFor="name">Your name</Label>
                   <Input id="name" name="name" required placeholder="Alex Rivera" autoComplete="name" />
@@ -168,7 +220,8 @@ export default async function LoginPage({
                   <Textarea id="note" name="note" rows={2} placeholder="Roofing, ~$20k/mo on Meta…" />
                 </div>
                 <Button type="submit" className="w-full">
-                  Request your cockpit <ArrowRight className="h-4 w-4" />
+                  {chosen ? `Request ${chosen.name}` : "Request your cockpit"}{" "}
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
                   A human reads every one of these and replies the same day.
@@ -192,7 +245,10 @@ export default async function LoginPage({
             <>
               {" "}
               Prefer to look around first?{" "}
-              <Link href="/cockpit" className="text-cyan hover:underline">
+              <Link
+                href={chosen ? `/cockpit?plan=${chosen.key}` : "/cockpit"}
+                className="text-cyan hover:underline"
+              >
                 Build a cockpit
               </Link>
               .

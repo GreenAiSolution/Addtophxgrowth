@@ -6,6 +6,7 @@ import {
   primaryPlanKey,
   buildSheet,
   signatureByKey,
+  parseCockpitLink,
 } from "@/lib/cockpit";
 import { planByKey } from "@/lib/catalog";
 import { ADDON_BUNDLE, addonByKey, bundleListPrice } from "@/lib/addons";
@@ -216,5 +217,68 @@ describe("buildSheet", () => {
 
     const without = { agentsPlan: "launch" };
     expect(buildSheet(without, priceCockpit(without))).not.toContain("Bundle saving");
+  });
+});
+
+describe("parseCockpitLink", () => {
+  it("returns null when the url asked for nothing", () => {
+    // Null is the signal to fall back to the saved basket and the usual
+    // default, so an empty query must not be mistaken for "select nothing".
+    expect(parseCockpitLink({})).toBeNull();
+    expect(parseCockpitLink({ addons: "" })).toBeNull();
+    expect(parseCockpitLink({ agents: "not-a-plan", adops: "also-not" })).toBeNull();
+  });
+
+  it("loads a plan onto the right line", () => {
+    expect(parseCockpitLink({ agents: "scale" })).toMatchObject({
+      agentsPlan: "scale",
+      adOpsPlan: null,
+    });
+    expect(parseCockpitLink({ adops: "operate" })).toMatchObject({
+      agentsPlan: null,
+      adOpsPlan: "operate",
+    });
+  });
+
+  it("refuses a plan named on the wrong line", () => {
+    // ?agents=operate is a mistake or a probe, never a real selection.
+    expect(parseCockpitLink({ agents: "operate" })).toBeNull();
+    expect(parseCockpitLink({ adops: "scale" })).toBeNull();
+  });
+
+  it("works out which line a bare ?plan= belongs to", () => {
+    expect(parseCockpitLink({ plan: "command" })?.agentsPlan).toBe("command");
+    expect(parseCockpitLink({ plan: "dominate" })?.adOpsPlan).toBe("dominate");
+    expect(parseCockpitLink({ plan: "nonsense" })).toBeNull();
+  });
+
+  it("keeps only add-ons we sell, and only once each", () => {
+    const parsed = parseCockpitLink({
+      addons: "creative-studio, made-up , creative-studio,voice-agent",
+    });
+    expect(parsed?.addons).toEqual(["creative-studio", "voice-agent"]);
+  });
+
+  it("accepts a vertical only if the pack exists", () => {
+    expect(parseCockpitLink({ vertical: "roofing" })?.verticalKey).toBe("roofing");
+    expect(parseCockpitLink({ vertical: "underwater-basket-weaving" })).toBeNull();
+  });
+
+  it("lets a signature build win over everything else", () => {
+    const build = SIGNATURE_BUILDS[0];
+    expect(parseCockpitLink({ build: build.key, agents: "command" })).toEqual(build.selection);
+  });
+
+  it("ignores an unknown signature build rather than blanking the link", () => {
+    expect(parseCockpitLink({ build: "nope", agents: "launch" })?.agentsPlan).toBe("launch");
+  });
+
+  it("prices every signature build link back to the build itself", () => {
+    for (const b of SIGNATURE_BUILDS) {
+      const parsed = parseCockpitLink({ build: b.key })!;
+      expect(priceCockpit(parsed).firstInvoiceTotal, b.key).toBe(
+        priceCockpit(b.selection).firstInvoiceTotal,
+      );
+    }
   });
 });

@@ -18,11 +18,24 @@
  * Deliberately absent: countdown timers, fake "2 slots left" scarcity, and
  * strike-through prices that were never charged. Those lift short-term
  * conversion and cost trust — the wrong trade for a premium retainer.
+ *
+ * WHY THE MENU KEEPS GROWING
+ *   This site is the counter, not the agency (see `house.ts`). A counter is
+ *   worth visiting in proportion to what is on it, and the add-on menu is the
+ *   only part of the catalogue that can grow without restructuring the tiers.
+ *   Every entry here is a service a client can buy in one click at any point
+ *   in the relationship — which is precisely the thing an agency proposal
+ *   cycle makes slow and this makes instant.
  */
 
 export type AddonBilling = "one_time" | "monthly";
 
-export type AddonGroupKey = "foundations" | "growth" | "capacity";
+export type AddonGroupKey =
+  | "foundations"
+  | "studio"
+  | "growth"
+  | "intelligence"
+  | "capacity";
 
 export interface AddonDef {
   key: string;
@@ -48,15 +61,36 @@ export const ADDON_GROUPS: Record<
     label: "Foundations",
     note: "Built once, then they compound. Most clients start here.",
   },
+  studio: {
+    label: "The Studio",
+    note: "Creative production. The lever with no ceiling.",
+  },
   growth: {
     label: "Growth Services",
     note: "Ongoing work that runs alongside your membership.",
+  },
+  intelligence: {
+    label: "Intelligence",
+    note: "Knowing something your competitor doesn't.",
   },
   capacity: {
     label: "Capacity",
     note: "More room on the plan you already have.",
   },
 };
+
+/**
+ * Display order, exported so the marketing menu, the configurator and the
+ * in-console menu can never fall out of sync — they used to each keep their
+ * own copy of this array, which is three places to forget a new group.
+ */
+export const ADDON_GROUP_ORDER: AddonGroupKey[] = [
+  "foundations",
+  "studio",
+  "growth",
+  "intelligence",
+  "capacity",
+];
 
 export const ADDONS: AddonDef[] = [
   // ---- Foundations (one-time) — anchor first ----
@@ -107,6 +141,72 @@ export const ADDONS: AddonDef[] = [
     ],
   },
 
+  // ---- The Studio — anchor first ----
+  // Creative is the pillar this tier is sold on (see `creative.ts`), so the
+  // menu has to carry more than one creative service. These are the pieces
+  // the Creative Engine loop assumes exist but the tiers don't include.
+  {
+    key: "brand-system",
+    name: "Brand & Message System",
+    blurb: "The thing every ad is built from — written down once, properly.",
+    price: 650000,
+    billing: "one_time",
+    group: "studio",
+    pairsWith: "Any membership",
+    includes: [
+      "Positioning and message hierarchy, argued and documented",
+      "Three proven angles per offer — pain, aspiration, proof",
+      "Ad-native visual kit: type, colour, lockups, templates",
+      "Voice guide loaded into every agent, plus a do-not-say list",
+    ],
+    mostPaired: true,
+  },
+  {
+    key: "video-studio",
+    name: "Motion & Video Studio",
+    blurb: "Edited video ads on a monthly cadence, hooks cut every way.",
+    price: 420000,
+    billing: "monthly",
+    group: "studio",
+    pairsWith: "Operate & Dominate",
+    includes: [
+      "10 edited video ads per month from your footage or ours",
+      "Five hook variants cut against each winner",
+      "Square, vertical and in-feed versions of everything",
+      "Captions burned in, thumbnails designed, files delivered ready to upload",
+    ],
+  },
+  {
+    key: "offer-lab",
+    name: "Offer Architecture Sprint",
+    blurb: "Fix the offer before spending another dollar amplifying it.",
+    price: 390000,
+    billing: "one_time",
+    group: "studio",
+    pairsWith: "Any membership",
+    includes: [
+      "Two weeks rebuilding what you actually sell, not how you say it",
+      "Pricing, guarantee and risk reversal designed together",
+      "Bonus and bundle structure with the margin worked out",
+      "Rewritten to match across ads, landing page and sales script",
+    ],
+  },
+  {
+    key: "landing-lab",
+    name: "Landing Page Lab",
+    blurb: "A new test every month against the page your traffic actually lands on.",
+    price: 280000,
+    billing: "monthly",
+    group: "studio",
+    pairsWith: "Operate & Dominate",
+    includes: [
+      "One structured page test live at all times",
+      "Session recordings and scroll maps read by a human, monthly",
+      "Winners promoted and rolled into the control",
+      "Conversion rate reported against the month it replaced",
+    ],
+  },
+
   // ---- Growth services (monthly) — anchor first ----
   {
     key: "ugc-program",
@@ -121,6 +221,21 @@ export const ADDONS: AddonDef[] = [
       "Creator sourcing, briefing, and licensing",
       "Hook variants cut for each video",
       "Performance-led briefs for next month",
+    ],
+  },
+  {
+    key: "content-engine",
+    name: "Organic Content Engine",
+    blurb: "The traffic that keeps arriving after you stop paying for it.",
+    price: 260000,
+    billing: "monthly",
+    group: "growth",
+    pairsWith: "Any membership",
+    includes: [
+      "Four researched, ranked-for articles per month",
+      "Service and location pages built to compete, not to exist",
+      "Every piece cut down into social and email versions",
+      "Rankings, traffic and assisted conversions reported monthly",
     ],
   },
   {
@@ -200,7 +315,69 @@ export const ADDONS: AddonDef[] = [
     ],
   },
 
-  // ---- Capacity (monthly) ----
+  // ---- Intelligence — anchor first ----
+  {
+    key: "market-map",
+    name: "Market & Demand Map",
+    blurb: "Where the money actually is, by service and by suburb.",
+    price: 220000,
+    billing: "one_time",
+    group: "intelligence",
+    pairsWith: "Any ad-ops plan",
+    includes: [
+      "Search and social demand sized per service line",
+      "City and suburb ranking by volume against competition",
+      "Seasonality curve, so budget lands in the months that pay",
+      "A ranked list of where to spend first and what to stop",
+    ],
+  },
+  {
+    key: "analytics-desk",
+    name: "Analytics Desk",
+    blurb: "Someone whose job is reading the numbers, not just collecting them.",
+    price: 170000,
+    billing: "monthly",
+    group: "intelligence",
+    pairsWith: "Scale & Command",
+    includes: [
+      "A dashboard built around your questions, not a template",
+      "Cohort and lifetime-value tracking by acquisition source",
+      "Monthly written read-out — what moved, why, what to do",
+      "Anomalies chased down before they reach a report",
+    ],
+  },
+  {
+    key: "competitor-watch",
+    name: "Competitor Ad Watch",
+    blurb: "Every ad your competitors run, tracked from the day it launches.",
+    price: 110000,
+    billing: "monthly",
+    group: "intelligence",
+    pairsWith: "Any membership",
+    includes: [
+      "Up to eight competitors monitored across Meta and Google",
+      "New creative flagged within days of going live",
+      "What they're running longest — the closest thing to their win list",
+      "Quarterly teardown of the angles you're not using",
+    ],
+    mostPaired: true,
+  },
+
+  // ---- Capacity (monthly) — anchor first, like every other group ----
+  {
+    key: "extra-ad-account",
+    name: "Additional Ad Account",
+    blurb: "Another platform or another location, fully managed.",
+    price: 60000,
+    billing: "monthly",
+    group: "capacity",
+    pairsWith: "Monitor & Operate",
+    includes: [
+      "One more managed ad account",
+      "Included in dashboards and reporting",
+      "Counted against your plan's account limit automatically",
+    ],
+  },
   {
     key: "extra-agent",
     name: "Additional Agent",
@@ -209,7 +386,11 @@ export const ADDONS: AddonDef[] = [
     billing: "monthly",
     group: "capacity",
     pairsWith: "Launch & Scale",
-    includes: ["One additional agent unlocked", "Included in your usage meter"],
+    includes: [
+      "One additional agent unlocked",
+      "Included in your usage meter",
+      "Stacks until you have the whole crew",
+    ],
   },
   {
     key: "run-pack",
@@ -219,18 +400,12 @@ export const ADDONS: AddonDef[] = [
     billing: "monthly",
     group: "capacity",
     pairsWith: "Launch & Scale",
-    includes: ["+5,000 agent runs per month", "Stacks as many times as you need"],
+    includes: [
+      "+5,000 agent runs per month",
+      "Stacks as many times as you need",
+      "Applied to the meter the moment it's added",
+    ],
     mostPaired: true,
-  },
-  {
-    key: "extra-ad-account",
-    name: "Additional Ad Account",
-    blurb: "Another platform or another location, fully managed.",
-    price: 60000,
-    billing: "monthly",
-    group: "capacity",
-    pairsWith: "Monitor & Operate",
-    includes: ["One more managed ad account", "Included in dashboards and reporting"],
   },
 ];
 

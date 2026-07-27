@@ -8,10 +8,14 @@ import {
   CalendarCheck,
   SlidersHorizontal,
   Rocket,
+  Store,
 } from "lucide-react";
 import { AGENTS } from "@/lib/agents";
 import { BRAND } from "@/lib/brand";
 import { PRODUCT_LINES, PLANS } from "@/lib/catalog";
+import { OFFERS, SHELVES, offersOnShelf, priceRange } from "@/lib/storefront";
+import { SHELF_ICONS } from "@/lib/showroom-icons";
+import { formatCurrency } from "@/lib/utils";
 import { env } from "@/lib/env";
 import { RobotAvatar } from "@/components/robot-avatar";
 import { Pricing } from "@/components/marketing/pricing";
@@ -23,6 +27,8 @@ import { VerticalStrip } from "@/components/marketing/verticals";
 import { WasteCalculator } from "@/components/marketing/waste-calculator";
 import { SpendWatchShowcase } from "@/components/marketing/spend-watch-showcase";
 import { CreativeEngine } from "@/components/marketing/creative-engine";
+import { HouseDivision } from "@/components/marketing/house-division";
+import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -67,6 +73,18 @@ function structuredData() {
   };
 }
 
+/** Ticker copy. Each item is a claim the product actually makes elsewhere. */
+const TICKER = [
+  "Three angles on every offer",
+  "Fatigue caught before CPL moves",
+  "Leads qualified in seconds",
+  "Spend watched daily",
+  "Every price on the wall",
+  "Buy it without a proposal",
+];
+
+const TICKER_DOTS = ["text-cyan", "text-violet", "text-magenta"];
+
 export default function MarketingHome() {
   return (
     <div className="relative">
@@ -75,109 +93,119 @@ export default function MarketingHome() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData()) }}
       />
-      {/* Nav */}
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between">
-          <Link
-            href="/"
-            className="flex shrink-0 items-center gap-2 whitespace-nowrap font-heading text-base font-bold sm:text-lg"
-          >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-primary/15 text-cyan shadow-hud">
-              ◈
-            </span>
-            {BRAND.wordmarkLead}<span className="text-gradient">{BRAND.wordmarkAccent}</span>
-          </Link>
-          <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
-            <a href="#creative" className="hover:text-foreground">Creative</a>
-            <a href="#agents" className="hover:text-foreground">The Crew</a>
-            <a href="#trades" className="hover:text-foreground">Your Trade</a>
-            <a href="#adops" className="hover:text-foreground">Ad Ops</a>
-            <a href="#pricing" className="hover:text-foreground">The Menu</a>
-            <a href="#pairings" className="hover:text-foreground">Pairings</a>
-            <a href="#faq" className="hover:text-foreground">FAQ</a>
-          </nav>
-          <div className="flex shrink-0 items-center gap-2">
-            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/cockpit" className="whitespace-nowrap">
-                <span className="sm:hidden">Reserve</span>
-                <span className="hidden sm:inline">Reserve your cockpit</span>
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Hero */}
-      <section className="container relative py-24 text-center md:py-32">
-        <div className="mx-auto max-w-3xl">
-          <Badge className="mx-auto animate-pulse-glow">
-            The deluxe tier of {BRAND.parent.name}
-          </Badge>
-          <h1 className="mt-6 font-heading text-5xl font-bold leading-[1.02] md:text-7xl">
-            Where the <span className="text-gradient">creative</span> never runs out.
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            A creative studio that writes, tests and refreshes on a loop. Five specialist AI agents
-            working your inbound around the clock. A human desk on your ad spend. This is the
-            upgrade {BRAND.parent.name} clients step up into — and it is open to everyone.
-          </p>
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-            <Button asChild size="lg">
-              <Link href="/cockpit">
-                Reserve your cockpit <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <a href="#pricing">See the menu</a>
-            </Button>
-          </div>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 font-mono text-xs uppercase tracking-widest text-muted-foreground">
-            <span className="flex items-center gap-2"><Radio className="h-3.5 w-3.5 text-cyan" /> Real-time agent runs</span>
-            <span className="flex items-center gap-2"><Gauge className="h-3.5 w-3.5 text-violet" /> Live ROAS dashboards</span>
-            <span className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-magenta" /> Managed ad-ops</span>
+      <section className="relative grain py-24 text-center md:py-32">
+        <div className="aurora" />
+        <div className="container">
+          <div className="mx-auto max-w-4xl">
+            <Badge className="mx-auto animate-pulse-glow">
+              The deluxe tier of {BRAND.parent.name}
+            </Badge>
+            <h1 className="mt-6 font-heading text-5xl font-bold leading-[1.02] md:text-8xl">
+              Where the <span className="text-kinetic">creative</span>
+              <br className="hidden sm:block" /> never runs out.
+            </h1>
+            <p className="mx-auto mt-7 max-w-2xl text-lg text-muted-foreground">
+              A creative studio that writes, tests and refreshes on a loop. Five specialist AI
+              agents working your inbound around the clock. A human desk on your ad spend — and
+              every last piece of it priced on the wall, ready to buy today.
+            </p>
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+              <Button asChild size="lg">
+                <Link href="/showroom">
+                  Walk the showroom <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <Link href="/cockpit">Build your cockpit</Link>
+              </Button>
+            </div>
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              <span className="flex items-center gap-2"><Radio className="h-3.5 w-3.5 text-cyan" /> Real-time agent runs</span>
+              <span className="flex items-center gap-2"><Gauge className="h-3.5 w-3.5 text-violet" /> Live ROAS dashboards</span>
+              <span className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-magenta" /> Managed ad-ops</span>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Ticker strip */}
-      <div className="border-y border-border/60 bg-card/40 py-3">
-        <div className="container flex flex-wrap items-center justify-center gap-x-10 gap-y-2 font-mono text-[0.65rem] uppercase tracking-[0.25em] text-muted-foreground">
-          <span>Three angles on every offer</span>
-          <span className="text-cyan">◆</span>
-          <span>Fatigue caught before CPL moves</span>
-          <span className="text-violet">◆</span>
-          <span>Leads qualified in seconds</span>
-          <span className="text-magenta">◆</span>
-          <span>Spend watched daily</span>
+      {/* Ticker. Actually moving now — a static strip pretending to be a ticker
+          was the one piece of the page making a claim its own styling denied.
+          Rendered twice so the -50% loop has no visible seam. */}
+      <div className="marquee-mask border-y border-border/60 bg-card/40 py-3">
+        <div className="marquee-track gap-10 font-mono text-[0.65rem] uppercase tracking-[0.25em] text-muted-foreground">
+          {[0, 1].map((copy) => (
+            <div key={copy} aria-hidden={copy === 1} className="flex shrink-0 items-center gap-10 pr-10">
+              {TICKER.map((item, i) => (
+                <span key={item} className="flex shrink-0 items-center gap-10">
+                  <span>{item}</span>
+                  <span className={TICKER_DOTS[i % TICKER_DOTS.length]}>◆</span>
+                </span>
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* What this is, relative to the house. Said once, early, plainly — a
-          visitor should never wonder whether they've found a second agency. */}
-      <section className="container py-14">
-        <div className="hud-panel hud-corners mx-auto flex max-w-3xl flex-col items-center gap-5 p-7 text-center sm:flex-row sm:text-left">
-          <Sparkles className="h-8 w-8 shrink-0 text-magenta" />
-          <div className="flex-1">
-            <h2 className="font-heading text-lg font-bold">
-              {BRAND.name} is {BRAND.parent.relationship}.
-            </h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              {BRAND.parent.name} runs the campaigns. This is the tier where the creative becomes a
-              system, the agents work your inbound around the clock, and the desk watches every
-              dollar unattended. You do not need to be a {BRAND.parent.name} client to start here —
-              but if you are, everything below plugs straight into what you already have.
-            </p>
-            <a
-              href={BRAND.parent.url}
-              className="mt-3 inline-flex items-center gap-1.5 font-mono text-[0.68rem] uppercase tracking-widest text-cyan hover:underline"
-            >
-              Visit {BRAND.parent.name} <ArrowRight className="h-3 w-3" />
-            </a>
-          </div>
+      {/* The counter. This is the strategic difference from the agency site and
+          it gets a section of its own, high up, rather than a footer link. */}
+      <section id="showroom" className="container py-20">
+        <div className="mb-10 text-center">
+          <Badge variant="magenta">The Showroom</Badge>
+          <h2 className="mt-3 font-heading text-3xl font-bold md:text-5xl">
+            {OFFERS.length} things you can buy. Every price on the wall.
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+            Most agencies make you sit through a call to learn what anything costs. Here the whole
+            catalogue is open — memberships, creative production, foundations, intelligence and
+            capacity — with the manifest and the number attached to each one.
+          </p>
         </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {SHELVES.map((shelf) => {
+            const Icon = SHELF_ICONS[shelf.key];
+            const items = offersOnShelf(shelf.key);
+            const from = Math.min(...items.map((o) => o.price));
+            return (
+              <Link
+                key={shelf.key}
+                href={`/showroom#${shelf.key}`}
+                className="hud-panel lift flex flex-col p-5"
+              >
+                <div className="flex items-center justify-between">
+                  <Icon className="h-5 w-5 text-cyan" />
+                  <span className="hud-value text-[0.65rem] text-cyan/60">
+                    {String(items.length).padStart(2, "0")}
+                  </span>
+                </div>
+                <span className="mt-3 font-heading text-base font-bold">{shelf.label}</span>
+                <span className="mt-1.5 flex-1 text-xs leading-relaxed text-muted-foreground">
+                  {shelf.note}
+                </span>
+                <span className="mt-3 border-t border-border/50 pt-2.5 font-mono text-[0.62rem] uppercase tracking-widest text-secondary">
+                  from {formatCurrency(from)}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="mt-8 text-center">
+          <Button asChild size="lg" variant="outline">
+            <Link href="/showroom">
+              <Store className="h-4 w-4" /> Open the full showroom
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      {/* Two doors. Said once, early, plainly — a visitor should never wonder
+          whether they've found a second, unrelated agency. */}
+      <section id="house" className="container py-20">
+        <HouseDivision />
       </section>
 
       {/* Interactive test-drive */}
@@ -413,7 +441,7 @@ export default function MarketingHome() {
           <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">Pairings</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
             What our fastest-growing clients add alongside a membership. Take one, take none —
-            the plan works either way.
+            the plan works either way. Every item has its own page in the showroom.
           </p>
         </div>
         <Addons />
@@ -548,24 +576,7 @@ export default function MarketingHome() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/60 py-10">
-        <div className="container space-y-5">
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <Link href="/cockpit" className="hover:text-foreground">Build a cockpit</Link>
-            <Link href="/verticals" className="hover:text-foreground">Your trade</Link>
-            <a href="#pricing" className="hover:text-foreground">Pricing</a>
-            <Link href="/legal/terms" className="hover:text-foreground">Terms</Link>
-            <Link href="/legal/privacy" className="hover:text-foreground">Privacy</Link>
-            <Link href="/legal/msa" className="hover:text-foreground">Services agreement</Link>
-            <a href={BRAND.parent.url} className="hover:text-foreground">{BRAND.parent.name}</a>
-          </div>
-          <div className="flex flex-col items-center justify-between gap-4 border-t border-border/40 pt-5 text-sm text-muted-foreground sm:flex-row">
-            <span>© {new Date().getFullYear()} {BRAND.name}</span>
-            <span className="font-mono text-xs uppercase tracking-widest">Cockpit online · systems nominal</span>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

@@ -1,12 +1,13 @@
-import { Plus, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { Plus, Sparkles, ArrowUpRight } from "lucide-react";
 import {
   ADDONS,
   ADDON_BUNDLE,
   ADDON_GROUPS,
+  ADDON_GROUP_ORDER,
   addonsByGroup,
   bundleListPrice,
   type AddonDef,
-  type AddonGroupKey,
 } from "@/lib/addons";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +16,6 @@ import { Badge } from "@/components/ui/badge";
  * Menu-style add-on list. Rendered entirely server-side — the disclosures are
  * native <details>, so the whole section ships zero JavaScript.
  */
-
-const GROUP_ORDER: AddonGroupKey[] = ["foundations", "growth", "capacity"];
 
 function priceLabel(addon: AddonDef) {
   return addon.billing === "monthly" ? (
@@ -57,7 +56,15 @@ function AddonRow({ addon }: { addon: AddonDef }) {
             </li>
           ))}
         </ul>
-        <p className="hud-label mt-3">Pairs with {addon.pairsWith}</p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="hud-label">Pairs with {addon.pairsWith}</p>
+          <Link
+            href={`/showroom/${addon.key}`}
+            className="inline-flex items-center gap-1 font-mono text-[0.62rem] uppercase tracking-widest text-cyan hover:underline"
+          >
+            Full spec <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </div>
       </div>
     </details>
   );
@@ -73,7 +80,7 @@ export function Addons() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      {GROUP_ORDER.map((group) => (
+      {ADDON_GROUP_ORDER.map((group) => (
         <div key={group} className="mb-12 last:mb-0">
           <div className="mb-1 flex items-baseline justify-between border-b border-cyan/20 pb-2">
             <h3 className="font-heading text-lg font-bold tracking-tight">
@@ -90,7 +97,10 @@ export function Addons() {
 
           {/* Bundle sits with the foundations it bundles. */}
           {group === "foundations" && (
-            <div className="hud-panel mt-5 flex flex-wrap items-center justify-between gap-4 border-violet/30 bg-secondary/5 p-5">
+            <Link
+              href={`/showroom/${ADDON_BUNDLE.key}`}
+              className="hud-panel lift mt-5 flex flex-wrap items-center justify-between gap-4 border-violet/30 bg-secondary/5 p-5"
+            >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-secondary" />
@@ -109,7 +119,7 @@ export function Addons() {
                   save {formatCurrency(saving)}
                 </div>
               </div>
-            </div>
+            </Link>
           )}
         </div>
       ))}

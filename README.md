@@ -16,6 +16,13 @@ view ad-performance dashboards, submit requests, and manage billing — all
 self-serve. An admin console lets the agency operator manage clients, plans,
 agent prompts, ad metrics, and the request queue.
 
+**This site is the counter, not the agency.** phxgrowth.com is where a client
+meets the team and hires it; this property is where the same work is laid out as
+product — every system and service opened up in `/showroom`, priced to the
+dollar, configurable in `/cockpit` and buyable without a proposal. That division
+is modelled explicitly in `src/lib/house.ts`, where each job has exactly one
+owner, so the two properties cannot drift into claiming the same thing.
+
 Built in the **cockpit / HUD aesthetic**: near-black base, cyan / violet /
 magenta accents, Space Grotesk headings, JetBrains Mono for data. Each agent
 ships with a distinct, self-contained **SVG robot headshot**.
@@ -121,6 +128,18 @@ feature gating.
 
 ## Architecture notes
 
+- **The storefront** (`src/lib/storefront.ts`) — one `Offer` type covering every
+  purchasable thing: six plan tiers, twenty add-ons and the foundations
+  bundle. Nothing is declared there; every offer is *derived* from `catalog.ts`
+  and `addons.ts`, so a new service automatically gets a `/showroom/[slug]`
+  page, a sitemap entry, structured data and a configurator deep-link, and no
+  price can be stated that the invoice won't use. `storefront.test.ts` asserts
+  the derivation, including that `firstInvoice` agrees with `priceCockpit`.
+- **Cockpit deep-links** — `parseCockpitLink` turns
+  `/cockpit?agents=scale&addons=video-studio,landing-lab` (or `?build=` for a
+  signature build, or `?plan=` when the line is unknown) into a validated
+  selection. Unknown keys degrade to a smaller cockpit rather than a broken
+  page, and a link always wins over the saved basket.
 - **Multi-tenancy** — every client-owned row carries `clientId`; queries resolve
   the tenant through `src/lib/tenancy.ts` (`requireClient` / `requireAdmin`),
   never trusting a client-supplied id. Admins may pass an explicit `clientId`

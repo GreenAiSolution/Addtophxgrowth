@@ -16,7 +16,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { PLANS, type PlanDef } from "@/lib/catalog";
-import { ADDONS, ADDON_GROUPS, type AddonGroupKey } from "@/lib/addons";
+import { ADDONS, ADDON_GROUPS, ADDON_GROUP_ORDER } from "@/lib/addons";
 import { VERTICAL_PACKS } from "@/lib/verticals";
 import {
   priceCockpit,
@@ -50,7 +50,6 @@ const STORAGE_KEY = "phxgrowthplus.cockpit";
 
 const AGENT_PLANS = PLANS.filter((p) => p.line === "AI_AGENTS");
 const ADOPS_PLANS = PLANS.filter((p) => p.line === "AD_OPS");
-const GROUP_ORDER: AddonGroupKey[] = ["foundations", "growth", "capacity"];
 
 /** Smoothly tween a number so the total reads as assembling, not flickering. */
 function useAnimatedValue(target: number, duration = 380) {
@@ -187,12 +186,27 @@ function planCard(
   );
 }
 
-export function CockpitConfigurator({ signedIn }: { signedIn: boolean }) {
-  const [agentsPlan, setAgentsPlan] = React.useState<string | null>("scale");
-  const [adOpsPlan, setAdOpsPlan] = React.useState<string | null>(null);
-  const [verticalKey, setVerticalKey] = React.useState<string | null>(null);
-  const [addons, setAddons] = React.useState<string[]>([]);
-  const [showAddons, setShowAddons] = React.useState(false);
+export function CockpitConfigurator({
+  signedIn,
+  initial,
+}: {
+  signedIn: boolean;
+  /**
+   * A selection parsed from the URL by the page. Present when a visitor
+   * arrived from a showroom page, a plan page or a shared link — in which case
+   * it is taken literally: only what the link named is selected, and the
+   * saved basket is not restored over the top of it.
+   */
+  initial?: CockpitSelection | null;
+}) {
+  const fromLink = Boolean(initial);
+  const [agentsPlan, setAgentsPlan] = React.useState<string | null>(
+    fromLink ? (initial?.agentsPlan ?? null) : "scale",
+  );
+  const [adOpsPlan, setAdOpsPlan] = React.useState<string | null>(initial?.adOpsPlan ?? null);
+  const [verticalKey, setVerticalKey] = React.useState<string | null>(initial?.verticalKey ?? null);
+  const [addons, setAddons] = React.useState<string[]>(initial?.addons ?? []);
+  const [showAddons, setShowAddons] = React.useState((initial?.addons ?? []).length > 0);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   // Logged-out visitors reserve by leaving details rather than being bounced to
@@ -202,7 +216,12 @@ export function CockpitConfigurator({ signedIn }: { signedIn: boolean }) {
 
   // Restore a build across a login round-trip. Nothing here is sensitive — it's
   // a shopping basket — but losing it after signing in would be maddening.
+  //
+  // A link always wins over the saved basket. Someone who clicked "Add to
+  // cockpit" on a specific service and then watched last week's build load
+  // instead would reasonably conclude the button is broken.
   React.useEffect(() => {
+    if (fromLink) return;
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (!raw) return;
@@ -215,7 +234,7 @@ export function CockpitConfigurator({ signedIn }: { signedIn: boolean }) {
     } catch {
       /* a corrupt basket is not worth an error state */
     }
-  }, []);
+  }, [fromLink]);
 
   const selection: CockpitSelection = React.useMemo(
     () => ({ agentsPlan, adOpsPlan, verticalKey, addons }),
@@ -479,7 +498,7 @@ export function CockpitConfigurator({ signedIn }: { signedIn: boolean }) {
               </button>
             ) : (
               <div className="space-y-8">
-                {GROUP_ORDER.map((group) => (
+                {ADDON_GROUP_ORDER.map((group) => (
                   <div key={group}>
                     <div className="mb-3 flex items-baseline justify-between">
                       <span className="font-heading text-sm font-bold">

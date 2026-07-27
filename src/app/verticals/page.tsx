@@ -1,10 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { VERTICAL_PACKS } from "@/lib/verticals";
 import { BRAND } from "@/lib/brand";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 
 export const metadata: Metadata = {
   title: `Built for your trade — ${BRAND.name}`,
@@ -15,25 +15,7 @@ export const metadata: Metadata = {
 export default function VerticalsIndex() {
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 whitespace-nowrap font-heading text-base font-bold"
-          >
-            <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-cyan shadow-hud">
-              ◈
-            </span>
-            {BRAND.wordmarkLead}
-            <span className="text-gradient">{BRAND.wordmarkAccent}</span>
-          </Link>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/">
-              <ArrowLeft className="h-4 w-4" /> Home
-            </Link>
-          </Button>
-        </div>
-      </header>
+      <SiteHeader />
 
       <section className="container py-16 text-center">
         <Badge>Industry packs</Badge>
@@ -74,6 +56,8 @@ export default function VerticalsIndex() {
           — the build phase tunes the system to any business, pack or no pack.
         </p>
       </section>
+
+      <SiteFooter />
     </div>
   );
 }

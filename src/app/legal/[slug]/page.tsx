@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
 import { LEGAL_DOCUMENTS, legalBySlug, LEGAL_LAST_UPDATED } from "@/lib/legal";
 import { BRAND } from "@/lib/brand";
-import { Button } from "@/components/ui/button";
+import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 
 /**
  * One template, three documents. Static — these have to be readable when
@@ -31,25 +30,7 @@ export default function LegalPage({ params }: { params: { slug: string } }) {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 whitespace-nowrap font-heading text-base font-bold"
-          >
-            <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-cyan shadow-hud">
-              ◈
-            </span>
-            {BRAND.wordmarkLead}
-            <span className="text-gradient">{BRAND.wordmarkAccent}</span>
-          </Link>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/">
-              <ArrowLeft className="h-4 w-4" /> Home
-            </Link>
-          </Button>
-        </div>
-      </header>
+      <SiteHeader />
 
       <article className="container max-w-3xl py-14">
         <h1 className="font-heading text-3xl font-bold md:text-4xl">{doc.title}</h1>
@@ -107,6 +88,8 @@ export default function LegalPage({ params }: { params: { slug: string } }) {
           </p>
         </div>
       </article>
+
+      <SiteFooter />
     </div>
   );
 }

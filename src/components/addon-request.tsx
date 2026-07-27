@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireClient } from "@/lib/tenancy";
-import { ADDONS, ADDON_GROUPS, addonsByGroup, type AddonGroupKey } from "@/lib/addons";
+import { ADDONS, ADDON_GROUPS, ADDON_GROUP_ORDER, addonsByGroup } from "@/lib/addons";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
  * lead scope the work before anyone is billed.
  */
 
-const GROUP_ORDER: AddonGroupKey[] = ["foundations", "growth", "capacity"];
 
 async function requestAddon(formData: FormData) {
   "use server";
@@ -73,7 +72,7 @@ export async function AddonMenu() {
       </div>
 
       <div className="space-y-6">
-        {GROUP_ORDER.map((group) => (
+        {ADDON_GROUP_ORDER.map((group) => (
           <div key={group}>
             <div className="hud-label mb-2 border-b border-border/60 pb-1.5">
               {ADDON_GROUPS[group].label}

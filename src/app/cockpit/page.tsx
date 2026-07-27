@@ -1,11 +1,10 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
+import { parseCockpitLink, type CockpitLinkParams } from "@/lib/cockpit";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { CockpitConfigurator } from "@/components/cockpit/configurator";
+import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 
 export const metadata: Metadata = {
   title: `Build your cockpit — ${BRAND.name}`,
@@ -18,8 +17,13 @@ export const metadata: Metadata = {
  * configurator itself is the product decision. Server component so the only
  * client JS on the route is the configurator island.
  */
-export default async function CockpitPage() {
+export default async function CockpitPage({
+  searchParams,
+}: {
+  searchParams: CockpitLinkParams;
+}) {
   const session = await auth();
+  const initial = parseCockpitLink(searchParams);
 
   // Note: no `overflow-hidden` on the wrapper below. It would make that element
   // the scroll container and silently break `position: sticky` on the summary
@@ -45,32 +49,7 @@ export default async function CockpitPage() {
         <div className="absolute right-[-10rem] top-[28rem] h-[26rem] w-[26rem] rounded-full bg-secondary/10 blur-[120px]" />
       </div>
 
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 whitespace-nowrap font-heading text-base font-bold"
-          >
-            <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-cyan shadow-hud">
-              ◈
-            </span>
-            {BRAND.wordmarkLead}
-            <span className="text-gradient">{BRAND.wordmarkAccent}</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/">
-                <ArrowLeft className="h-4 w-4" /> Home
-              </Link>
-            </Button>
-            {!session?.user && (
-              <Button asChild variant="outline" size="sm">
-                <Link href="/login">Sign in</Link>
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Hero */}
       <section className="container py-16 text-center md:py-20">
@@ -82,6 +61,11 @@ export default async function CockpitPage() {
           Take a signature build exactly as it comes, or assemble your own — crew, ad desk, trade
           and pairings. The price adds up as you go, and what you see here is what gets invoiced.
         </p>
+        {initial && (
+          <p className="mx-auto mt-4 inline-flex max-w-xl items-center gap-2 rounded-full border border-cyan/30 bg-primary/5 px-4 py-1.5 font-mono text-[0.65rem] uppercase tracking-widest text-cyan">
+            Loaded from your link — edit anything below
+          </p>
+        )}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 font-mono text-[0.65rem] uppercase tracking-widest text-muted-foreground">
           <span>No contract</span>
           <span className="text-cyan">◆</span>
@@ -91,7 +75,9 @@ export default async function CockpitPage() {
         </div>
       </section>
 
-      <CockpitConfigurator signedIn={Boolean(session?.user)} />
+      <CockpitConfigurator signedIn={Boolean(session?.user)} initial={initial} />
+
+      <SiteFooter />
     </div>
   );
 }
