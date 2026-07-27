@@ -526,9 +526,53 @@ it the sitemap advertises `localhost` URLs to Google.
 
 ---
 
+## Phase 15 — PHX Growth Plus, and creative as the pillar ✅
+
+### The rename
+- **Add To PHX → PHX Growth Plus**, centralised in `brand.ts` as always, so the
+  wordmark, metadata, transactional email, the legal documents and the console
+  all moved together. The handful of hardcoded strings that had escaped
+  (`package.json`, the schema header, the sessionStorage key, the Resend
+  fallback sender) were pulled back into the single source.
+- `BRAND.parent` added — name, URL, and a one-line statement of the
+  relationship — because the positioning is now load-bearing rather than
+  decorative.
+
+### The positioning
+This is the **deluxe tier of PHX Growth**, not a second agency, and the site
+now says so in three places rather than leaving a visitor to guess:
+- The hero badge reads "The deluxe tier of PHX Growth".
+- A band under the ticker states the relationship plainly and links out to
+  phxgrowth.com — while making clear you don't have to be a PHX Growth client
+  to start here, so the framing adds credibility without narrowing the funnel.
+- The footer links home to the parent.
+
+### Creative, promoted
+The site was selling operations — meters, checks, arithmetic — and burying the
+creative work underneath. That's backwards for a growth business: media buying
+has a floor (there is only so much waste to remove) and creative doesn't (a
+better ad costs the same to run and can return several times more).
+
+- `src/lib/creative.ts` tells it as a **loop, not a service**: Write → Test →
+  Watch → Refresh → Produce, and then it starts again. The circularity is the
+  pitch — it's what separates "we'll make you some ads" from "you'll never be
+  caught without a fresh one".
+- **Nothing here is invented.** Every stage names the real agent, module or
+  add-on that performs it — MUSE-9, the Creative Testing Framework, the
+  Creative Fatigue Radar, the fatigue-refresh playbook, Creative Studio — and a
+  test asserts each one still exists. Rename a module and the marketing claim
+  breaks loudly instead of becoming a quiet lie on the landing page.
+- The section sits **before** the agent roster, so creative leads the argument
+  rather than trailing it, and takes the first slot in the nav.
+- Hero, ticker, product-line blurbs, page metadata and the Open Graph card all
+  rewritten to lead with creative.
+- 9 tests.
+
+---
+
 ## Verified this session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
-  pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (251 tests, 10 files).
+  pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (260 tests, 11 files).
 - Landing page, both new plan pages and `/cockpit` rendered against a production
   server and read back — and `/cockpit` screenshotted at desktop and mobile
   widths, which is how the sticky-rail defect above was found.

@@ -217,7 +217,7 @@ async function sendViaResend(
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM ?? "Add To PHX <onboarding@resend.dev>",
+        from: process.env.EMAIL_FROM ?? `${BRAND.name} <onboarding@resend.dev>`,
         to: [to],
         subject: rendered.subject,
         text: rendered.text,

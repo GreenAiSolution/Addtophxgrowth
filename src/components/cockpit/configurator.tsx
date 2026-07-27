@@ -46,7 +46,7 @@ import { Textarea } from "@/components/ui/textarea";
  *      they're buying the wrong package.
  */
 
-const STORAGE_KEY = "addtophx.cockpit";
+const STORAGE_KEY = "phxgrowthplus.cockpit";
 
 const AGENT_PLANS = PLANS.filter((p) => p.line === "AI_AGENTS");
 const ADOPS_PLANS = PLANS.filter((p) => p.line === "AD_OPS");

@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 const DESCRIPTION =
-  "Five specialist AI agents working your inbound around the clock, plus a managed ad-ops desk that catches a broken account the day it breaks. Built for roofing, HVAC, med spa, dental, legal and remodeling.";
+  "The deluxe tier of PHX Growth. A creative engine that writes, tests and refreshes on a loop, five AI agents working your inbound around the clock, and a desk that catches a broken ad account the day it breaks. Built for roofing, HVAC, med spa, dental, legal and remodeling.";
 
 /**
  * `metadataBase` is what makes relative OG image paths resolve to absolute URLs.

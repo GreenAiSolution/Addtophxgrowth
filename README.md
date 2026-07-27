@@ -1,4 +1,6 @@
-# Add To PHX — Growth Platform
+# PHX Growth Plus
+
+The deluxe creative and automation tier of [PHX Growth](https://phxgrowth.com).
 
 A production-oriented, self-serve client platform for a growth agency selling two
 subscription product lines:

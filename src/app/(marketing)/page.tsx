@@ -22,6 +22,7 @@ import { Addons } from "@/components/marketing/addons";
 import { VerticalStrip } from "@/components/marketing/verticals";
 import { WasteCalculator } from "@/components/marketing/waste-calculator";
 import { SpendWatchShowcase } from "@/components/marketing/spend-watch-showcase";
+import { CreativeEngine } from "@/components/marketing/creative-engine";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -87,7 +88,7 @@ export default function MarketingHome() {
             {BRAND.wordmarkLead}<span className="text-gradient">{BRAND.wordmarkAccent}</span>
           </Link>
           <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
-            <a href="#demo" className="hover:text-foreground">Test Drive</a>
+            <a href="#creative" className="hover:text-foreground">Creative</a>
             <a href="#agents" className="hover:text-foreground">The Crew</a>
             <a href="#trades" className="hover:text-foreground">Your Trade</a>
             <a href="#adops" className="hover:text-foreground">Ad Ops</a>
@@ -112,13 +113,16 @@ export default function MarketingHome() {
       {/* Hero */}
       <section className="container relative py-24 text-center md:py-32">
         <div className="mx-auto max-w-3xl">
-          <Badge className="mx-auto animate-pulse-glow">Now seating — limited client roster</Badge>
+          <Badge className="mx-auto animate-pulse-glow">
+            The deluxe tier of {BRAND.parent.name}
+          </Badge>
           <h1 className="mt-6 font-heading text-5xl font-bold leading-[1.02] md:text-7xl">
-            The <span className="text-gradient">velvet rope</span> of growth operations.
+            Where the <span className="text-gradient">creative</span> never runs out.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Five specialist AI agents on call around the clock. A human ad-ops crew behind the
-            glass. One cockpit that makes your competitors ask for the recipe.
+            A creative studio that writes, tests and refreshes on a loop. Five specialist AI agents
+            working your inbound around the clock. A human desk on your ad spend. This is the
+            upgrade {BRAND.parent.name} clients step up into — and it is open to everyone.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg">
@@ -141,15 +145,40 @@ export default function MarketingHome() {
       {/* Ticker strip */}
       <div className="border-y border-border/60 bg-card/40 py-3">
         <div className="container flex flex-wrap items-center justify-center gap-x-10 gap-y-2 font-mono text-[0.65rem] uppercase tracking-[0.25em] text-muted-foreground">
-          <span>Leads qualified in seconds</span>
+          <span>Three angles on every offer</span>
           <span className="text-cyan">◆</span>
-          <span>Ad copy on demand</span>
+          <span>Fatigue caught before CPL moves</span>
           <span className="text-violet">◆</span>
-          <span>Follow-ups that never sleep</span>
+          <span>Leads qualified in seconds</span>
           <span className="text-magenta">◆</span>
           <span>Spend watched daily</span>
         </div>
       </div>
+
+      {/* What this is, relative to the house. Said once, early, plainly — a
+          visitor should never wonder whether they've found a second agency. */}
+      <section className="container py-14">
+        <div className="hud-panel hud-corners mx-auto flex max-w-3xl flex-col items-center gap-5 p-7 text-center sm:flex-row sm:text-left">
+          <Sparkles className="h-8 w-8 shrink-0 text-magenta" />
+          <div className="flex-1">
+            <h2 className="font-heading text-lg font-bold">
+              {BRAND.name} is {BRAND.parent.relationship}.
+            </h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {BRAND.parent.name} runs the campaigns. This is the tier where the creative becomes a
+              system, the agents work your inbound around the clock, and the desk watches every
+              dollar unattended. You do not need to be a {BRAND.parent.name} client to start here —
+              but if you are, everything below plugs straight into what you already have.
+            </p>
+            <a
+              href={BRAND.parent.url}
+              className="mt-3 inline-flex items-center gap-1.5 font-mono text-[0.68rem] uppercase tracking-widest text-cyan hover:underline"
+            >
+              Visit {BRAND.parent.name} <ArrowRight className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+      </section>
 
       {/* Interactive test-drive */}
       <section id="demo" className="container py-20">
@@ -164,6 +193,21 @@ export default function MarketingHome() {
           </p>
         </div>
         <AgentDemo />
+      </section>
+
+      {/* The creative engine — the pillar this tier is built on. */}
+      <section id="creative" className="container py-20">
+        <div className="mb-10 text-center">
+          <Badge variant="magenta">The Creative Engine</Badge>
+          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
+            Anyone can buy the media. The ad is the whole game.
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+            Five stages that hand off to each other and then start over, so there is always a
+            fresh ad ready before the current one dies.
+          </p>
+        </div>
+        <CreativeEngine />
       </section>
 
       {/* Agent roster */}
@@ -514,6 +558,7 @@ export default function MarketingHome() {
             <Link href="/legal/terms" className="hover:text-foreground">Terms</Link>
             <Link href="/legal/privacy" className="hover:text-foreground">Privacy</Link>
             <Link href="/legal/msa" className="hover:text-foreground">Services agreement</Link>
+            <a href={BRAND.parent.url} className="hover:text-foreground">{BRAND.parent.name}</a>
           </div>
           <div className="flex flex-col items-center justify-between gap-4 border-t border-border/40 pt-5 text-sm text-muted-foreground sm:flex-row">
             <span>© {new Date().getFullYear()} {BRAND.name}</span>

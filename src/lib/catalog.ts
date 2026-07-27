@@ -37,11 +37,13 @@ export interface PlanDef {
 export const PRODUCT_LINES: Record<ProductLineKey, { name: string; blurb: string }> = {
   AI_AGENTS: {
     name: "AI Automation Agents",
-    blurb: "A crew of specialist AI agents that qualify, write, follow up, and update — on tap.",
+    blurb:
+      "A crew of specialists on tap — writing your ads, scoring your leads, chasing the ones who went quiet, and filing it all where your team works.",
   },
   AD_OPS: {
     name: "Ad Operations Management",
-    blurb: "Managed ad-ops: campaign management, spend monitoring, creative rotation, reporting.",
+    blurb:
+      "A human desk on your accounts: creative tested and rotated on a framework, spend watched unattended, and every change logged and explained.",
   },
 };
 

@@ -73,7 +73,7 @@ export default function OpengraphImage() {
               letterSpacing: -2,
             }}
           >
-            AI agents on your inbound.
+            Where the creative
           </div>
           <div
             style={{
@@ -85,7 +85,7 @@ export default function OpengraphImage() {
               letterSpacing: -2,
             }}
           >
-            A desk on your ad spend.
+            never runs out.
           </div>
         </div>
 
@@ -99,11 +99,11 @@ export default function OpengraphImage() {
             textTransform: "uppercase",
           }}
         >
-          <span>Leads scored overnight</span>
+          <span>The deluxe tier of PHX Growth</span>
           <div style={{ display: "flex", width: 8, height: 8, background: "#22d3ee", transform: "rotate(45deg)", marginTop: 8 }} />
-          <span>Spend watched daily</span>
+          <span>Creative on a loop</span>
           <div style={{ display: "flex", width: 8, height: 8, background: "#e879f9", transform: "rotate(45deg)", marginTop: 8 }} />
-          <span>No contract</span>
+          <span>Spend watched daily</span>
         </div>
       </div>
     ),
