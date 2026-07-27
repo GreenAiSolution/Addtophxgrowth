@@ -56,6 +56,32 @@ enum ProvisionStatus {
   IN_PROGRESS
 }
 
+/// Lifecycle of an inbound lead, from webhook to closed deal.
+enum LeadStatus {
+  NEW
+  SCORED
+  WORKING
+  WON
+  LOST
+}
+
+/// How often the night shift produces a brief for a client. Tier-gated.
+enum BriefCadence {
+  DAILY
+  WEEKLY
+}
+
+enum BriefStatus {
+  PENDING
+  COMPLETE
+  FAILED
+}
+
+enum DealOutcomeKind {
+  WON
+  LOST
+}
+
 // ---------------------------------------------------------------------------
 // Auth.js (NextAuth) core models
 // ---------------------------------------------------------------------------
@@ -125,21 +151,37 @@ model ClientProfile {
   businessName String
   industry     String?
   website      String?
-  adPlatforms  String[] @default([])
+  adPlatforms  String[]  @default([])
   goals        String?
   voiceTone    String? // saved brand voice used by agents
   onboardedAt  DateTime?
 
+  /// Industry pack (see lib/verticals.ts). Pre-tunes the rubric, escalation
+  /// matrix, voice profile and playbook prompts at provisioning time.
+  verticalKey String?
+
+  /// Secret for this tenant's public lead-intake endpoint. Rotatable.
+  intakeToken String? @unique
+
+  /// Night shift: the unattended run that produces the morning brief.
+  nightShiftEnabled Boolean @default(true)
+  /// UTC hour (0-23) the brief should be waiting by. Default 13:00 UTC = 6am Phoenix.
+  briefHourUtc      Int     @default(13)
+
   stripeCustomerId String? @unique
 
-  subscriptions   Subscription[]
-  conversations   AgentConversation[]
-  usageRecords    UsageRecord[]
-  adAccounts      AdAccount[]
-  requests        Request[]
-  webhookConfigs  WebhookConfig[]
-  agentOverrides  AgentPromptOverride[]
+  subscriptions    Subscription[]
+  conversations    AgentConversation[]
+  usageRecords     UsageRecord[]
+  adAccounts       AdAccount[]
+  requests         Request[]
+  webhookConfigs   WebhookConfig[]
+  agentOverrides   AgentPromptOverride[]
   provisionedItems ProvisionedItem[]
+  leads            Lead[]
+  briefRuns        BriefRun[]
+  dealOutcomes     DealOutcome[]
+  memoryEntries    MemoryEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -181,7 +223,7 @@ model Subscription {
 
   lineKey ProductLineKey
   planKey String
-  plan    Plan   @relation(fields: [planKey], references: [key])
+  plan    Plan           @relation(fields: [planKey], references: [key])
 
   status               SubscriptionStatus @default(INCOMPLETE)
   stripeSubscriptionId String?            @unique
@@ -221,9 +263,9 @@ model AgentDefinition {
 }
 
 model AgentPromptOverride {
-  id       String        @id @default(cuid())
+  id       String          @id @default(cuid())
   clientId String
-  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client   ClientProfile   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   agentId  String
   agent    AgentDefinition @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
@@ -236,9 +278,9 @@ model AgentPromptOverride {
 }
 
 model AgentConversation {
-  id       String        @id @default(cuid())
+  id       String          @id @default(cuid())
   clientId String
-  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client   ClientProfile   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   agentId  String
   agent    AgentDefinition @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
@@ -272,12 +314,12 @@ model UsageRecord {
   clientId String
   client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  lineKey   ProductLineKey @default(AI_AGENTS)
-  agentSlug String
+  lineKey     ProductLineKey @default(AI_AGENTS)
+  agentSlug   String
   /// Billing period bucket (start-of-month UTC) for fast metering queries.
   periodStart DateTime
-  tokensIn    Int      @default(0)
-  tokensOut   Int      @default(0)
+  tokensIn    Int            @default(0)
+  tokensOut   Int            @default(0)
 
   createdAt DateTime @default(now())
 
@@ -313,13 +355,13 @@ model AdMetricDaily {
   adAccount   AdAccount @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
 
   date        DateTime
-  spend       Int     @default(0) // cents
-  impressions Int     @default(0)
-  clicks      Int     @default(0)
-  leads       Int     @default(0)
-  conversions Int     @default(0)
-  revenue     Int     @default(0) // cents
-  source      String  @default("MANUAL") // MANUAL | CSV | API
+  spend       Int      @default(0) // cents
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  leads       Int      @default(0)
+  conversions Int      @default(0)
+  revenue     Int      @default(0) // cents
+  source      String   @default("MANUAL") // MANUAL | CSV | API
 
   @@unique([adAccountId, date])
   @@index([adAccountId, date])
@@ -334,10 +376,10 @@ model Request {
   clientId String
   client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  kind        RequestKind   @default(OTHER)
-  title       String
-  body        String        @db.Text
-  status      RequestStatus @default(OPEN)
+  kind   RequestKind   @default(OTHER)
+  title  String
+  body   String        @db.Text
+  status RequestStatus @default(OPEN)
 
   comments RequestComment[]
 
@@ -390,6 +432,125 @@ model ProvisionedItem {
 
   @@unique([clientId, moduleKey])
   @@index([clientId, kind])
+}
+
+// ---------------------------------------------------------------------------
+// Inbound leads — the raw material the night shift works on
+// ---------------------------------------------------------------------------
+
+/// A lead delivered to the tenant's intake endpoint (or entered by hand).
+/// Scored asynchronously by the night shift rather than on the request path,
+/// so a slow model call can never make a client's form submission fail.
+model Lead {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  source  String  @default("WEBHOOK") // WEBHOOK | MANUAL | CSV
+  name    String?
+  email   String?
+  phone   String?
+  company String?
+  message String? @db.Text
+  /// Whatever else the client's form posted, kept verbatim.
+  raw     Json?
+
+  status     LeadStatus @default(NEW)
+  score      Int?
+  tier       String? // HOT | WARM | COLD | DISQUALIFIED
+  reasoning  String?    @db.Text
+  nextAction String?    @db.Text
+  scoredAt   DateTime?
+
+  outcomes DealOutcome[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId, status])
+  @@index([clientId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Night shift — unattended runs and the morning brief they produce
+// ---------------------------------------------------------------------------
+
+/// One brief per client per run date. The unique constraint is what makes the
+/// cron safe to fire repeatedly (Vercel can and does retry).
+model BriefRun {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  cadence BriefCadence @default(DAILY)
+  /// UTC midnight bucket for the day this brief covers.
+  runDate DateTime
+  status  BriefStatus  @default(PENDING)
+
+  leadsScored Int     @default(0)
+  headline    String? @db.Text
+  summary     String? @db.Text
+  /// [{ title, detail, priority, leadId? }]
+  sections    Json?
+  error       String? @db.Text
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@unique([clientId, runDate])
+  @@index([clientId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// System memory — what the desk learns from real outcomes
+// ---------------------------------------------------------------------------
+
+/// A closed deal, won or lost. The qualification score is snapshotted here so
+/// calibration stays correct even if the lead row is later edited or deleted.
+model DealOutcome {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  leadId   String?
+  lead     Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  outcome    DealOutcomeKind
+  valueCents Int             @default(0)
+
+  scoreAtQualification Int?
+  tierAtQualification  String?
+  /// For losses: the objection that actually killed it.
+  objection            String?
+  source               String?
+  notes                String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId, createdAt])
+}
+
+/// One learned fact about this tenant's business, derived from DealOutcome rows
+/// by lib/memory.ts. Injected into every agent run, so the agents get more
+/// accurate the longer a client stays. Clients can mute anything they disagree
+/// with — the memory is theirs, not a black box.
+model MemoryEntry {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  kind          String // CALIBRATION | OBJECTION | SOURCE | VALUE
+  key           String
+  content       String  @db.Text
+  /// 0-1. Rises with evidence; entries below the floor are not injected.
+  confidence    Float   @default(0)
+  evidenceCount Int     @default(0)
+  muted         Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, kind, key])
+  @@index([clientId])
 }
 
 model WebhookConfig {

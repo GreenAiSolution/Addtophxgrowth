@@ -18,6 +18,7 @@ import { LeadForm } from "@/components/marketing/lead-form";
 import { AgentDemo } from "@/components/marketing/agent-demo";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
 import { Addons } from "@/components/marketing/addons";
+import { VerticalStrip } from "@/components/marketing/verticals";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -44,7 +45,7 @@ export default function MarketingHome() {
           <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
             <a href="#demo" className="hover:text-foreground">Test Drive</a>
             <a href="#agents" className="hover:text-foreground">The Crew</a>
-            <a href="#lines" className="hover:text-foreground">Product Lines</a>
+            <a href="#trades" className="hover:text-foreground">Your Trade</a>
             <a href="#pricing" className="hover:text-foreground">The Menu</a>
             <a href="#pairings" className="hover:text-foreground">Pairings</a>
             <a href="#faq" className="hover:text-foreground">FAQ</a>
@@ -216,6 +217,22 @@ export default function MarketingHome() {
             );
           })}
         </div>
+      </section>
+
+      {/* Industry packs */}
+      <section id="trades" className="container py-20">
+        <div className="mb-10 text-center">
+          <Badge>Built for your trade</Badge>
+          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
+            It arrives already speaking your language
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+            Same desk, same price — but the qualification bar, the escalation rules and the
+            one-click jobs land pre-written for your industry. Then you edit them until
+            they&apos;re exactly yours.
+          </p>
+        </div>
+        <VerticalStrip />
       </section>
 
       {/* ROI calculator */}

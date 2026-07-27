@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { PRODUCT_LINES, PLANS } from "../src/lib/catalog";
 import { AGENTS } from "../src/lib/agents";
@@ -86,6 +87,7 @@ async function upsertClient(opts: {
   adPlatforms: string[];
   goals: string;
   voiceTone: string;
+  verticalKey?: string;
   agentsPlan?: string;
   adOpsPlan?: string;
   adAccounts: { platform: string; name: string }[];
@@ -105,6 +107,7 @@ async function upsertClient(opts: {
       adPlatforms: opts.adPlatforms,
       goals: opts.goals,
       voiceTone: opts.voiceTone,
+      verticalKey: opts.verticalKey ?? null,
       onboardedAt: new Date(),
     },
     create: {
@@ -115,6 +118,8 @@ async function upsertClient(opts: {
       adPlatforms: opts.adPlatforms,
       goals: opts.goals,
       voiceTone: opts.voiceTone,
+      verticalKey: opts.verticalKey ?? null,
+      intakeToken: randomBytes(24).toString("base64url"),
       onboardedAt: new Date(),
     },
   });
@@ -225,6 +230,169 @@ async function seedSampleConversation(clientId: string) {
   });
 }
 
+/**
+ * Leads, closed deals and a finished brief for one demo tenant, so the night
+ * shift and system-memory pages have something real to render before a single
+ * webhook has fired. Guarded on lead count — re-running the seed must not
+ * duplicate the history the memory is computed from.
+ */
+async function seedNightShiftDemo(clientId: string) {
+  const already = await prisma.lead.count({ where: { clientId } });
+  if (already > 0) return;
+
+  const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000);
+
+  const scored: {
+    name: string;
+    company: string;
+    score: number;
+    tier: string;
+    source: string;
+    age: number;
+  }[] = [
+    { name: "Marcy Bell", company: "Bell Residence", score: 91, tier: "HOT", source: "google-ads", age: 6 },
+    { name: "Tomas Vega", company: "Vega Property Group", score: 87, tier: "HOT", source: "google-ads", age: 9 },
+    { name: "Priya Raman", company: "Raman Residence", score: 74, tier: "WARM", source: "facebook", age: 14 },
+    { name: "Cole Whitaker", company: "Whitaker Ranch", score: 68, tier: "WARM", source: "referral", age: 96 },
+    { name: "Dee Osei", company: "Osei Residence", score: 63, tier: "WARM", source: "facebook", age: 120 },
+    { name: "Hal Brennan", company: "Brennan Storage", score: 38, tier: "COLD", source: "facebook", age: 40 },
+  ];
+
+  for (const l of scored) {
+    await prisma.lead.create({
+      data: {
+        clientId,
+        source: l.source,
+        name: l.name,
+        company: l.company,
+        email: `${l.name.split(" ")[0].toLowerCase()}@example.com`,
+        message: "Storm damage on the north slope, insurance adjuster coming Thursday.",
+        status: "SCORED",
+        score: l.score,
+        tier: l.tier,
+        reasoning: "Homeowner, inside the service radius, visible damage described.",
+        nextAction:
+          l.score >= 80
+            ? "Senior estimator to call within 15 minutes and book an inspection."
+            : "Start the follow-up cadence; re-check once the adjuster has been out.",
+        scoredAt: hoursAgo(l.age),
+        createdAt: hoursAgo(l.age + 2),
+      },
+    });
+  }
+
+  // Two fresh, unscored leads so the next night-shift run has work to do.
+  for (const name of ["Ines Duarte", "Rafe Sandoval"]) {
+    await prisma.lead.create({
+      data: {
+        clientId,
+        source: "WEBHOOK",
+        name,
+        company: `${name.split(" ")[1]} Residence`,
+        email: `${name.split(" ")[0].toLowerCase()}@example.com`,
+        message: "Roof is leaking into the upstairs bedroom after last night's storm.",
+        status: "NEW",
+        createdAt: hoursAgo(3),
+      },
+    });
+  }
+
+  // Enough closed deals for calibration to clear the evidence floor. Weighted so
+  // the demo shows a genuinely useful pattern: google-ads outperforms facebook,
+  // and "getting three estimates" is the objection that keeps costing them.
+  const outcomes: { won: boolean; score: number; value: number; source: string; objection?: string }[] = [
+    ...Array.from({ length: 7 }, () => ({ won: true, score: 88, value: 1_620_000, source: "google-ads" })),
+    ...Array.from({ length: 3 }, () => ({
+      won: false,
+      score: 84,
+      value: 0,
+      source: "google-ads",
+      objection: "Getting three other estimates",
+    })),
+    ...Array.from({ length: 2 }, () => ({ won: true, score: 71, value: 1_180_000, source: "facebook" })),
+    ...Array.from({ length: 6 }, () => ({
+      won: false,
+      score: 66,
+      value: 0,
+      source: "facebook",
+      objection: "Getting three other estimates",
+    })),
+    ...Array.from({ length: 5 }, () => ({
+      won: false,
+      score: 45,
+      value: 0,
+      source: "facebook",
+      objection: "Waiting until after storm season",
+    })),
+  ];
+
+  for (const o of outcomes) {
+    await prisma.dealOutcome.create({
+      data: {
+        clientId,
+        outcome: o.won ? "WON" : "LOST",
+        valueCents: o.value,
+        scoreAtQualification: o.score,
+        tierAtQualification: o.score >= 80 ? "HOT" : o.score >= 60 ? "WARM" : "COLD",
+        objection: o.objection ?? null,
+        source: o.source,
+      },
+    });
+  }
+
+  // Compute the memory exactly the way production does, rather than hand-writing
+  // facts the real code would never produce.
+  const { refreshMemory } = await import("../src/lib/memory");
+  const learned = await refreshMemory(clientId);
+  console.log(`   · derived ${learned} learned facts from ${outcomes.length} closed deals`);
+
+  const { planBrief } = await import("../src/lib/night-shift");
+  const now = new Date();
+  const openLeads = await prisma.lead.findMany({ where: { clientId, status: "SCORED" } });
+  const plan = planBrief({
+    businessName: "Ironclad Roofing",
+    cadence: "DAILY",
+    scored: openLeads
+      .filter((l) => (l.scoredAt ?? l.createdAt) > hoursAgo(24))
+      .map((l) => ({
+        id: l.id,
+        name: l.name,
+        company: l.company,
+        score: l.score,
+        tier: l.tier,
+        nextAction: l.nextAction,
+        ageHours: (now.getTime() - l.createdAt.getTime()) / 3_600_000,
+      })),
+    open: openLeads.map((l) => ({
+      id: l.id,
+      name: l.name,
+      company: l.company,
+      score: l.score,
+      tier: l.tier,
+      nextAction: l.nextAction,
+      ageHours: (now.getTime() - (l.scoredAt ?? l.createdAt).getTime()) / 3_600_000,
+    })),
+  });
+
+  const runDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  await prisma.briefRun.upsert({
+    where: { clientId_runDate: { clientId, runDate } },
+    update: {},
+    create: {
+      clientId,
+      runDate,
+      cadence: "DAILY",
+      status: "COMPLETE",
+      leadsScored: 3,
+      headline: plan.headline,
+      summary:
+        "Three leads came in overnight and two of them are worth a call before ten. Marcy Bell and Tomas Vega both described visible storm damage and both are inside your radius — Vega has an adjuster booked already, which is usually the difference between a quote and a job.\n\nThe more urgent thing is the four qualified leads that have been sitting since last week. They scored well enough to call when they arrived and nobody has. Clear those first, then work the new ones.",
+      sections: plan.sections as unknown as object,
+      completedAt: now,
+    },
+  });
+}
+
 async function main() {
   console.log("→ Seeding catalog (product lines + plans)…");
   await seedCatalog();
@@ -276,6 +444,24 @@ async function main() {
     agentsPlan: "launch",
     adAccounts: [{ platform: "META", name: "Bright Home — Meta Ads" }],
   });
+
+  // A Command-tier tenant on the roofing pack, with enough history for the
+  // night shift and system memory to have something real to show.
+  console.log("→ Seeding demo client #3 (Command + roofing pack)…");
+  const c3 = await upsertClient({
+    email: "demo3@phxgrowth.com",
+    name: "Rae Delgado",
+    businessName: "Ironclad Roofing",
+    industry: "Commercial Roofing",
+    website: "https://ironcladroofing.example",
+    adPlatforms: ["GOOGLE", "META"],
+    goals: "Answer every storm lead before the competition and stop losing qualified jobs to silence.",
+    voiceTone: "Straight-talking, no pressure, like a neighbour who happens to know roofs.",
+    verticalKey: "roofing",
+    agentsPlan: "command",
+    adAccounts: [{ platform: "GOOGLE", name: "Ironclad — Google Ads" }],
+  });
+  await seedNightShiftDemo(c3.id);
 
   console.log("✓ Seed complete.");
 }

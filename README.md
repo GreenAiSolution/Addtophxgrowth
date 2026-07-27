@@ -64,6 +64,7 @@ pnpm dev                  # http://localhost:3000
 | Admin  | `admin@phxgrowth.com`   | — |
 | Client | `demo1@phxgrowth.com`   | Scale (agents) + Operate (ad-ops), 90 days of metrics |
 | Client | `demo2@phxgrowth.com`   | Launch (agents) |
+| Client | `demo3@phxgrowth.com`   | Command (agents) + roofing pack, seeded leads, closed deals, and a finished morning brief |
 
 Sign in with the **email magic link** (configure SMTP) or **Google** using
 these addresses. Roles are set by the seed; new Google sign-ins default to
@@ -128,6 +129,47 @@ feature gating.
   Ads sync can be added later with no schema change.
 - **Validation** — Zod on every API input. Agent routes are rate-limited
   (`src/lib/rate-limit.ts`; swap for Upstash in multi-instance prod).
+- **Vertical packs** (`src/lib/verticals.ts`) — per-trade content that overrides
+  the three ASSET bodies and selected PLAYBOOK prompts at provisioning time. A
+  pack can never change *which* modules a tier provisions, only what they say;
+  `verticals.test.ts` enforces that every override names a real module.
+- **Night shift** (`src/lib/night-shift.ts`) — an hourly Vercel cron
+  (`vercel.json` → `/api/cron/night-shift`) walks every Scale/Command tenant and
+  runs the ones that are due. Command runs nightly, Scale weekly, Launch not at
+  all. The brief itself is assembled by a pure function from scored data, so a
+  model outage costs the narrative summary and never the call list. Unattended
+  runs still go through the same entitlement meter as interactive ones.
+- **Lead intake** (`/api/intake/[clientId]`) — public, per-tenant token in
+  `x-intake-token` or `?token=`, compared in constant time. Leads land unscored;
+  scoring happens on the night shift so a slow model call can never make a
+  client's website form time out.
+- **System memory** (`src/lib/memory.ts`) — closed deals a client logs are
+  distilled into `MemoryEntry` rows by a pure `computeCalibration`, then injected
+  ahead of every agent run. Nothing is stated below `MIN_EVIDENCE` closed deals,
+  confidence is shown rather than hidden, and the client can mute any fact they
+  disagree with — a refresh never un-mutes.
+
+## The night shift
+
+```bash
+# Local: the cron route is a plain authenticated GET
+CRON_SECRET=$(openssl rand -base64 32)   # also set this in .env and in Vercel
+curl -H "Authorization: Bearer $CRON_SECRET" localhost:3000/api/cron/night-shift
+```
+
+On Vercel, `CRON_SECRET` is sent automatically to scheduled invocations. With no
+`CRON_SECRET` set the route refuses every request rather than leaving an open
+endpoint that spends the Anthropic budget.
+
+Feeding it leads:
+
+```bash
+curl -X POST "$NEXT_PUBLIC_APP_URL/api/intake/$CLIENT_ID?token=$INTAKE_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"name":"Marcy Bell","email":"marcy@example.com","message":"Storm damage"}'
+```
+
+The client's own URL is shown to them on `/app/brief`.
 
 See [`PROGRESS.md`](./PROGRESS.md) for the phase-by-phase build log and the
 current state of each phase.

@@ -1,5 +1,7 @@
+import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { blueprintFor, type SystemModule } from "@/lib/systems";
+import { applyVertical, resolveVertical, type VerticalPack } from "@/lib/verticals";
 import { env } from "@/lib/env";
 import { postWebhook } from "@/lib/webhooks";
 
@@ -19,15 +21,23 @@ export interface ProvisionPlan {
   toSkip: SystemModule[];
 }
 
-/** Pure: given the tier and what the client already has, decide the delta. */
-export function planProvisioning(planKey: string, existingKeys: Set<string>): ProvisionPlan {
+/**
+ * Pure: given the tier, what the client already has, and their industry pack,
+ * decide the delta. The pack only rewrites module *content* (see
+ * lib/verticals.ts) — it can never change which modules a tier provisions.
+ */
+export function planProvisioning(
+  planKey: string,
+  existingKeys: Set<string>,
+  pack?: VerticalPack,
+): ProvisionPlan {
   const blueprint = blueprintFor(planKey);
   if (!blueprint) return { planKey, toCreate: [], toSkip: [] };
 
   const toCreate: SystemModule[] = [];
   const toSkip: SystemModule[] = [];
   for (const m of blueprint.modules) {
-    (existingKeys.has(m.key) ? toSkip : toCreate).push(m);
+    (existingKeys.has(m.key) ? toSkip : toCreate).push(applyVertical(m, pack));
   }
   return { planKey, toCreate, toSkip };
 }
@@ -41,6 +51,8 @@ export interface ProvisionResult {
   created: number;
   skipped: number;
   planKey: string;
+  /** Which industry pack shaped the delivered copy, if any. */
+  verticalKey?: string | null;
 }
 
 /**
@@ -50,14 +62,28 @@ export async function provisionPlan(
   clientId: string,
   planKey: string,
 ): Promise<ProvisionResult> {
-  const existing = await prisma.provisionedItem.findMany({
-    where: { clientId },
-    select: { moduleKey: true },
-  });
-  const plan = planProvisioning(planKey, new Set(existing.map((e) => e.moduleKey)));
+  const [client, existing] = await Promise.all([
+    prisma.clientProfile.findUnique({
+      where: { id: clientId },
+      select: { verticalKey: true, industry: true, intakeToken: true },
+    }),
+    prisma.provisionedItem.findMany({ where: { clientId }, select: { moduleKey: true } }),
+  ]);
+
+  const pack = client ? resolveVertical(client) : undefined;
+  const plan = planProvisioning(planKey, new Set(existing.map((e) => e.moduleKey)), pack);
+
+  // The Lead Intake Webhook module promises a live endpoint; mint the token that
+  // makes it real before anything references it. Only ever issued once.
+  if (client && !client.intakeToken) {
+    await prisma.clientProfile.update({
+      where: { id: clientId },
+      data: { intakeToken: randomBytes(24).toString("base64url") },
+    });
+  }
 
   if (plan.toCreate.length === 0) {
-    return { created: 0, skipped: plan.toSkip.length, planKey };
+    return { created: 0, skipped: plan.toSkip.length, planKey, verticalKey: pack?.key ?? null };
   }
 
   await prisma.$transaction(
@@ -130,6 +156,7 @@ export async function provisionPlan(
       source: "system_provisioned",
       clientId,
       planKey,
+      verticalKey: pack?.key ?? null,
       provisioned: plan.toCreate.map((m) => m.key),
       at: new Date().toISOString(),
     },
@@ -137,10 +164,15 @@ export async function provisionPlan(
   );
 
   console.info(
-    `[provisioning] ${planKey} → client ${clientId}: ${plan.toCreate.length} created, ${plan.toSkip.length} already present`,
+    `[provisioning] ${planKey}${pack ? ` (${pack.key})` : ""} → client ${clientId}: ${plan.toCreate.length} created, ${plan.toSkip.length} already present`,
   );
 
-  return { created: plan.toCreate.length, skipped: plan.toSkip.length, planKey };
+  return {
+    created: plan.toCreate.length,
+    skipped: plan.toSkip.length,
+    planKey,
+    verticalKey: pack?.key ?? null,
+  };
 }
 
 /** What the client sees on their system page. */
