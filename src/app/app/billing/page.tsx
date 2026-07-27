@@ -5,6 +5,7 @@ import { formatCurrency, formatNumber, cn } from "@/lib/utils";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ManageBillingButton, CheckoutButton } from "@/components/billing-actions";
+import { AddonMenu } from "@/components/addon-request";
 import { UsageMeter } from "@/components/usage-meter";
 
 const LINES: ProductLineKey[] = ["AI_AGENTS", "AD_OPS"];
@@ -105,6 +106,8 @@ export default async function BillingPage() {
           </div>
         </div>
       ))}
+
+      <AddonMenu />
     </div>
   );
 }

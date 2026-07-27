@@ -17,6 +17,7 @@ import { Pricing } from "@/components/marketing/pricing";
 import { LeadForm } from "@/components/marketing/lead-form";
 import { AgentDemo } from "@/components/marketing/agent-demo";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
+import { Addons } from "@/components/marketing/addons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -45,6 +46,7 @@ export default function MarketingHome() {
             <a href="#agents" className="hover:text-foreground">The Crew</a>
             <a href="#lines" className="hover:text-foreground">Product Lines</a>
             <a href="#pricing" className="hover:text-foreground">The Menu</a>
+            <a href="#pairings" className="hover:text-foreground">Pairings</a>
             <a href="#faq" className="hover:text-foreground">FAQ</a>
           </nav>
           <div className="flex shrink-0 items-center gap-2">
@@ -244,6 +246,19 @@ export default function MarketingHome() {
           </p>
         </div>
         <Pricing />
+      </section>
+
+      {/* À la carte add-ons */}
+      <section id="pairings" className="container py-20">
+        <div className="mb-12 text-center">
+          <Badge variant="violet">À la carte</Badge>
+          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">Pairings</h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+            What our fastest-growing clients add alongside a membership. Take one, take none —
+            the plan works either way.
+          </p>
+        </div>
+        <Addons />
       </section>
 
       {/* Social proof */}
