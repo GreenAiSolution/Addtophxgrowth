@@ -23,6 +23,9 @@ import {
 import { formatCurrency, cn } from "@/lib/utils";
 import { env } from "@/lib/env";
 import { Enquiry, AddUpgradeButton } from "@/components/marketing/enquiry";
+import { GapFinder } from "@/components/marketing/gap-finder";
+import { CoverageMap } from "@/components/marketing/coverage-map";
+import { Pulse } from "@/components/marketing/pulse";
 import { Wordmark } from "@/components/marketing/site-chrome";
 
 /**
@@ -170,27 +173,35 @@ function UpgradeCard({ upgrade }: { upgrade: Upgrade }) {
       <p className="mt-4 text-[0.95rem] leading-relaxed text-foreground/90">{upgrade.promise}</p>
 
       <ul className="mt-5 space-y-2.5">
-        {upgrade.delivers.map((line) => (
+        {upgrade.delivers.slice(0, 3).map((line) => (
           <li key={line} className="flex items-start gap-2.5 text-sm leading-relaxed text-muted-foreground">
             <span className={cn("mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full", accent.dot)} />
             {line}
           </li>
         ))}
+        {upgrade.delivers.length > 3 && (
+          <li className="pl-4 text-xs text-muted-foreground/60">
+            +{upgrade.delivers.length - 3} more in the scope
+          </li>
+        )}
       </ul>
 
-      {/* Argument and action pinned to the bottom as one block, so the "Add"
-          buttons land on the same line across a row of cards. Left to flow,
-          they staggered by however long each argument happened to be — which
-          reads as a layout bug rather than as varying content. */}
+      {/* The argument is now folded away. It is the strongest thing on the
+          card and it was also two hundred words a visitor had to scroll past
+          five times — a native <details> keeps it one click from anyone who
+          wants it and out of the way of everyone who doesn't. No JS. */}
       <div className="mt-auto pt-6">
-        <div className="rounded-xl border border-white/[0.06] bg-black/25 p-4">
-          <div className="eyebrow mb-2 text-[0.6rem] text-muted-foreground">Why now</div>
-          <p className="text-[0.8rem] leading-relaxed text-muted-foreground">
+        <details className="group rounded-xl border border-white/[0.06] bg-black/25 [&_summary::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+            <span className="eyebrow text-[0.6rem] text-muted-foreground">Why now</span>
+            <span className="text-cyan transition-transform group-open:rotate-45">+</span>
+          </summary>
+          <p className="px-4 pb-4 text-[0.8rem] leading-relaxed text-muted-foreground">
             {upgrade.demandCase}
           </p>
-        </div>
+        </details>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.07] pt-5">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.07] pt-5">
           <span className="text-xs text-muted-foreground">Fixes: {upgrade.fixes}</span>
           <AddUpgradeButton upgradeKey={upgrade.key} name={upgrade.name} />
         </div>
@@ -204,6 +215,7 @@ export default function Home() {
 
   return (
     <div className="relative">
+      <Pulse />
       {/* eslint-disable-next-line react/no-danger */}
       <script
         type="application/ld+json"
@@ -246,18 +258,20 @@ export default function Home() {
             <span className="text-gradient">One flight plan.</span>
           </h1>
 
-          <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-            {BRAND.parent.name} flies your account. This is the specialised work that bolts onto it
-            — the parts of 2027 nobody has staffed yet. Nothing here replaces your crew, restarts
-            your onboarding, or duplicates a single thing you already pay for.
+          {/* One sentence. The old paragraph explained three things a visitor
+              can now see for themselves in the coverage map further down. */}
+          <p className="mx-auto mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
+            {BRAND.parent.name} flies your account. These are the{" "}
+            <span className="text-foreground">{UPGRADES.length} things</span> nobody on it is doing
+            yet.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <a href="#upgrades" className="pill-primary">
-              See the {UPGRADES.length} upgrades <ArrowRight className="h-4 w-4" />
+            <a href="#gaps" className="pill-primary">
+              Find your gaps <ArrowRight className="h-4 w-4" />
             </a>
-            <a href="#enquiry" className="pill-ghost">
-              Talk to your pilot
+            <a href="#upgrades" className="pill-ghost">
+              See all {UPGRADES.length}
             </a>
           </div>
 
@@ -384,85 +398,41 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── The roster ─────────────────────────────────────────────────── */}
-      {/* Shown before the upgrades, deliberately. A page that lists what it
-          wants to sell without acknowledging the ten operators already on the
-          account reads as though it doesn't know what the client has — and
-          every one of these upgrades is defined by the gap it sits in. */}
+      {/* ── Coverage ───────────────────────────────────────────────────── */}
+      {/* This was three text lists and a paragraph making a claim about a
+          ratio. A ratio is a picture. The map says the same thing in one
+          glance and the words underneath it dropped from ~200 to ~40. */}
       <section className="border-y border-white/[0.06] bg-white/[0.015] py-20">
         <div className="container">
           <SectionHead
-            label="Already on your crew"
-            note="ten operators, covering strategy through reputation — none of it is for sale here"
+            label="What's already covered"
+            note="ten operators, twelve managed disciplines, four standing loops — none of it for sale here"
             tone="text-muted-foreground"
           />
+          <CoverageMap />
 
-          <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-5">
-            {OPERATORS.map((op) => (
-              <div key={op.name} className="border-l border-white/10 pl-4">
-                <div className="eyebrow text-[0.58rem] text-muted-foreground">{op.domain}</div>
-                <div className="mt-1 font-semibold">{op.name}</div>
-                <div className="text-xs text-muted-foreground">{op.role}</div>
-              </div>
-            ))}
+          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+            <p className="text-sm text-muted-foreground">
+              The one thing the desk says plainly it does not do:{" "}
+              <span className="text-foreground">&ldquo;{CREATION_DISCLAIMER}&rdquo;</span>
+            </p>
+            <span className="chip border-gold/30 bg-gold/[0.07] text-gold">
+              {FLAGSHIP.name} builds any of it bespoke
+            </span>
           </div>
-
-          {/* The Manifest, in full. Listing twelve things we are NOT selling,
-              immediately above the short list we are, is the strongest proof
-              available that the upgrades don't overlap — and it is the parent's
-              own copy, so it reads as continuity rather than as a disclaimer. */}
-          <div className="mt-12">
-            <div className="eyebrow mb-4 text-[0.6rem] text-muted-foreground">
-              And the Manifest — what &ldquo;everything&rdquo; already means, in writing
-            </div>
-            <div className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              {MANIFEST.map((m) => (
-                <div key={m.n} className="flex items-baseline gap-2.5 text-sm">
-                  <span className="text-xs text-signal/70">{m.n}</span>
-                  <span className="text-muted-foreground">{m.title}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* The automation spine, and the flagship above it. Naming the
-              private build explicitly is the honest move: it is bespoke, so it
-              could absorb anything on this page, and saying so is better than
-              letting a client discover it and wonder what else went unsaid. */}
-          <div className="mt-12 grid gap-6 lg:grid-cols-[1fr_20rem] lg:items-start">
-            <div>
-              <div className="eyebrow mb-4 text-[0.6rem] text-muted-foreground">
-                And the automation spine — the loops that run while you sleep
-              </div>
-              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                {AUTOMATION_LOOPS.map((l) => (
-                  <div key={l.name} className="flex flex-col text-sm">
-                    <span className="text-muted-foreground">{l.name}</span>
-                    <span className="text-xs text-cyan/60">{l.cadence}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="phx-card phx-card-gold p-5">
-              <div className="eyebrow text-[0.58rem] text-gold">{FLAGSHIP.badge}</div>
-              <div className="mt-2 font-semibold">{FLAGSHIP.name}</div>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                Commission the private build and anything on this page can be engineered into it
-                directly. These upgrades are the productised route for everyone else.
-              </p>
-            </div>
-          </div>
-
-          <p className="mt-12 max-w-2xl text-[0.95rem] leading-relaxed text-muted-foreground">
-            Ten operators, twelve managed disciplines and four standing loops. Everything below
-            exists{" "}
-            <span className="text-foreground">only</span> where that stops — and seven upgrades
-            were cut from this page as these details arrived, because the crew already did them.
-            The one thing the desk says plainly it does not do:{" "}
-            <span className="text-foreground">&ldquo;{CREATION_DISCLAIMER}&rdquo;</span>
-          </p>
         </div>
+      </section>
+
+      {/* ── Gap Finder ─────────────────────────────────────────────────── */}
+      {/* Five questions about their business, not our product — and it is
+          allowed to conclude that none of this is for them. */}
+      <section id="gaps" className="container scroll-mt-20 py-20">
+        <SectionHead
+          label="Find your gaps"
+          note="five questions · nothing sent anywhere · can return nothing"
+          tone="text-magenta"
+        />
+        <GapFinder />
       </section>
 
       {/* ── The upgrades ───────────────────────────────────────────────── */}
@@ -556,9 +526,8 @@ export default function Home() {
             <span className="text-gradient">We&apos;ll price it in writing.</span>
           </h2>
           <p className="mt-6 text-[0.95rem] leading-relaxed text-muted-foreground">
-            Tick the upgrades you&apos;re interested in and the total assembles as you go. This
-            sends an enquiry to a human — no card, no automated sequence, and nothing on your
-            account changes until you agree the scope.
+            Tick what you want. The total assembles as you go, and this reaches a human — no
+            card, no sequence.
           </p>
         </div>
         <Enquiry />

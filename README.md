@@ -170,6 +170,25 @@ feature gating.
   claim** — the pitch of the page is that it tells the truth about what it
   sells, and a fabricated statistic is the easiest thing in the world to add
   later without thinking.
+- **The conversion path tells the truth** — `/api/reserve` returns
+  `delivered: true|false`, not a bare `ok`. It used to always report success,
+  which meant that when the production Vercel project stored the Resend key as
+  `resend` (the code read `RESEND_API_KEY`) every visitor saw "cleared for
+  pre-flight" while the lead went into a log line. `env.ts` now accepts the
+  mis-named aliases so the live deploy works untouched, `/api/health` returns
+  503 and names which env var supplied each channel, and when nothing delivers
+  the form hands the visitor a `mailto:` with their whole selection already
+  written into it. A false success on the only conversion path is worse than an
+  error, because nobody ever finds out.
+- **First-party analytics** (`/api/pulse` + `components/marketing/pulse.tsx`) —
+  page view, scroll-depth milestones, gap-finder outcomes and upgrade adds, via
+  `sendBeacon` to our own origin. No vendor, no cookie, no consent banner, and
+  a malformed beacon returns 204 rather than an error, because measurement must
+  never be able to affect the person browsing.
+- **CI** (`.github/workflows/ci.yml`) — typecheck, lint, 269 tests and a
+  secret-free build on every push. The additive rules are the only thing
+  standing between the catalogue and selling a client something they already
+  pay for; a guardrail that runs when someone remembers to run it is not one.
 - **One conversion path** — `/api/reserve` takes the enquiry. It recomputes the
   quote from `UPGRADES` rather than trusting any total the browser sent, and
   deliberately touches no database, no auth and no Stripe, because those are the

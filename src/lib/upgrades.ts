@@ -619,7 +619,10 @@ export function entryPrice(): number {
 export const THESIS = {
   eyebrow: "Upgrades & Add-Ons",
   headline: "Every upgrade. One flight plan.",
-  body: "PHX/GROWTH flies your account. This is the specialised work that bolts onto it — the parts of 2027 nobody has staffed yet. Nothing here replaces your crew, restarts your onboarding, or duplicates a single thing you already pay for.",
+  // The count is interpolated, not typed. Seven upgrades have been cut from
+  // this catalogue as the parent's pages arrived; a hardcoded "five" would
+  // have been wrong three times already.
+  body: `PHX/GROWTH flies your account. These are the ${UPGRADES.length} things nobody on it is doing yet.`,
 } as const;
 
 /**

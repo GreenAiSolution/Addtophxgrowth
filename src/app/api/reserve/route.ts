@@ -4,6 +4,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { sendNotification, agencyAddress } from "@/lib/notify";
 import { UPGRADES, upgradeByKey, serviceByKey } from "@/lib/upgrades";
 import { formatCurrency } from "@/lib/utils";
+import { BRAND } from "@/lib/brand";
 
 /**
  * The only conversion endpoint on the site.
@@ -115,14 +116,38 @@ export async function POST(req: Request) {
     },
   });
 
-  // Always report success to the visitor. Their enquiry reached the Zapier hook
-  // and the server log regardless, and telling somebody "we couldn't take your
-  // details" because our mail server is down is a self-inflicted lost sale.
-  if (result.status === "failed" || result.status === "skipped") {
+  // Report honestly whether it actually reached anyone.
+  //
+  // This used to always return a bare {ok:true}, and that was the most
+  // expensive line in the codebase: with no transport configured the endpoint
+  // told every visitor "cleared for pre-flight" while the enquiry evaporated
+  // into a log line. A false success on the only conversion path is worse than
+  // an error, because nobody ever finds out.
+  //
+  // Now the visitor is still thanked — their details did reach the log and the
+  // Zapier mirror if either is live — but when nothing delivered they are also
+  // given a working way through: a mailto with their whole selection already
+  // written out, so the lead is recovered by the person who cared enough to
+  // send it rather than lost by us.
+  const delivered = result.status === "sent";
+  if (!delivered) {
     console.warn(
-      `[enquiry] delivery ${result.status} (${result.reason}) for ${email} — payload logged above`,
+      `[enquiry] UNDELIVERED (${result.status}: ${result.reason}) — ${name} <${email}> wants ` +
+        `${picked.map((u) => u.name).join(", ")}. Full payload logged above.`,
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    delivered,
+    ...(delivered
+      ? {}
+      : {
+          fallback: {
+            email: agencyAddress() || BRAND.notifyEmail,
+            subject: `Upgrade enquiry — ${businessName}`,
+            body: detail,
+          },
+        }),
+  });
 }

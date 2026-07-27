@@ -209,7 +209,7 @@ async function sendViaResend(
   to: string,
   rendered: RenderedNotification,
 ): Promise<NotifyResult | null> {
-  const key = process.env.RESEND_API_KEY;
+  const key = env.resendKey;
   if (!key) return null;
 
   try {

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, CheckCircle2, Check, ArrowRight } from "lucide-react";
+import { Loader2, CheckCircle2, Check, ArrowRight, AlertTriangle } from "lucide-react";
 import {
   PARENT_SERVICES,
   UPGRADES,
@@ -10,6 +10,7 @@ import {
   type Upgrade,
 } from "@/lib/upgrades";
 import { formatCurrency, cn } from "@/lib/utils";
+import { pulse } from "@/components/marketing/pulse";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -40,10 +41,18 @@ const FIELD_LABEL = "font-sans text-xs normal-case tracking-normal text-muted-fo
  *   you win one sale and lose the relationship.
  */
 
+interface Fallback {
+  email: string;
+  subject: string;
+  body: string;
+}
+
 export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
   const [picked, setPicked] = React.useState<string[]>(preselect);
   const [state, setState] = React.useState<"idle" | "loading" | "done" | "error">("idle");
   const [error, setError] = React.useState<string | null>(null);
+  /** Set when the server took the enquiry but could not deliver it to anyone. */
+  const [fallback, setFallback] = React.useState<Fallback | null>(null);
 
   // The cards elsewhere on the page dispatch this when "Add" is pressed, so a
   // visitor's choice is already ticked by the time they scroll down here.
@@ -76,6 +85,7 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
     }
     setState("loading");
     setError(null);
+    pulse("enquiry_started", String(picked.length));
     const form = new FormData(e.currentTarget);
     try {
       const res = await fetch("/api/reserve", {
@@ -90,8 +100,17 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
           upgrades: picked,
         }),
       });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
+      const data = (await res.json()) as {
+        ok?: boolean;
+        delivered?: boolean;
+        fallback?: Fallback;
+        error?: string;
+      };
       if (data.ok) {
+        // The server tells us whether it actually reached a human. When it
+        // didn't, we say so and hand over a pre-written email rather than
+        // showing a confident tick over a lost lead.
+        setFallback(data.delivered === false ? (data.fallback ?? null) : null);
         setState("done");
         return;
       }
@@ -101,6 +120,32 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
       setError("Connection dropped. Please try again.");
       setState("idle");
     }
+  }
+
+  if (state === "done" && fallback) {
+    // Honest failure. Their details are in our logs, but "we got it" would be
+    // a lie, and a lie here costs them the reply they came for.
+    const mailto =
+      `mailto:${fallback.email}` +
+      `?subject=${encodeURIComponent(fallback.subject)}` +
+      `&body=${encodeURIComponent(fallback.body)}`;
+
+    return (
+      <div className="phx-card mx-auto flex max-w-xl flex-col items-center gap-3 border-gold/30 p-10 text-center">
+        <AlertTriangle className="h-11 w-11 text-gold" />
+        <h3 className="text-2xl font-bold tracking-tight">Our mail relay is down.</h3>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          We&apos;ve logged your selection, but we&apos;d rather tell you the truth than show you a
+          tick. One click sends it directly — everything you picked is already written into it.
+        </p>
+        <a href={mailto} className="pill-primary mt-3">
+          Send it directly <ArrowRight className="h-4 w-4" />
+        </a>
+        <a href={`mailto:${fallback.email}`} className="text-xs text-muted-foreground hover:text-foreground">
+          or write to {fallback.email}
+        </a>
+      </div>
+    );
   }
 
   if (state === "done") {
@@ -224,6 +269,7 @@ export function AddUpgradeButton({ upgradeKey, name }: { upgradeKey: string; nam
 
   function add() {
     window.dispatchEvent(new CustomEvent("phx:toggle-upgrade", { detail: upgradeKey }));
+    if (!added) pulse("upgrade_added", upgradeKey);
     setAdded((v) => !v);
   }
 

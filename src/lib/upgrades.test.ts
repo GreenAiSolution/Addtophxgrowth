@@ -391,9 +391,19 @@ describe("the upgrades", () => {
 
 describe("the page's promise", () => {
   it("makes an argument and names the parent agency", () => {
+    // The floor used to be 150 characters, which was guarding against a stub.
+    // The page has since been deliberately cut back — the coverage map now
+    // makes visually what three paragraphs used to make in prose — so the
+    // guard is length-light and meaning-heavy instead.
     expect(THESIS.headline.length).toBeGreaterThan(15);
-    expect(THESIS.body.length).toBeGreaterThan(150);
+    expect(THESIS.body.length).toBeGreaterThan(60);
     expect(THESIS.body).toContain("PHX/GROWTH");
+  });
+
+  it("counts the upgrades rather than spelling the number", () => {
+    // Seven upgrades have been cut as the parent's pages arrived. A hardcoded
+    // count in the thesis would have been wrong three separate times.
+    expect(THESIS.body).toContain(String(UPGRADES.length));
   });
 
   it("offers the parent's guarantee rather than a different one", () => {
