@@ -23,8 +23,10 @@ import nodemailer from "nodemailer";
 import { BRAND } from "@/lib/brand";
 import { env } from "@/lib/env";
 import { postWebhook } from "@/lib/webhooks";
+import { renderEmailHtml } from "@/lib/email-shell";
 
 export type NotificationKind =
+  | "ENQUIRY_RECEIPT"
   | "REQUEST_FILED"
   | "REQUEST_REPLY_TO_CLIENT"
   | "REQUEST_REPLY_TO_AGENCY"
@@ -49,11 +51,17 @@ export interface NotificationPayload {
 export interface RenderedNotification {
   subject: string;
   text: string;
+  /** Branded HTML, for the two kinds a human reads as a first impression. */
+  html?: string;
 }
 
 function link(path?: string): string {
-  if (!path) return env.appUrl;
-  return `${env.appUrl}${path.startsWith("/") ? path : `/${path}`}`;
+  // publicUrl, not appUrl: an unset NEXT_PUBLIC_APP_URL made real enquiry
+  // emails sign off with "http://localhost:3000/", which is dead for every
+  // recipient.
+  const base = env.publicUrl;
+  if (!path) return base;
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 /**
@@ -139,20 +147,81 @@ export function renderNotification(
           .join("\n") + sign,
       };
 
-    case "RESERVATION":
+    case "RESERVATION": {
+      // Subject is built to be scannable in a notification bar: who, then what.
+      // The old one led with "NEW RESERVATION —" and buried the business name
+      // behind it, and mentioned a cockpit configurator deleted weeks ago.
+      const headline = payload.lines?.[0]
+        ? `${payload.businessName} — ${payload.lines[0]}`
+        : payload.businessName;
+
       return {
-        subject: `NEW RESERVATION — ${payload.businessName}: ${payload.title}`,
+        subject: `💰 ${headline} · ${payload.title}`,
         text: [
-          `Somebody built a cockpit on the site and asked to be contacted.`,
+          `${payload.businessName} wants to buy.`,
           "",
-          `Business: ${payload.businessName}`,
-          payload.detail ? `\n${payload.detail}` : "",
+          payload.detail ?? "",
           bullets ? `\n${bullets}` : "",
           "",
-          "Reply to them directly — they are expecting to hear from you.",
+          "Reply to them directly — they are expecting to hear from you today.",
         ]
           .filter(Boolean)
           .join("\n") + sign,
+        html: renderEmailHtml({
+          kicker: "New enquiry",
+          headline: `${payload.businessName} wants to buy.`,
+          intro: "They picked their own stack and left their details. They are expecting to hear from you today.",
+          blocks: [
+            ...(payload.lines ?? []).map((l, i) => ({
+              label: i === 0 ? "Value" : "Also",
+              value: l,
+              big: i === 0,
+              tone: (i === 0 ? "gold" : "plain") as "gold" | "plain",
+            })),
+            { label: "What they want", value: payload.title, tone: "violet" as const },
+          ],
+          detail: payload.detail,
+          footnote: "Sent by the enquiry form. Hit reply — their address is in the detail above.",
+        }),
+      };
+    }
+
+    case "ENQUIRY_RECEIPT":
+      // The email the person who filled in the form gets. Before this they got
+      // nothing at all: a prospect asked to spend four figures a month and
+      // received silence, while we celebrated internally.
+      return {
+        subject: `We've got it — ${payload.title}`,
+        text: [
+          `Thanks — that's with us.`,
+          "",
+          `You asked about: ${payload.title}`,
+          payload.detail ? `\n${payload.detail}` : "",
+          "",
+          "A human reads every one of these and replies the same day, with the exact scope and the exact number in writing.",
+          "",
+          "Nothing has been charged and nothing on your account changes until you say so.",
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+        html: renderEmailHtml({
+          kicker: "Cleared for pre-flight",
+          headline: "We've got it.",
+          intro:
+            "A human reads every one of these — not a sequence. You'll hear back today with the exact scope and the exact number in writing.",
+          blocks: [
+            { label: "You asked about", value: payload.title, big: true, tone: "cyan" },
+            ...(payload.lines ?? []).map((l) => ({
+              label: "Value",
+              value: l,
+              tone: "gold" as const,
+            })),
+          ],
+          detail: payload.detail,
+          cta: { label: `See the upgrades again`, href: link("/") },
+          footnote:
+            "Nothing has been charged, and nothing on your PHX/GROWTH account changes until you agree the scope. Every upgrade is month to month and covered by the 30-Day Flight Check.",
+        }),
       };
 
     case "MARKETING_LEAD":
@@ -221,6 +290,7 @@ async function sendViaResend(
         to: [to],
         subject: rendered.subject,
         text: rendered.text,
+        ...(rendered.html ? { html: rendered.html } : {}),
       }),
     });
     if (!res.ok) {
@@ -310,6 +380,7 @@ export async function sendNotification({ kind, to, payload }: SendInput): Promis
       from: process.env.EMAIL_FROM ?? BRAND.fromEmail,
       subject: rendered.subject,
       text: rendered.text,
+      ...(rendered.html ? { html: rendered.html } : {}),
     });
     console.info(`[notify] ${kind} → ${to} sent`);
     return { status: "sent" };

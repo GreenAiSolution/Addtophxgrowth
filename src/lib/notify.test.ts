@@ -135,18 +135,101 @@ describe("agencyAddress", () => {
   });
 });
 
+const RESERVATION = {
+  businessName: "Ironclad Roofing",
+  title: "The Answer Stack",
+  detail: "Name: Rae\nEmail: rae@example.com",
+  lines: ["$3,900/mo"],
+};
+
 describe("reservation template", () => {
-  it("shouts, because this one is a live sale", () => {
-    const out = renderNotification("RESERVATION", {
-      businessName: "Ironclad Roofing",
-      title: "The House Favourite",
-      detail: "Name: Rae\nEmail: rae@example.com",
-      lines: ["$6,494/mo", "$12,700 one-time build"],
-    });
-    expect(out.subject).toContain("NEW RESERVATION");
-    expect(out.subject).toContain("Ironclad Roofing");
+  it("leads the subject with who and how much", () => {
+    // Was "NEW RESERVATION — {business}: {title}". On a phone the notification
+    // bar truncates, and three words of boilerplate pushed the two facts that
+    // decide whether you open it — the business and the money — past the cut.
+    const out = renderNotification("RESERVATION", RESERVATION);
+    expect(out.subject.indexOf("Ironclad Roofing")).toBeLessThan(20);
+    expect(out.subject).toContain("$3,900/mo");
+    expect(out.subject).toContain("The Answer Stack");
+  });
+
+  it("keeps every fact in the plain-text alternative", () => {
+    // The HTML is the nice version; the text is the one that always renders.
+    const out = renderNotification("RESERVATION", RESERVATION);
     expect(out.text).toContain("rae@example.com");
-    expect(out.text).toContain("• $6,494/mo");
+    expect(out.text).toContain("• $3,900/mo");
     expect(out.text).toContain("expecting to hear from you");
+  });
+
+  it("never mentions the cockpit configurator, which no longer exists", () => {
+    // This shipped in a real enquiry email weeks after the configurator was
+    // deleted: "Somebody built a cockpit on the site."
+    const out = renderNotification("RESERVATION", RESERVATION);
+    expect(`${out.subject} ${out.text} ${out.html}`.toLowerCase()).not.toContain("cockpit");
+  });
+
+  it("carries branded html alongside the text", () => {
+    const out = renderNotification("RESERVATION", RESERVATION);
+    expect(out.html).toBeDefined();
+    expect(out.html).toContain("Ironclad Roofing");
+    expect(out.html).toContain("$3,900/mo");
+  });
+});
+
+describe("the enquiry receipt", () => {
+  it("goes to the person who filled the form in", () => {
+    // They used to get nothing at all.
+    const out = renderNotification("ENQUIRY_RECEIPT", {
+      businessName: "Ironclad Roofing",
+      title: "The Answer Stack",
+      lines: ["$3,900/mo"],
+    });
+    expect(out.subject).toContain("The Answer Stack");
+    expect(out.text).toContain("replies the same day");
+    expect(out.text.toLowerCase()).toContain("nothing has been charged");
+    expect(out.html).toBeDefined();
+  });
+
+  it("promises no outcome, in either format", () => {
+    // Same rule the page lives under: no percentages, no multiples.
+    const out = renderNotification("ENQUIRY_RECEIPT", {
+      businessName: "Ironclad Roofing",
+      title: "The Answer Stack",
+    });
+    // Strip the markup first. width="100%" is layout, not a claim — a check
+    // that can't tell those apart would force the HTML to stop using
+    // percentage widths, which is every email table ever built.
+    const visible = (html: string) => html.replace(/<[^>]*>/g, " ");
+    for (const body of [out.text, visible(out.html ?? "")]) {
+      expect(body).not.toMatch(/\d+(\.\d+)?\s?%/);
+      expect(body).not.toMatch(/\d+(\.\d+)?\s?[x×]\s/i);
+    }
+  });
+});
+
+describe("branded html", () => {
+  it("never sends a localhost link to a real inbox", () => {
+    // A real enquiry notification went out signed "http://localhost:3000/".
+    const out = renderNotification("RESERVATION", RESERVATION);
+    expect(`${out.text} ${out.html}`).not.toContain("localhost");
+  });
+
+  it("escapes user-supplied values into the html", () => {
+    // Business names come from a public form. An unescaped one is a script tag
+    // in whatever inbox opens it.
+    const out = renderNotification("RESERVATION", {
+      ...RESERVATION,
+      businessName: '<script>alert(1)</script>',
+    });
+    expect(out.html).not.toContain("<script>");
+    expect(out.html).toContain("&lt;script&gt;");
+  });
+
+  it("uses solid colour cells rather than a css gradient", () => {
+    // linear-gradient silently disappears in Outlook; a header bar that
+    // vanishes takes the brand with it.
+    const out = renderNotification("RESERVATION", RESERVATION);
+    expect(out.html).not.toContain("linear-gradient");
+    expect(out.html).toContain('bgcolor="#22d3ee"');
   });
 });

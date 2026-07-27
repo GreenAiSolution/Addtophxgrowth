@@ -61,6 +61,21 @@ export const env = {
   },
 
   appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+
+  /**
+   * A URL safe to put in an email.
+   *
+   * With NEXT_PUBLIC_APP_URL unset, `appUrl` is localhost — which is correct
+   * for a dev server and useless in somebody's inbox. A real enquiry
+   * notification went out signed "http://localhost:3000/", which is a dead
+   * link for every recipient on earth. Falling back to the parent site keeps
+   * the link real; /api/health flags the underlying misconfiguration.
+   */
+  get publicUrl() {
+    const u = process.env.NEXT_PUBLIC_APP_URL;
+    if (u && !u.includes("localhost")) return u.replace(/\/$/, "");
+    return "https://phxgrowth.com";
+  },
 };
 
 export interface DeliveryChannel {

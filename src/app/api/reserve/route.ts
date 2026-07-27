@@ -139,6 +139,29 @@ export async function POST(req: Request) {
     },
   });
 
+  // And tell the person who filled it in. They used to get nothing at all —
+  // a prospect asking to spend four figures a month received silence while we
+  // celebrated internally. Fire-and-forget: their receipt must never be able
+  // to fail the enquiry, and the agency copy above is the one that matters.
+  void sendNotification({
+    kind: "ENQUIRY_RECEIPT",
+    to: email,
+    payload: {
+      businessName,
+      title: bundle ? bundle.name : picked.map((u) => u.name).join(" + "),
+      detail: bundle
+        ? bundleMembers(bundle)
+            .map((u) => `• ${u.name}`)
+            .join("\n")
+        : undefined,
+      lines: [
+        monthly > 0 ? `${formatCurrency(monthly)}/mo` : "",
+        oneTime > 0 ? `${formatCurrency(oneTime)} one-time` : "",
+      ].filter(Boolean),
+      path: "/",
+    },
+  });
+
   // Report honestly whether it actually reached anyone.
   //
   // This used to always return a bare {ok:true}, and that was the most
