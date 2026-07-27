@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   PARENT_SERVICES,
   FLIGHT_PLANS,
+  OPERATORS,
+  operatorByName,
   UPGRADES,
   serviceByKey,
   upgradesFor,
@@ -60,8 +62,11 @@ describe("rule one: every upgrade is attached", () => {
   });
 
   it("gives every service something to bolt on", () => {
+    // Deliberately >= 2, not >= 3. The roster rule below cut four upgrades,
+    // and padding a group back to three would mean inventing work — which is
+    // the exact failure the rule exists to prevent.
     for (const s of PARENT_SERVICES) {
-      expect(upgradesFor(s.key).length, s.key).toBeGreaterThanOrEqual(3);
+      expect(upgradesFor(s.key).length, s.key).toBeGreaterThanOrEqual(2);
     }
     expect(PARENT_SERVICES.flatMap((s) => upgradesFor(s.key)).length).toBe(UPGRADES.length);
   });
@@ -91,6 +96,73 @@ describe("rule two: every upgrade is additive", () => {
         ).toBeLessThan(distinctive.length);
       }
     }
+  });
+});
+
+describe("rule three: nothing an operator already does", () => {
+  it("lists the full roster of ten named operators", () => {
+    expect(OPERATORS).toHaveLength(10);
+    const names = OPERATORS.map((o) => o.name);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names).toContain("Herald");
+    expect(names).toContain("Echo");
+    expect(names).toContain("Closer");
+    expect(operatorByName("Vector")?.role).toBe("Autonomous Media Buyer");
+  });
+
+  it("describes what each operator covers, so the check has something to read", () => {
+    for (const o of OPERATORS) {
+      expect(o.covers.length, o.name).toBeGreaterThan(80);
+      expect(o.role.length, o.name).toBeGreaterThan(5);
+      expect(o.chip.length, o.name).toBeGreaterThan(3);
+    }
+  });
+
+  it("sells nothing the roster already does", () => {
+    // The rule that earned its keep the day the AI Employees page arrived.
+    // Four upgrades — AI search, map pack, reviews, multi-channel inbox — were
+    // Herald, Echo and Closer's day jobs, and every one of them looked
+    // obviously additive until the roster was written down next to them.
+    //
+    // The check is a distinctive-noun overlap: if an upgrade's own copy uses
+    // most of the specific words an operator uses, they are describing the
+    // same work.
+    const STOP = new Set([
+      "against", "across", "before", "between", "their", "there", "these", "those",
+      "which", "while", "where", "every", "other", "about", "after", "still",
+      "customer", "customers", "business", "clients", "client",
+    ]);
+    const words = (text: string) =>
+      new Set(
+        text
+          .toLowerCase()
+          .split(/[^a-z]+/)
+          .filter((w) => w.length > 5 && !STOP.has(w)),
+      );
+
+    for (const u of UPGRADES) {
+      const claim = words([u.name, u.promise, ...u.delivers].join(" "));
+      for (const op of OPERATORS) {
+        const covered = words(op.covers);
+        const shared = [...covered].filter((w) => claim.has(w));
+        // Naming an operator to contrast against is fine and encouraged; what
+        // is not fine is describing the same job in the same terms.
+        expect(
+          shared.length,
+          `${u.key} overlaps ${op.name} (${op.role}) on: ${shared.join(", ")}`,
+        ).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+
+  it("positions each upgrade against the crew rather than ignoring it", () => {
+    // At least one upgrade per service should name an operator explicitly.
+    // A page that never mentions the crew reads as though it does not know
+    // what the client already has.
+    const named = UPGRADES.filter((u) =>
+      OPERATORS.some((o) => `${u.promise} ${u.demandCase}`.includes(o.name)),
+    );
+    expect(named.length).toBeGreaterThanOrEqual(4);
   });
 });
 

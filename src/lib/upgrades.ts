@@ -11,14 +11,21 @@
  *   services. Every upgrade names the service it attaches to, because an
  *   upgrade that attaches to nothing is a second agency in disguise.
  *
- * THE TWO RULES
+ * THE RULES
  *   1. ATTACHED. Every upgrade names a real PHX/GROWTH service.
- *   2. ADDITIVE. No upgrade may sell something that service already includes.
- *      `PARENT_SERVICES[].includes` is a verbatim copy of their own bullet
- *      list, and `upgrades.test.ts` reads it — so if the parent ever starts
- *      shipping call answering as standard, the Voice Employee has to change
- *      or go. Selling a client something they are already paying for is the
- *      fastest way to lose both the sale and the relationship.
+ *   2. ADDITIVE vs THE SERVICE. No upgrade may sell something that service
+ *      already lists. `PARENT_SERVICES[].includes` is a verbatim copy of their
+ *      own bullet list and `upgrades.test.ts` reads it.
+ *   3. ADDITIVE vs THE ROSTER. No upgrade may sell what one of the ten named
+ *      operators already does. This rule earned its place immediately: an
+ *      AI-search upgrade, a map-pack upgrade, a reviews upgrade and a
+ *      multi-channel inbox upgrade all turned out to be Herald, Echo and
+ *      Closer's day jobs, and all four were cut. Selling a client something
+ *      they already pay for is the fastest way to lose both the sale and the
+ *      relationship, and the only reliable defence is a machine check.
+ *
+ *   The surviving upgrades are deliberately few. A short honest list beats a
+ *   long one with four duplicates in it.
  *
  * THE 2027 FILTER
  *   Only work whose demand is visibly rising into 2027 belongs here, and each
@@ -73,7 +80,7 @@ export const PARENT_SERVICES: ParentService[] = [
       "Fresh creative on demand",
     ],
     ceiling:
-      "It writes the ad and briefs the visual. What it cannot do is change what you're actually selling, put a camera on it, or tell you which spend produced which booked job.",
+      "It writes the ad and Prism briefs the visual. What no operator does is change the deal you're offering, put a real camera in front of anything, or lay the server-side plumbing Ledger has to read from.",
   },
   {
     key: "ai-employees",
@@ -87,7 +94,7 @@ export const PARENT_SERVICES: ParentService[] = [
       "Works 24/7",
     ],
     ceiling:
-      "The crew works 24/7 inside Slack. The channels your customers actually arrive on — the phone at 9pm, the Instagram DM, the web chat — are not Slack, and nobody is staffing them.",
+      "Ten operators cover strategy through reputation, and Closer works every lead across email, SMS and DM. Two things are still nobody's job: the phone when it rings, and grading the crew's own output against the deals that actually closed.",
   },
   {
     key: "website-creation",
@@ -101,7 +108,7 @@ export const PARENT_SERVICES: ParentService[] = [
       "Hosted & managed by PHXGrowth",
     ],
     ceiling:
-      "You get a fast, well-built site at a live URL. Whether anyone ever finds it — in the map pack, in an AI answer, in the reviews they read before calling — is a separate job that runs every month.",
+      "You get a fast site at a live URL, and Herald wins it rankings and the map pack. What nothing covers is the buyer who never reaches a results page — they ask an assistant — and the pages themselves never being tested once they're live.",
   },
 ];
 
@@ -150,6 +157,114 @@ export const FLIGHT_PLANS: FlightPlan[] = [
   },
 ];
 
+
+/**
+ * The roster. Ten named operators, exactly as the AI Employees page lists them.
+ *
+ * This is not decoration — it is the thing every upgrade is checked against.
+ * PHX/GROWTH's crew is far more complete than an outsider would guess, and
+ * three upgrades that looked obviously additive turned out to be work Herald
+ * and Echo already do. Keeping the roster here, in the same file as the
+ * catalogue, is what makes that collision impossible to miss.
+ */
+export interface Operator {
+  name: string;
+  role: string;
+  /** Their eyebrow: STRATEGY, MEDIA BUYING, CREATIVE… */
+  domain: string;
+  /** Their chip: FLIGHT PLAN, CONTROL STICK, TOP SLOT… */
+  chip: string;
+  /** What it does, near enough verbatim — the additive rule reads this. */
+  covers: string;
+}
+
+export const OPERATORS: Operator[] = [
+  {
+    name: "Atlas",
+    role: "Growth Strategist",
+    domain: "Strategy",
+    chip: "Flight Plan",
+    covers:
+      "Researches the product, market, competitors, offers, personas, objections and channel fit before a single dollar leaves the runway.",
+  },
+  {
+    name: "Vector",
+    role: "Autonomous Media Buyer",
+    domain: "Media Buying",
+    chip: "Control Stick",
+    covers:
+      "Flies Meta, Google and TikTok as one portfolio and shifts spend by marginal return on your P&L, lifecycle-aware, on a 15-minute optimisation loop.",
+  },
+  {
+    name: "Prism",
+    role: "Creative Genome Director",
+    domain: "Creative",
+    chip: "Forge Lead",
+    covers:
+      "Breaks creative into hooks, frames, pacing, claims and emotional arcs, then recombines the winning genes into render-ready briefs for the Creative Forge.",
+  },
+  {
+    name: "Ledger",
+    role: "Profit & Attribution Analyst",
+    domain: "Economics",
+    chip: "Ground Truth",
+    covers:
+      "Reconciles platform-reported ROAS against Shopify orders, returns, COGS, LTV and QuickBooks so the buyer steers by contribution profit.",
+  },
+  {
+    name: "Shield",
+    role: "Compliance Guard",
+    domain: "Trust",
+    chip: "Preflight",
+    covers:
+      "Reviews copy, targeting, landing pages and creative against platform-sensitive categories before anything goes live.",
+  },
+  {
+    name: "Relay",
+    role: "Automation Engineer",
+    domain: "Automation",
+    chip: "Wiring Bay",
+    covers:
+      "Owns the app routes, connector registry, n8n webhooks and Zapier handoffs that turn agent decisions into external actions.",
+  },
+  {
+    name: "Tower",
+    role: "Operations Commander",
+    domain: "Operations",
+    chip: "Mission Control",
+    covers:
+      "Coordinates the specialist agents, checks builds and production health, and turns incidents into clear next actions.",
+  },
+  {
+    name: "Closer",
+    role: "AI Sales Closer",
+    domain: "Sales",
+    chip: "Approach",
+    covers:
+      "Reads each inbound lead the second it lands, qualifies on fit and intent, and runs a persistent follow-up cadence across email, SMS and DM until the deal is booked or dead.",
+  },
+  {
+    name: "Herald",
+    role: "SEO & Local Rank Commander",
+    domain: "Search",
+    chip: "Top Slot",
+    covers:
+      "Hunts the keywords your buyers type, ships the pages and Google Business updates that win them, and watches the map pack daily.",
+  },
+  {
+    name: "Echo",
+    role: "Reputation & Reviews Concierge",
+    domain: "Reputation",
+    chip: "Five Star",
+    covers:
+      "Times the review ask for the moment a customer is happiest, routes them to a public review, catches unhappy ones privately, and answers every review in your voice.",
+  },
+];
+
+export function operatorByName(name: string): Operator | undefined {
+  return OPERATORS.find((o) => o.name === name);
+}
+
 export type Billing = "monthly" | "one_time";
 
 export interface Upgrade {
@@ -184,14 +299,14 @@ export const UPGRADES: Upgrade[] = [
     key: "offer-lab",
     name: "The Offer Lab",
     attachesTo: "premium-ai-ads",
-    promise: "Fix what you're selling before flying another dollar behind it.",
+    promise: "Change what you're selling, not how it's worded.",
     demandCase:
-      "When every competitor buys the same impressions with the same targeting and the same class of AI creative, media skill converges and the offer becomes the only real variable left. As costs rise, the businesses holding their margins are the ones that changed the deal, not the bid — and no ad engine can do that for you, because it is a decision about your business rather than your copy.",
+      "Atlas researches your offer against the market; nobody rebuilds it. That distinction matters more every quarter: when every competitor buys the same impressions with the same targeting and the same class of AI creative, media skill converges and the deal itself becomes the only real variable left. This is two weeks of humans arguing about price, guarantee and margin — a decision about your business, which is not a job to hand an agent.",
     delivers: [
-      "Two weeks rebuilding what you actually sell, not how you describe it",
-      "Pricing, guarantee and risk reversal designed together",
-      "Bonus and bundle structure with the margin worked out first",
-      "The new offer rewritten across ads, landing page and phone script",
+      "Two weeks rebuilding the deal itself — price, terms, guarantee, risk reversal",
+      "Bonus and bundle structure with the margin modelled before it ships",
+      "Tested against your last hundred lost deals, not against a persona",
+      "Handed to Atlas and Prism as the new brief once it's signed off",
     ],
     price: 590000,
     billing: "one_time",
@@ -202,36 +317,36 @@ export const UPGRADES: Upgrade[] = [
     key: "motion-unit",
     name: "The Motion Unit",
     attachesTo: "premium-ai-ads",
-    promise: "Actual video — shot, cut and captioned — not a brief for one.",
+    promise: "Footage. Real people, real cameras — the part a brief can't produce.",
     demandCase:
-      "Every feed that matters now rewards video and punishes static, and the cycle keeps shortening. A visual brief tells someone what to make; it does not put a camera in front of anything. Production capacity is what the ceiling is made of once the copy is already good, and it is the one part of the pipeline that has stayed stubbornly human.",
+      "Prism decides what the winning ad should be and hands a render-ready brief to the Forge. What it cannot do is put a human in front of a lens. Feeds keep tilting toward footage that looks captured rather than generated, and the accounts that stall are the ones with a full brief queue and nothing shot. This is the camera at the end of that pipeline.",
     delivers: [
-      "10 finished video ads a month, cut from your footage or shot by us",
-      "Five hook variants against whatever is currently winning",
-      "Vertical, square and in-feed versions of everything",
-      "Captions burned in, thumbnails designed, delivered ready to fly",
+      "Ten filmed spots a month — creator, founder or customer, sourced and directed",
+      "Shot to Prism's brief, so the genome work isn't wasted",
+      "Vertical, square and in-feed cuts of every winner",
+      "Licensing, usage rights and raw footage handed to you",
     ],
     price: 420000,
     billing: "monthly",
-    fixes: "Briefs that never became video",
+    fixes: "A brief queue with nothing shot",
     leading: true,
   },
   {
     key: "instrument-rebuild",
     name: "Instrument Rebuild",
     attachesTo: "premium-ai-ads",
-    promise: "Know which dollar produced which booked job — not which click.",
+    promise: "Build the plumbing Ledger reads from — server-side, and yours.",
     demandCase:
-      "The measurement most accounts still run was built for third-party cookies and device identifiers that keep being withdrawn. Platforms increasingly optimise on the data you send them rather than the data they can collect, so an advertiser who owns their first-party signal gets better delivery than one who does not. This is a rebuild with a deadline attached.",
+      "Ledger reconciles what the platforms report against your books, which makes the numbers honest. It does not lay the pipe. Most accounts still feed the platforms through browser-side tags built for third-party cookies that keep being withdrawn, so the signal degrading is upstream of any analysis of it. Platforms increasingly optimise on data you send rather than data they collect, which makes this infrastructure with a deadline attached.",
     delivers: [
-      "Server-side conversion tracking you own, not rented from a browser",
-      "Meta CAPI and Google enhanced conversions sending real revenue back",
-      "Call tracking joined to the ad, the keyword and the eventual job value",
-      "One view where spend and booked work sit on the same line",
+      "Server-side tagging you own, running in your cloud, not a browser",
+      "Meta CAPI and Google enhanced conversions posting real revenue",
+      "Call and form events joined to ad, keyword and eventual job value",
+      "Wired into Ledger and Relay so the crew reads it the day it's live",
     ],
     price: 280000,
     billing: "one_time",
-    fixes: "Numbers you can't trust",
+    fixes: "Signal that decays upstream",
   },
 
   // ---- On AI Employees ----
@@ -239,27 +354,27 @@ export const UPGRADES: Upgrade[] = [
     key: "voice-employee",
     name: "The Voice Employee",
     attachesTo: "ai-employees",
-    promise: "Every call answered on the first ring, at 9pm on a Sunday, and booked.",
+    promise: "The eleventh operator: the one that picks up the phone.",
     demandCase:
-      "Most local businesses lose more money to unanswered calls than to any bidding decision, and the caller who reaches voicemail simply dials the next number. A crew that lives in Slack cannot pick up a phone. Answering around the clock has always been a staffing cost nobody could justify; it is now a software cost, which is why demand is moving here fastest.",
+      "Closer works every lead across email, SMS and DM and is usually first — but it cannot answer a ringing phone, and for most local businesses the phone is still where the money calls. A caller who reaches voicemail dials the next number, so this leaks more revenue than any bidding decision. Answering around the clock was a staffing cost nobody could justify; it is now a software cost, which is why demand is moving here fastest.",
     delivers: [
-      "Inbound calls answered 24/7 in your business's voice",
+      "Inbound calls answered 24/7 in your business's voice, first ring",
       "Qualification, quoting rules and calendar booking handled on the call",
-      "Missed-call text-back within seconds, every time",
-      "Full transcript and recording in your CRM before you wake up",
+      "Missed-call text-back within seconds, handed straight to Closer",
+      "Full transcript and recording on the flight deck before you wake up",
     ],
     price: 190000,
     billing: "monthly",
-    fixes: "Calls going to voicemail",
+    fixes: "The phone nobody answers",
     leading: true,
   },
   {
     key: "training-lab",
     name: "The Training Lab",
     attachesTo: "ai-employees",
-    promise: "Your crew gets measurably better every month instead of drifting.",
+    promise: "Grade the crew against closed deals and retrain on what actually won.",
     demandCase:
-      "A first-week deployment plan is the start line, not the finish. An AI employee left alone degrades — the business changes, the offers change, the script does not. The teams getting compounding returns are grading real transcripts against real closed deals and retraining on what actually worked. That is ongoing by nature, and it is what separates an asset from a demo.",
+      "Tower keeps the crew coordinated and healthy — that is an operations job, not a coaching one. Nobody is reading last month's transcripts against what the deals actually did and rewriting the prompts accordingly. A crew left untuned drifts as your offers and objections change, and the teams getting compounding returns are the ones closing that loop deliberately every month.",
     delivers: [
       "Every conversation graded against what the deal actually did",
       "Prompts, qualification bars and escalation rules retuned monthly",
@@ -268,78 +383,44 @@ export const UPGRADES: Upgrade[] = [
     ],
     price: 160000,
     billing: "monthly",
-    fixes: "A crew stuck at week one",
-  },
-  {
-    key: "inbox-employee",
-    name: "The Inbox Employee",
-    attachesTo: "ai-employees",
-    promise: "Web chat, Instagram, Facebook and SMS answered in under a minute.",
-    demandCase:
-      "Enquiries have scattered across channels nobody owns, and each has its own expectation of speed — a form can wait an hour, a DM cannot. Covering all of them with people means hiring for the quietest hour of the week. The crew already works 24/7; this simply gives it the doors your customers are actually knocking on.",
-    delivers: [
-      "Web chat, Instagram, Facebook, Google and SMS from one brain",
-      "Qualified, quoted and booked without a hand-off where the rules allow",
-      "Anything unusual escalated to a named human with the context attached",
-      "Every thread filed to your CRM against the right contact",
-    ],
-    price: 140000,
-    billing: "monthly",
-    fixes: "Messages sitting unread",
+    fixes: "A crew that drifts",
   },
 
   // ---- On Website Creation ----
   {
     key: "answer-engine",
-    name: "AI Search Visibility",
+    name: "Answer Engine Visibility",
     attachesTo: "website-creation",
-    promise: "Be the business the assistant names when someone asks who to call.",
+    promise: "Herald owns Google. This owns the assistants that answer instead of it.",
     demandCase:
-      "A buyer who once typed a query and scanned ten results now asks an assistant and gets a short list of two or three. A fast, well-built site that is never cited is invisible in that world. Being the source a model quotes is a different discipline — structured facts, verifiable claims, consistent answers everywhere it reads you — and almost nobody is doing it yet, which is precisely why it is worth doing now.",
+      "Herald hunts keywords, ships pages and watches the map pack — that is search, and it is handled. A growing share of buyers never reach a results page at all: they ask an assistant and act on two or three names. Being cited there is a different discipline from ranking — structured, verifiable facts a model can quote, consistent everywhere it reads you — and almost nobody is doing it yet, which is exactly why it is worth doing now.",
     delivers: [
-      "Your services, areas, hours, prices and credentials published as machine-readable facts",
-      "Answer pages written for the questions buyers actually ask an assistant",
+      "Services, areas, hours, prices and credentials published as machine-readable facts",
+      "Answer pages written for what buyers ask an assistant, not what they type into Google",
       "Entity and citation consistency repaired everywhere a model reads you",
-      "Monthly report of what the major assistants say about your category",
+      "Monthly report of what the major assistants say when asked about your category",
     ],
     price: 290000,
     billing: "monthly",
-    fixes: "Invisible in AI answers",
+    fixes: "Absent from AI answers",
     leading: true,
   },
   {
-    key: "map-pack",
-    name: "Map Pack & Local Service Ads",
+    key: "conversion-lab",
+    name: "The Conversion Lab",
     attachesTo: "website-creation",
-    promise: "Own the three results that sit above everything else in your city.",
+    promise: "A structured test running against your live pages every single month.",
     demandCase:
-      "For local businesses the map pack and the paid local slots above it take the majority of the intent before an organic result is ever seen. That real estate is won on proximity, review velocity and profile completeness — operational work rather than a clever page — which is exactly why it holds its value while everything else gets automated.",
+      "Website Creation ships a conversion-built site and keeps it hosted; Herald adds pages that win rankings. Neither runs experiments on what is already live. As traffic gets more expensive to buy, the cheapest growth left is converting more of what you have already paid for — and that only compounds if somebody is testing continuously rather than redesigning once a year.",
     delivers: [
-      "Google Business Profile run properly: categories, services, products, weekly posts",
-      "Local Service Ads set up, verified and managed against booked-job cost",
-      "A page per service, per suburb you actually serve — built to compete",
-      "Rank tracking by keyword and by map grid, reported monthly",
+      "One structured page test live at all times, with the win condition set first",
+      "Session recordings and scroll maps read by a human, monthly",
+      "Winners promoted into the control and handed to Herald and Prism",
+      "Conversion rate reported against the month it replaced",
     ],
-    price: 210000,
+    price: 240000,
     billing: "monthly",
-    fixes: "Beaten locally by smaller shops",
-  },
-  {
-    key: "review-engine",
-    name: "Review Velocity Engine",
-    attachesTo: "website-creation",
-    promise: "A steady arrival of real reviews, answered fast, without anyone remembering.",
-    demandCase:
-      "Reviews now do double duty: they move local ranking, and they are the summary an assistant repeats when it describes you. Both reward recency, so a business with two hundred old reviews loses to one with forty recent ones. That turns review flow from a campaign you run once into a system that has to keep running.",
-    delivers: [
-      "Review requests fired automatically the moment a job completes",
-      "Replies drafted in your voice, every review answered within a day",
-      "Anything under four stars escalated to a human before it hardens",
-      "Velocity and rating tracked against your three closest competitors",
-    ],
-    price: 120000,
-    billing: "monthly",
-    fixes: "Reviews that arrive by accident",
+    fixes: "A site that never gets tested",
   },
 ];
 

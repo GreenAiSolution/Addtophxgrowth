@@ -5,19 +5,28 @@ The upgrade counter for [PHX/GROWTH](https://phxgrowth.com).
 **The public site is one page.** PHX/GROWTH — "the autonomous media buyer that
 flies your ad spend to profit" — sells three à la carte services (Premium AI
 Ads, AI Employees, Website Creation) and three managed flight plans on top of
-them (Pilot, Squadron, Fleet Command). This property sells nine specialised
-upgrades that bolt onto those services, chosen because demand for each is
-visibly rising into 2027.
+them (Pilot, Squadron, Fleet Command), flown by a roster of ten named
+operators. This property sells seven specialised upgrades that bolt onto those
+services, chosen because demand for each is visibly rising into 2027.
 
 `src/lib/upgrades.ts` is the entire public catalogue and `upgrades.test.ts`
-enforces the two rules the site depends on:
+enforces the three rules the site depends on:
 
 1. **Attached** — every upgrade names a real PHX/GROWTH service. One that
    attaches to nothing is a second agency in disguise.
-2. **Additive** — no upgrade may sell something that service already includes.
-   `PARENT_SERVICES[].includes` is a verbatim copy of their own bullet list and
-   the test reads it, so if the parent ever ships call answering as standard,
-   the Voice Employee has to change or go.
+2. **Additive vs the service** — no upgrade may sell something that service
+   already lists. `PARENT_SERVICES[].includes` is a verbatim copy of their own
+   bullet list and the test reads it.
+3. **Additive vs the roster** — no upgrade may sell what one of the ten named
+   operators already does. `OPERATORS[].covers` describes each one and the test
+   fails on distinctive-word overlap.
+
+Rule 3 earned its place the day the AI Employees page arrived: four upgrades —
+AI search visibility, map pack, review velocity and a multi-channel inbox —
+turned out to be Herald, Echo and Closer's day jobs, and were cut. All four
+had looked obviously additive until the roster was written down next to them.
+The catalogue is deliberately short as a result; a group is allowed to hold
+two upgrades rather than be padded back to three with invented work.
 
 Design, typography and voice are taken from phxgrowth.com rather than invented:
 the `PHX/GROWTH` wordmark with a gold PLUS chip, Inter, the cyan → violet →

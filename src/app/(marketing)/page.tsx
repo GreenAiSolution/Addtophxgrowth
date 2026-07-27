@@ -4,6 +4,7 @@ import { BRAND } from "@/lib/brand";
 import {
   PARENT_SERVICES,
   FLIGHT_PLANS,
+  OPERATORS,
   UPGRADES,
   upgradesFor,
   entryPrice,
@@ -341,6 +342,38 @@ export default function Home() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── The roster ─────────────────────────────────────────────────── */}
+      {/* Shown before the upgrades, deliberately. A page that lists what it
+          wants to sell without acknowledging the ten operators already on the
+          account reads as though it doesn't know what the client has — and
+          every one of these upgrades is defined by the gap it sits in. */}
+      <section className="border-y border-white/[0.06] bg-white/[0.015] py-20">
+        <div className="container">
+          <SectionHead
+            label="Already on your crew"
+            note="ten operators, covering strategy through reputation — none of it is for sale here"
+            tone="text-muted-foreground"
+          />
+
+          <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-5">
+            {OPERATORS.map((op) => (
+              <div key={op.name} className="border-l border-white/10 pl-4">
+                <div className="eyebrow text-[0.58rem] text-muted-foreground">{op.domain}</div>
+                <div className="mt-1 font-semibold">{op.name}</div>
+                <div className="text-xs text-muted-foreground">{op.role}</div>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-10 max-w-2xl text-[0.95rem] leading-relaxed text-muted-foreground">
+            Herald owns search and the map pack. Echo owns reviews. Closer works every lead across
+            email, SMS and DM. Everything below exists <span className="text-foreground">only</span>{" "}
+            where the roster stops — and four upgrades were cut from this page the day we read it,
+            because the crew already did them.
+          </p>
         </div>
       </section>
 
