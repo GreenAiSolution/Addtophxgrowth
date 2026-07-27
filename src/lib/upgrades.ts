@@ -80,7 +80,7 @@ export const PARENT_SERVICES: ParentService[] = [
       "Fresh creative on demand",
     ],
     ceiling:
-      "It writes the ad and Prism briefs the visual. What no operator does is change the deal you're offering, put a real camera in front of anything, or lay the server-side plumbing Ledger has to read from.",
+      "The Manifest covers twelve things from account audit to zero-based budget resets — tracking, offer and price testing, landing pages, compliance, attribution. The desk says it plainly: \"we don't make your ads.\" Nobody films anything.",
   },
   {
     key: "ai-employees",
@@ -108,7 +108,7 @@ export const PARENT_SERVICES: ParentService[] = [
       "Hosted & managed by PHXGrowth",
     ],
     ceiling:
-      "You get a fast site at a live URL, and Herald wins it rankings and the map pack. What nothing covers is the buyer who never reaches a results page — they ask an assistant — and the pages themselves never being tested once they're live.",
+      "Herald wins the rankings and the map pack, and the desk manages both sides of the click. What nothing reaches is the buyer who never sees a results page — they ask an assistant, and it answers from sources you don't own.",
   },
 ];
 
@@ -265,6 +265,75 @@ export function operatorByName(name: string): Operator | undefined {
   return OPERATORS.find((o) => o.name === name);
 }
 
+
+/**
+ * The Manifest — the twelve numbered items on the Ad Management page, under
+ * the heading "what 'everything' means, in writing".
+ *
+ * This is here for one reason: it is the strictest thing an upgrade has to
+ * survive. Reading it cut three more — an offer lab (item 07, plus the AOV
+ * lever "offer architecture managed like media"), a tracking rebuild (item 02,
+ * "pixel + conversions API, server-side, tied to real orders") and a
+ * conversion lab (item 06, "the page is part of the ad"). Every one looked
+ * additive right up until this list was written down beside it.
+ */
+export const MANIFEST: { n: string; title: string; detail: string }[] = [
+  { n: "01", title: "Account audit & restructure", detail: "The full teardown first — structure, settings, history, waste." },
+  { n: "02", title: "Tracking wired honest", detail: "Pixel + conversions API, server-side, tied to real orders." },
+  { n: "03", title: "Budget & bid management", detail: "Rebalanced every 15 minutes by marginal profit, 24/7." },
+  { n: "04", title: "Creative testing & rotation", detail: "Whoever makes your ads — we decide what runs, scales and dies." },
+  { n: "05", title: "Audience & suppression", detail: "Seed, exclude, retarget — synced from your CRM as hashed audiences." },
+  { n: "06", title: "Landing page & funnel", detail: "The page is part of the ad. We manage both sides of the click." },
+  { n: "07", title: "Offer & price testing", detail: "AOV is a managed number, not an accident of the catalog." },
+  { n: "08", title: "Policy & compliance pre-flight", detail: "Every asset cleared against platform policy before it spends." },
+  { n: "09", title: "Attribution & incrementality", detail: "MMM and holdouts — what actually moved revenue, post-ATT." },
+  { n: "10", title: "Profit reconciliation", detail: "Platform numbers checked against your books, every run." },
+  { n: "11", title: "War-room reporting", detail: "Every decision logged to Slack in plain English, as it happens." },
+  { n: "12", title: "Zero-based budget resets", detail: "Each quarter the plan re-earns every dollar from scratch." },
+];
+
+/**
+ * The sentence that defines this entire site's remaining territory. They say
+ * it themselves, in the Ad Management hero. Everything PHX/GROWTH PLUS can
+ * honestly sell lives in the gap this opens.
+ */
+
+/**
+ * The two revenue levers the Ad Management page details underneath the
+ * Manifest — AOV and LTV. These are checked alongside the Manifest itself,
+ * and they had to be: an offer-lab upgrade slipped past a Manifest-only check
+ * because item 07 is terse ("AOV is a managed number"), while the detail that
+ * actually kills it — "offer architecture managed like media: bundles,
+ * thresholds, post-purchase upsells" — lives down here. A partial copy of the
+ * parent's scope is worse than none, because it reads as a check that passed.
+ */
+export const REVENUE_LEVERS: { code: string; name: string; claim: string; bullets: string[] }[] = [
+  {
+    code: "AOV",
+    name: "Average Order Value",
+    claim: "More revenue out of every order the ads bring in.",
+    bullets: [
+      "Offer architecture managed like media: bundles, thresholds, post-purchase upsells",
+      "Landing pages kept congruent with the ad promise — message match is a KPI",
+      "Price-point and offer tests flown with the same kill rules as ad tests",
+      "The checkout path audited every quarter — leaks fixed before budget scales",
+    ],
+  },
+  {
+    code: "LTV",
+    name: "Customer Lifetime Value",
+    claim: "More revenue out of every customer, long after the click.",
+    bullets: [
+      "Prospecting seeded from your best repeat cohorts — not lookalike guesswork",
+      "Existing customers suppressed, so spend only hunts new money",
+      "Acquisition steered toward the cohorts that actually repurchase",
+      "Paid synced with retention flows, so the second order costs nothing",
+    ],
+  },
+];
+
+export const CREATION_DISCLAIMER = "We don't make your ads. We make them make money.";
+
 export type Billing = "monthly" | "one_time";
 
 export interface Upgrade {
@@ -295,58 +364,29 @@ export interface Upgrade {
  */
 export const UPGRADES: Upgrade[] = [
   // ---- On Premium AI Ads ----
-  {
-    key: "offer-lab",
-    name: "The Offer Lab",
-    attachesTo: "premium-ai-ads",
-    promise: "Change what you're selling, not how it's worded.",
-    demandCase:
-      "Atlas researches your offer against the market; nobody rebuilds it. That distinction matters more every quarter: when every competitor buys the same impressions with the same targeting and the same class of AI creative, media skill converges and the deal itself becomes the only real variable left. This is two weeks of humans arguing about price, guarantee and margin — a decision about your business, which is not a job to hand an agent.",
-    delivers: [
-      "Two weeks rebuilding the deal itself — price, terms, guarantee, risk reversal",
-      "Bonus and bundle structure with the margin modelled before it ships",
-      "Tested against your last hundred lost deals, not against a persona",
-      "Handed to Atlas and Prism as the new brief once it's signed off",
-    ],
-    price: 590000,
-    billing: "one_time",
-    fixes: "An offer nobody argues with",
-    apex: true,
-  },
+  // Exactly one, and it is the whole point. The Ad Management hero opens with
+  // "We don't make your ads", and Manifest item 04 says "whoever makes your
+  // ads — we decide what runs, scales and dies". That is a published boundary,
+  // and this is what sits on the other side of it. Padding this group back to
+  // three would mean inventing work the Manifest already covers.
   {
     key: "motion-unit",
     name: "The Motion Unit",
     attachesTo: "premium-ai-ads",
-    promise: "Footage. Real people, real cameras — the part a brief can't produce.",
+    promise: "The camera. The desk says it doesn't make your ads — this is who does.",
     demandCase:
-      "Prism decides what the winning ad should be and hands a render-ready brief to the Forge. What it cannot do is put a human in front of a lens. Feeds keep tilting toward footage that looks captured rather than generated, and the accounts that stall are the ones with a full brief queue and nothing shot. This is the camera at the end of that pipeline.",
+      "Prism writes the genome and hands render-ready briefs to the Forge; the desk then decides what runs, scales and dies. Nowhere in that loop does anybody point a lens at a human being. Feeds keep tilting toward footage that looks captured rather than generated, and an account with a full brief queue and nothing filmed stalls at exactly the moment its testing machinery is working best.",
     delivers: [
       "Ten filmed spots a month — creator, founder or customer, sourced and directed",
-      "Shot to Prism's brief, so the genome work isn't wasted",
+      "Filmed to the brief you already have, so no genome work is wasted",
       "Vertical, square and in-feed cuts of every winner",
-      "Licensing, usage rights and raw footage handed to you",
+      "Licensing, usage rights and the raw footage handed to you",
     ],
     price: 420000,
     billing: "monthly",
-    fixes: "A brief queue with nothing shot",
+    fixes: "A brief queue with nothing filmed",
     leading: true,
-  },
-  {
-    key: "instrument-rebuild",
-    name: "Instrument Rebuild",
-    attachesTo: "premium-ai-ads",
-    promise: "Build the plumbing Ledger reads from — server-side, and yours.",
-    demandCase:
-      "Ledger reconciles what the platforms report against your books, which makes the numbers honest. It does not lay the pipe. Most accounts still feed the platforms through browser-side tags built for third-party cookies that keep being withdrawn, so the signal degrading is upstream of any analysis of it. Platforms increasingly optimise on data you send rather than data they collect, which makes this infrastructure with a deadline attached.",
-    delivers: [
-      "Server-side tagging you own, running in your cloud, not a browser",
-      "Meta CAPI and Google enhanced conversions posting real revenue",
-      "Call and form events joined to ad, keyword and eventual job value",
-      "Wired into Ledger and Relay so the crew reads it the day it's live",
-    ],
-    price: 280000,
-    billing: "one_time",
-    fixes: "Signal that decays upstream",
+    apex: true,
   },
 
   // ---- On AI Employees ----
@@ -374,7 +414,7 @@ export const UPGRADES: Upgrade[] = [
     attachesTo: "ai-employees",
     promise: "Grade the crew against closed deals and retrain on what actually won.",
     demandCase:
-      "Tower keeps the crew coordinated and healthy — that is an operations job, not a coaching one. Nobody is reading last month's transcripts against what the deals actually did and rewriting the prompts accordingly. A crew left untuned drifts as your offers and objections change, and the teams getting compounding returns are the ones closing that loop deliberately every month.",
+      "Tower keeps the crew coordinated and healthy, which is an operations job rather than a coaching one. Nobody is reading last month's transcripts against what the deals actually did and rewriting the prompts accordingly. A crew left untuned drifts as your offers and objections change, and the teams getting compounding returns are the ones closing that loop deliberately every month.",
     delivers: [
       "Every conversation graded against what the deal actually did",
       "Prompts, qualification bars and escalation rules retuned monthly",
@@ -391,13 +431,13 @@ export const UPGRADES: Upgrade[] = [
     key: "answer-engine",
     name: "Answer Engine Visibility",
     attachesTo: "website-creation",
-    promise: "Herald owns Google. This owns the assistants that answer instead of it.",
+    promise: "Herald owns Google. This owns the assistants people ask instead of it.",
     demandCase:
-      "Herald hunts keywords, ships pages and watches the map pack — that is search, and it is handled. A growing share of buyers never reach a results page at all: they ask an assistant and act on two or three names. Being cited there is a different discipline from ranking — structured, verifiable facts a model can quote, consistent everywhere it reads you — and almost nobody is doing it yet, which is exactly why it is worth doing now.",
+      "Herald hunts keywords, ships pages and watches the map pack — search is handled, and handled well. A growing share of buyers never reach a results page at all: they ask an assistant and act on the two or three names it gives them. Being quoted there is a different discipline from ranking — structured, verifiable facts a model can lift, kept consistent everywhere it reads you — and almost nobody is doing it yet, which is exactly why it is worth doing now.",
     delivers: [
       "Services, areas, hours, prices and credentials published as machine-readable facts",
-      "Answer pages written for what buyers ask an assistant, not what they type into Google",
-      "Entity and citation consistency repaired everywhere a model reads you",
+      "Answer pages written for what buyers ask an assistant, not what they type",
+      "Entity consistency repaired everywhere a model reads you",
       "Monthly report of what the major assistants say when asked about your category",
     ],
     price: 290000,
@@ -406,21 +446,21 @@ export const UPGRADES: Upgrade[] = [
     leading: true,
   },
   {
-    key: "conversion-lab",
-    name: "The Conversion Lab",
+    key: "citation-authority",
+    name: "Citation & Authority",
     attachesTo: "website-creation",
-    promise: "A structured test running against your live pages every single month.",
+    promise: "Get named on the third-party pages an assistant trusts more than yours.",
     demandCase:
-      "Website Creation ships a conversion-built site and keeps it hosted; Herald adds pages that win rankings. Neither runs experiments on what is already live. As traffic gets more expensive to buy, the cheapest growth left is converting more of what you have already paid for — and that only compounds if somebody is testing continuously rather than redesigning once a year.",
+      "A model rarely quotes a business describing itself. It quotes trade press, local roundups, association directories, podcasts and interviews — sources it treats as independent. That makes earned third-party mention the supply line feeding everything the assistants say about you, and it is the one input no on-site work can manufacture. It compounds slowly, which is precisely why starting a year early matters.",
     delivers: [
-      "One structured page test live at all times, with the win condition set first",
-      "Session recordings and scroll maps read by a human, monthly",
-      "Winners promoted into the control and handed to Herald and Prism",
-      "Conversion rate reported against the month it replaced",
+      "Placement in the trade press, roundups and directories your category is read in",
+      "Founder interviews and podcast appearances booked and prepped",
+      "Association, licensing and accreditation records corrected and claimed",
+      "A quarterly map of where you are named versus your closest rivals",
     ],
-    price: 240000,
+    price: 180000,
     billing: "monthly",
-    fixes: "A site that never gets tested",
+    fixes: "No independent sources to quote",
   },
 ];
 

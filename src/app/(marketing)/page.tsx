@@ -5,6 +5,8 @@ import {
   PARENT_SERVICES,
   FLIGHT_PLANS,
   OPERATORS,
+  MANIFEST,
+  CREATION_DISCLAIMER,
   UPGRADES,
   upgradesFor,
   entryPrice,
@@ -368,11 +370,30 @@ export default function Home() {
             ))}
           </div>
 
-          <p className="mt-10 max-w-2xl text-[0.95rem] leading-relaxed text-muted-foreground">
-            Herald owns search and the map pack. Echo owns reviews. Closer works every lead across
-            email, SMS and DM. Everything below exists <span className="text-foreground">only</span>{" "}
-            where the roster stops — and four upgrades were cut from this page the day we read it,
-            because the crew already did them.
+          {/* The Manifest, in full. Listing twelve things we are NOT selling,
+              immediately above the short list we are, is the strongest proof
+              available that the upgrades don't overlap — and it is the parent's
+              own copy, so it reads as continuity rather than as a disclaimer. */}
+          <div className="mt-12">
+            <div className="eyebrow mb-4 text-[0.6rem] text-muted-foreground">
+              And the Manifest — what &ldquo;everything&rdquo; already means, in writing
+            </div>
+            <div className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              {MANIFEST.map((m) => (
+                <div key={m.n} className="flex items-baseline gap-2.5 text-sm">
+                  <span className="text-xs text-signal/70">{m.n}</span>
+                  <span className="text-muted-foreground">{m.title}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="mt-12 max-w-2xl text-[0.95rem] leading-relaxed text-muted-foreground">
+            Ten operators and twelve managed disciplines. Everything below exists{" "}
+            <span className="text-foreground">only</span> where that stops — and seven upgrades
+            were cut from this page as these details arrived, because the crew already did them.
+            The one thing the desk says plainly it does not do:{" "}
+            <span className="text-foreground">&ldquo;{CREATION_DISCLAIMER}&rdquo;</span>
           </p>
         </div>
       </section>
@@ -386,12 +407,20 @@ export default function Home() {
             <div key={service.key} className="container py-12">
               <SectionHead
                 label={`On ${service.name}`}
-                note={`${items.length} upgrades · from ${formatCurrency(
+                note={`${items.length} upgrade${items.length === 1 ? "" : "s"} · from ${formatCurrency(
                   Math.min(...items.map((u) => u.price)),
                 )}`}
                 tone={accent.text}
               />
-              <div className="grid gap-5 lg:grid-cols-3">
+              {/* A lone card stranded in a three-column grid reads as a
+                  layout failure rather than as a short honest list, so a
+                  single-upgrade group renders at a deliberate width instead. */}
+              <div
+                className={cn(
+                  "grid gap-5",
+                  items.length === 1 ? "max-w-2xl" : "lg:grid-cols-2 xl:grid-cols-3",
+                )}
+              >
                 {items.map((u) => (
                   <UpgradeCard key={u.key} upgrade={u} />
                 ))}

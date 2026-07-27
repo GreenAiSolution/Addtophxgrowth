@@ -9,24 +9,31 @@ them (Pilot, Squadron, Fleet Command), flown by a roster of ten named
 operators. This property sells seven specialised upgrades that bolt onto those
 services, chosen because demand for each is visibly rising into 2027.
 
-`src/lib/upgrades.ts` is the entire public catalogue and `upgrades.test.ts`
-enforces the three rules the site depends on:
+`src/lib/upgrades.ts` is the entire public catalogue, and it carries a copy of
+everything PHX/GROWTH publicly promises: the three services' bullet lists, the
+ten named operators, the twelve-item Manifest and the AOV/LTV revenue levers.
+`upgrades.test.ts` checks every upgrade against all four, on distinctive-word
+overlap:
 
-1. **Attached** — every upgrade names a real PHX/GROWTH service. One that
-   attaches to nothing is a second agency in disguise.
-2. **Additive vs the service** — no upgrade may sell something that service
-   already lists. `PARENT_SERVICES[].includes` is a verbatim copy of their own
-   bullet list and the test reads it.
-3. **Additive vs the roster** — no upgrade may sell what one of the ten named
-   operators already does. `OPERATORS[].covers` describes each one and the test
-   fails on distinctive-word overlap.
+1. **Attached** — every upgrade names a real PHX/GROWTH service.
+2. **Additive vs the service** — nothing a service already lists.
+3. **Additive vs the roster** — nothing one of the ten operators already does.
+4. **Additive vs the Manifest and levers** — nothing the ad desk already manages.
 
-Rule 3 earned its place the day the AI Employees page arrived: four upgrades —
-AI search visibility, map pack, review velocity and a multi-channel inbox —
-turned out to be Herald, Echo and Closer's day jobs, and were cut. All four
-had looked obviously additive until the roster was written down next to them.
-The catalogue is deliberately short as a result; a group is allowed to hold
-two upgrades rather than be padded back to three with invented work.
+Those rules have removed seven upgrades so far, and every one looked obviously
+additive until the parent's own words were sitting in the same file. Herald
+already ships pages and watches the map pack; Echo already runs reviews; Closer
+already works email, SMS and DM; the Manifest already covers server-side
+tracking, offer and price testing, and the landing page. The floor for
+"upgrades per service" has been lowered twice rather than padded — Premium AI
+Ads now holds exactly one, because the desk states plainly that it doesn't make
+your ads, and that is the only gap left on that service.
+
+The check is verified non-vacuous by re-adding a cut upgrade and confirming it
+fails. That found a real hole: a Manifest-only check let an offer lab through,
+because item 07 is terse while the detail that kills it lives in the AOV lever.
+A partial copy of the parent's scope is worse than none, because it reads as a
+check that passed.
 
 Design, typography and voice are taken from phxgrowth.com rather than invented:
 the `PHX/GROWTH` wordmark with a gold PLUS chip, Inter, the cyan → violet →

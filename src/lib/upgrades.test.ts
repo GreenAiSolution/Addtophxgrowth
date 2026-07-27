@@ -4,6 +4,9 @@ import {
   FLIGHT_PLANS,
   OPERATORS,
   operatorByName,
+  MANIFEST,
+  REVENUE_LEVERS,
+  CREATION_DISCLAIMER,
   UPGRADES,
   serviceByKey,
   upgradesFor,
@@ -61,12 +64,14 @@ describe("rule one: every upgrade is attached", () => {
     }
   });
 
-  it("gives every service something to bolt on", () => {
-    // Deliberately >= 2, not >= 3. The roster rule below cut four upgrades,
-    // and padding a group back to three would mean inventing work — which is
-    // the exact failure the rule exists to prevent.
+  it("gives every service at least one thing to bolt on", () => {
+    // Deliberately >= 1. This floor started at 3, dropped to 2 when the
+    // roster cut four upgrades, and dropped again when the Manifest cut three
+    // more. Each time the honest move was to lower the floor rather than
+    // invent work to meet it — Premium AI Ads holds exactly one upgrade
+    // because the Manifest genuinely covers everything except the camera.
     for (const s of PARENT_SERVICES) {
-      expect(upgradesFor(s.key).length, s.key).toBeGreaterThanOrEqual(2);
+      expect(upgradesFor(s.key).length, s.key).toBeGreaterThanOrEqual(1);
     }
     expect(PARENT_SERVICES.flatMap((s) => upgradesFor(s.key)).length).toBe(UPGRADES.length);
   });
@@ -163,6 +168,76 @@ describe("rule three: nothing an operator already does", () => {
       OPERATORS.some((o) => `${u.promise} ${u.demandCase}`.includes(o.name)),
     );
     expect(named.length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe("rule four: nothing the Manifest already promises", () => {
+  it("carries both revenue levers with their bullets", () => {
+    expect(REVENUE_LEVERS.map((l) => l.code)).toEqual(["AOV", "LTV"]);
+    for (const l of REVENUE_LEVERS) {
+      expect(l.bullets.length, l.code).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it("lists all twelve numbered items", () => {
+    expect(MANIFEST).toHaveLength(12);
+    expect(MANIFEST.map((m) => m.n)).toEqual([
+      "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12",
+    ]);
+    for (const m of MANIFEST) {
+      expect(m.detail.length, m.title).toBeGreaterThan(30);
+    }
+  });
+
+  it("quotes the boundary the whole site depends on", () => {
+    // The Ad Management hero. If PHX/GROWTH ever starts making ads, the
+    // Motion Unit is not additive any more and this catalogue loses its
+    // largest item — so the sentence is pinned here where it will be noticed.
+    expect(CREATION_DISCLAIMER).toContain("don't make your ads");
+  });
+
+  it("sells nothing the Manifest already promises", () => {
+    // Third pass of the same check, against the strictest list yet. This one
+    // cut an offer lab (07), a tracking rebuild (02) and a conversion lab
+    // (06). The pattern is consistent: everything looks additive until the
+    // parent's own words are sitting in the same file.
+    const STOP = new Set([
+      "against", "across", "before", "between", "their", "there", "these", "those",
+      "which", "while", "where", "every", "other", "about", "after", "still",
+      "actually", "really", "whoever", "little",
+    ]);
+    const words = (text: string) =>
+      new Set(
+        text
+          .toLowerCase()
+          .split(/[^a-z]+/)
+          .filter((w) => w.length > 5 && !STOP.has(w)),
+      );
+
+    // Both the Manifest and the revenue levers. A Manifest-only check let an
+    // offer-lab upgrade through, because item 07 is terse ("AOV is a managed
+    // number") while the detail that actually kills it — "offer architecture
+    // managed like media: bundles, thresholds, post-purchase upsells" — is in
+    // the AOV lever. Checking half the parent's scope is worse than checking
+    // none, because it reads as a check that passed.
+    const scope = [
+      ...MANIFEST.map((m) => ({ label: `Manifest ${m.n} "${m.title}"`, text: `${m.title} ${m.detail}` })),
+      ...REVENUE_LEVERS.flatMap((l) =>
+        l.bullets.map((b) => ({ label: `${l.code} lever`, text: b })),
+      ),
+    ];
+
+    for (const u of UPGRADES) {
+      const claim = words([u.name, u.promise, ...u.delivers].join(" "));
+      for (const item of scope) {
+        const covered = words(item.text);
+        const shared = [...covered].filter((w) => claim.has(w));
+        expect(
+          shared.length,
+          `${u.key} overlaps ${item.label} on: ${shared.join(", ")}`,
+        ).toBeLessThanOrEqual(2);
+      }
+    }
   });
 });
 
