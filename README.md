@@ -6,8 +6,10 @@ The upgrade counter for [PHX/GROWTH](https://phxgrowth.com).
 flies your ad spend to profit" — sells three à la carte services (Premium AI
 Ads, AI Employees, Website Creation) and three managed flight plans on top of
 them (Pilot, Squadron, Fleet Command), flown by a roster of ten named
-operators. This property sells five specialised upgrades that bolt onto those
-services, chosen because demand for each is visibly rising into 2027.
+operators. This property is the branch site: it sells five specialised
+upgrades that bolt onto those services, chosen because demand for each is
+visibly rising into 2027, **and three deluxe stacks that the main site does not
+carry** — including the largest ticket either property sells.
 
 `src/lib/upgrades.ts` is the entire public catalogue, and it carries a copy of
 everything PHX/GROWTH publicly promises: the three services' bullet lists, the
@@ -189,6 +191,21 @@ feature gating.
   secret-free build on every push. The additive rules are the only thing
   standing between the catalogue and selling a client something they already
   pay for; a guardrail that runs when someone remembers to run it is not one.
+- **Bundles are priced server-side** (`BUNDLES` in `upgrades.ts`) — the browser
+  posts a bundle *key*, never a total, and the endpoint prices it from its
+  members. Tests enforce what a bundle has to be: at least two real members,
+  cheaper than the à la carte sum, and dearer than its own dearest member (a
+  "bundle" that undercuts one of its parts is a pricing bug that lets somebody
+  buy the stack to get one item at a discount). Exactly one apex bundle, and it
+  must be the largest ticket on the site.
+- **The Leak Calculator** (`src/lib/leak.ts`) — the parent's Growth Calculator
+  projects forward from ad spend; this runs backwards from calls already
+  arriving, so it needs no model and makes no claim about our performance.
+  Every output is the visitor's own five numbers multiplied. The recovery
+  assumption is a slider rather than a hidden constant, defaults below 1, and
+  `coverage` is allowed to come out under 1 — in which case the tool says
+  "don't buy it". Tested for the underwater branch, for clamping, and for never
+  returning Infinity into a price panel.
 - **One conversion path** — `/api/reserve` takes the enquiry. It recomputes the
   quote from `UPGRADES` rather than trusting any total the browser sent, and
   deliberately touches no database, no auth and no Stripe, because those are the

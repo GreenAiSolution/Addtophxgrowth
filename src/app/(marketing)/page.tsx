@@ -12,6 +12,7 @@ import {
   HOUSE_STRIP,
   CREATION_DISCLAIMER,
   UPGRADES,
+  BUNDLES,
   upgradesFor,
   entryPrice,
   THESIS,
@@ -25,6 +26,8 @@ import { env } from "@/lib/env";
 import { Enquiry, AddUpgradeButton } from "@/components/marketing/enquiry";
 import { GapFinder } from "@/components/marketing/gap-finder";
 import { CoverageMap } from "@/components/marketing/coverage-map";
+import { Bundles } from "@/components/marketing/bundles";
+import { LeakCalculator } from "@/components/marketing/leak-calculator";
 import { Pulse } from "@/components/marketing/pulse";
 import { Wordmark } from "@/components/marketing/site-chrome";
 
@@ -270,8 +273,8 @@ export default function Home() {
             <a href="#gaps" className="pill-primary">
               Find your gaps <ArrowRight className="h-4 w-4" />
             </a>
-            <a href="#upgrades" className="pill-ghost">
-              See all {UPGRADES.length}
+            <a href="#bundles" className="pill-ghost">
+              Or take a deluxe stack
             </a>
           </div>
 
@@ -491,6 +494,34 @@ export default function Home() {
             </p>
           </div>
         </div>
+      </section>
+
+      {/* ── The deluxe tier ────────────────────────────────────────────── */}
+      {/* The reason this is a separate property. phxgrowth.com sells the
+          programme; these stacks exist only here, and at a ticket the main
+          site has no shelf for. */}
+      <section id="bundles" className="border-y border-white/[0.06] bg-white/[0.015] py-20">
+        <div className="container">
+          <SectionHead
+            label="Deluxe stacks"
+            note="only on this site · priced below the parts · month to month"
+            tone="text-gold"
+          />
+          <Bundles />
+        </div>
+      </section>
+
+      {/* ── The calculator ─────────────────────────────────────────────── */}
+      {/* Their Growth Calculator projects forward from ad spend. This runs
+          backwards from calls already coming in, so it needs no model — and
+          it is allowed to tell you not to buy. */}
+      <section id="leak" className="container scroll-mt-20 py-20">
+        <SectionHead
+          label="The Leak Calculator"
+          note="your numbers, your arithmetic — and it will tell you when it doesn't pay"
+          tone="text-cyan"
+        />
+        <LeakCalculator />
       </section>
 
       {/* ── The guarantee ──────────────────────────────────────────────── */}

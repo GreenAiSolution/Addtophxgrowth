@@ -612,6 +612,103 @@ export function entryPrice(): number {
   return Math.min(...UPGRADES.filter((u) => u.billing === "monthly").map((u) => u.price));
 }
 
+
+/**
+ * Bundles — the reason this site exists as a separate property.
+ *
+ * DIRECTION
+ *   phxgrowth.com sells the growth programme. This branch sells the deluxe
+ *   combinations the main site does not carry: the upgrades stacked, priced
+ *   below the sum of their parts, at a ticket the main site has no slot for.
+ *
+ *   A bundle here is not a discount dressed as a package. Each one exists
+ *   because its members compound — answer-engine work is worth more when
+ *   somebody is also earning the third-party citations a model reads, and a
+ *   voice operator is worth more when its transcripts are being graded every
+ *   month. That compounding is the argument; the saving is the incentive.
+ *
+ * BLUEPRINTS
+ *   Members are upgrade keys, and the tests enforce what a bundle has to be:
+ *   at least two real members, priced below the à la carte sum, and above its
+ *   dearest single member — a "bundle" cheaper than one of its own parts is a
+ *   pricing bug, not an offer. Every total on the page and in the enquiry is
+ *   computed from these keys, never typed.
+ */
+export interface Bundle {
+  key: string;
+  name: string;
+  /** Upgrade keys. Validated at module load. */
+  members: string[];
+  /** One line on what the combination does that the parts don't. */
+  promise: string;
+  /** Why these specific ones compound. */
+  rationale: string;
+  /** Cents per month. */
+  price: number;
+  /** The apex bundle — gold, exactly one. */
+  apex?: boolean;
+}
+
+export const BUNDLES: Bundle[] = [
+  {
+    key: "answer-stack",
+    name: "The Answer Stack",
+    members: ["answer-engine", "citation-authority"],
+    promise: "Own what the assistants say about you — on your pages and everyone else's.",
+    rationale:
+      "These two are one job split in half. Structured facts on your own site tell a model what you are; independent mentions elsewhere are what make it believe you. Run either alone and you are either uncorroborated or uncited. Run both and each makes the other worth more, which is why they are priced to be taken together.",
+    price: 390000,
+  },
+  {
+    key: "response-stack",
+    name: "The Response Stack",
+    members: ["voice-employee", "tuning-lab"],
+    promise: "Answer everything, then get better at it every month.",
+    rationale:
+      "A voice operator on day one is a script. What turns it into an asset is somebody reading its transcripts against the deals that actually closed and retuning it — and that work has nothing to grade until the phone is being answered. Deployed together, month two is measurably better than month one instead of identical to it.",
+    price: 290000,
+  },
+  {
+    key: "deluxe-deck",
+    name: "The Deluxe Deck",
+    members: ["motion-unit", "voice-employee", "tuning-lab", "answer-engine", "citation-authority"],
+    promise: "Every gap on the board, closed at once — and nowhere else to buy it.",
+    rationale:
+      "The whole point of the coverage map is that only five things are left. This is all five, run as one engagement with one point of contact, at a price the main site has no shelf for. It is the largest ticket either property carries and the only one that leaves nothing uncovered.",
+    price: 990000,
+    apex: true,
+  },
+];
+
+// Fail at import rather than rendering a bundle that prices nothing.
+for (const b of BUNDLES) {
+  for (const m of b.members) {
+    if (!UPGRADES.some((u) => u.key === m)) {
+      throw new Error(`Bundle "${b.key}" references unknown upgrade: ${m}`);
+    }
+  }
+}
+
+export function bundleByKey(key: string): Bundle | undefined {
+  return BUNDLES.find((b) => b.key === key);
+}
+
+export function bundleMembers(bundle: Bundle): Upgrade[] {
+  return bundle.members
+    .map((k) => upgradeByKey(k))
+    .filter((u): u is Upgrade => Boolean(u));
+}
+
+/** What the same basket costs bought one at a time. */
+export function bundleListPrice(bundle: Bundle): number {
+  return bundleMembers(bundle).reduce((sum, u) => sum + u.price, 0);
+}
+
+/** Monthly saving versus à la carte. Always positive — a test enforces it. */
+export function bundleSaving(bundle: Bundle): number {
+  return bundleListPrice(bundle) - bundle.price;
+}
+
 /**
  * The promise the page is held to. Stated here so the hero, the metadata and
  * the share card cannot say three different things.

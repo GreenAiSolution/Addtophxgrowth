@@ -2,7 +2,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendNotification, agencyAddress } from "@/lib/notify";
-import { UPGRADES, upgradeByKey, serviceByKey } from "@/lib/upgrades";
+import {
+  UPGRADES,
+  BUNDLES,
+  upgradeByKey,
+  bundleByKey,
+  bundleMembers,
+  bundleSaving,
+  serviceByKey,
+} from "@/lib/upgrades";
 import { formatCurrency } from "@/lib/utils";
 import { BRAND } from "@/lib/brand";
 
@@ -28,6 +36,7 @@ import { BRAND } from "@/lib/brand";
 export const runtime = "nodejs";
 
 const UPGRADE_KEYS = UPGRADES.map((u) => u.key) as [string, ...string[]];
+const BUNDLE_KEYS = BUNDLES.map((b) => b.key) as [string, ...string[]];
 
 const Body = z.object({
   name: z.string().min(1).max(120),
@@ -35,7 +44,9 @@ const Body = z.object({
   phone: z.string().max(60).optional(),
   company: z.string().max(160).optional(),
   note: z.string().max(2000).optional(),
-  upgrades: z.array(z.enum(UPGRADE_KEYS)).min(1).max(UPGRADES.length),
+  upgrades: z.array(z.enum(UPGRADE_KEYS)).max(UPGRADES.length).optional(),
+  /** A deluxe bundle. Priced server-side from its members, never from the browser. */
+  bundle: z.enum(BUNDLE_KEYS).optional(),
 });
 
 function ip(req: Request): string {
@@ -62,22 +73,29 @@ export async function POST(req: Request) {
 
   const { name, email, phone, company, note } = parsed.data;
 
+  // A bundle wins outright: its members are implied, and pricing it as the sum
+  // of its parts would quote a number higher than the page advertised.
+  const bundle = parsed.data.bundle ? bundleByKey(parsed.data.bundle) : undefined;
+
   // De-duplicate, then resolve against the catalogue. Anything we no longer
   // sell simply drops out rather than failing the whole enquiry.
-  const picked = [...new Set(parsed.data.upgrades)]
-    .map((k) => upgradeByKey(k))
-    .filter((u): u is NonNullable<typeof u> => Boolean(u));
+  const picked = bundle
+    ? bundleMembers(bundle)
+    : [...new Set(parsed.data.upgrades ?? [])]
+        .map((k) => upgradeByKey(k))
+        .filter((u): u is NonNullable<typeof u> => Boolean(u));
 
   if (picked.length === 0) {
     return NextResponse.json({ error: "Nothing selected yet." }, { status: 400 });
   }
 
-  const monthly = picked
-    .filter((u) => u.billing === "monthly")
-    .reduce((sum, u) => sum + u.price, 0);
-  const oneTime = picked
-    .filter((u) => u.billing === "one_time")
-    .reduce((sum, u) => sum + u.price, 0);
+  // Bundles are monthly by definition and priced as one line.
+  const monthly = bundle
+    ? bundle.price
+    : picked.filter((u) => u.billing === "monthly").reduce((sum, u) => sum + u.price, 0);
+  const oneTime = bundle
+    ? 0
+    : picked.filter((u) => u.billing === "one_time").reduce((sum, u) => sum + u.price, 0);
 
   const businessName = company?.trim() || name;
 
@@ -87,7 +105,10 @@ export async function POST(req: Request) {
     phone ? `Phone:   ${phone}` : "",
     company ? `Company: ${company}` : "",
     "",
-    "WANTS:",
+    bundle
+      ? `WANTS THE BUNDLE: ${bundle.name} — ${formatCurrency(bundle.price)}/mo ` +
+        `(saves ${formatCurrency(bundleSaving(bundle))}/mo vs à la carte)`
+      : "WANTS:",
     ...picked.map(
       (u) =>
         `• ${u.name} — ${formatCurrency(u.price)}${u.billing === "monthly" ? "/mo" : " once"}` +
@@ -106,7 +127,9 @@ export async function POST(req: Request) {
     to: agencyAddress(),
     payload: {
       businessName,
-      title: `Upgrade enquiry — ${picked.length} selected`,
+      title: bundle
+        ? `BUNDLE enquiry — ${bundle.name}`
+        : `Upgrade enquiry — ${picked.length} selected`,
       detail,
       lines: [
         monthly > 0 ? `${formatCurrency(monthly)}/mo` : "",

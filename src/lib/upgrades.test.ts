@@ -14,6 +14,11 @@ import {
   PROOF_POSTURE,
   CREATION_DISCLAIMER,
   UPGRADES,
+  BUNDLES,
+  bundleByKey,
+  bundleMembers,
+  bundleListPrice,
+  bundleSaving,
   serviceByKey,
   upgradesFor,
   upgradeByKey,
@@ -428,6 +433,79 @@ describe("the page's promise", () => {
     for (const plan of FLIGHT_PLANS) {
       expect(fee!.a, plan.name).toContain(plan.fee.match(/\d+%/)![0]);
       expect(fee!.a).toContain(plan.name);
+    }
+  });
+});
+
+describe("the deluxe bundles", () => {
+  it("has unique keys and names", () => {
+    const keys = BUNDLES.map((b) => b.key);
+    const names = BUNDLES.map((b) => b.name);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("bundles at least two real upgrades", () => {
+    // A "bundle" of one is a rename with a discount attached.
+    for (const b of BUNDLES) {
+      expect(b.members.length, b.key).toBeGreaterThanOrEqual(2);
+      expect(new Set(b.members).size, `${b.key} repeats a member`).toBe(b.members.length);
+      expect(bundleMembers(b).length, `${b.key} has a dead member`).toBe(b.members.length);
+    }
+  });
+
+  it("always costs less than buying the parts", () => {
+    // The whole incentive. If this ever inverts, the page is charging more for
+    // the convenience of one invoice, which is the opposite of an offer.
+    for (const b of BUNDLES) {
+      expect(bundleSaving(b), b.key).toBeGreaterThan(0);
+      expect(b.price, b.key).toBeLessThan(bundleListPrice(b));
+    }
+  });
+
+  it("always costs more than its dearest single member", () => {
+    // A bundle cheaper than one of its own parts is a pricing bug that would
+    // let somebody buy the stack to get the one item at a discount.
+    for (const b of BUNDLES) {
+      const dearest = Math.max(...bundleMembers(b).map((u) => u.price));
+      expect(b.price, `${b.key} undercuts its own dearest member`).toBeGreaterThan(dearest);
+    }
+  });
+
+  it("marks exactly one apex bundle, and it is the largest ticket on the site", () => {
+    const apex = BUNDLES.filter((b) => b.apex);
+    expect(apex).toHaveLength(1);
+    const dearestUpgrade = Math.max(...UPGRADES.map((u) => u.price));
+    const dearestBundle = Math.max(...BUNDLES.map((b) => b.price));
+    expect(apex[0].price).toBe(dearestBundle);
+    expect(apex[0].price).toBeGreaterThan(dearestUpgrade);
+  });
+
+  it("argues why the members compound, rather than just listing them", () => {
+    for (const b of BUNDLES) {
+      expect(b.promise.length, b.key).toBeGreaterThan(30);
+      expect(b.rationale.length, b.key).toBeGreaterThan(200);
+    }
+  });
+
+  it("claims no outcomes", () => {
+    const copy = BUNDLES.flatMap((b) => [b.name, b.promise, b.rationale]).join(" ");
+    expect(copy).not.toMatch(/\d+(\.\d+)?\s?%/);
+    expect(copy).not.toMatch(/\d+(\.\d+)?\s?[x×]\s/i);
+  });
+
+  it("resolves by key", () => {
+    expect(bundleByKey("deluxe-deck")?.apex).toBe(true);
+    expect(bundleByKey("nope")).toBeUndefined();
+  });
+
+  it("covers every upgrade across the set", () => {
+    // If an upgrade appears in no bundle it is quietly excluded from the
+    // deluxe tier, which is a decision worth making on purpose rather than by
+    // omission.
+    const bundled = new Set(BUNDLES.flatMap((b) => b.members));
+    for (const u of UPGRADES) {
+      expect(bundled.has(u.key), `${u.key} is in no bundle`).toBe(true);
     }
   });
 });
