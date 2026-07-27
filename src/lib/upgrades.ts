@@ -94,7 +94,7 @@ export const PARENT_SERVICES: ParentService[] = [
       "Works 24/7",
     ],
     ceiling:
-      "Ten operators cover strategy through reputation, and Closer works every lead across email, SMS and DM. Two things are still nobody's job: the phone when it rings, and grading the crew's own output against the deals that actually closed.",
+      "Ten operators cover strategy through reputation, and Closer works every lead across email, SMS and DM. Two things remain nobody's standing job: the phone when it rings, and grading the crew's own output against the deals that closed. Both can be engineered bespoke inside Automated AI Systems — these are the productised route if you're not commissioning a private build.",
   },
   {
     key: "website-creation",
@@ -307,6 +307,70 @@ export const MANIFEST: { n: string; title: string; detail: string }[] = [
  * thresholds, post-purchase upsells" — lives down here. A partial copy of the
  * parent's scope is worse than none, because it reads as a check that passed.
  */
+
+/**
+ * The Automation Spine — the four named loops, plus the flagship engagement
+ * that sits above them.
+ *
+ * Checked like everything else. This page mostly confirmed the surviving
+ * upgrades rather than cutting any, but it did two useful things: it named a
+ * "white-glove install and training" line that collided with an upgrade called
+ * The Training Lab (renamed to The Tuning Lab — same work, no ambiguity), and
+ * it established that a bespoke voice loop *could* be engineered inside the
+ * flagship. That is worth stating plainly rather than hiding: the Voice
+ * Employee is the productised route for clients who are not commissioning a
+ * private build.
+ */
+export const AUTOMATION_LOOPS: { name: string; cadence: string; detail: string }[] = [
+  {
+    name: "Autonomous Budget Allocation",
+    cadence: "Every 15 min",
+    detail:
+      "Pull spend and real profit across every channel, rank by marginal return, and move budget to the leaders before the platforms notice.",
+  },
+  {
+    name: "Creative Genome",
+    cadence: "On fatigue signal",
+    detail:
+      "Query the genome, compose a brief, render variants in the Creative Forge, and ship them to the ad set.",
+  },
+  {
+    name: "Compliance Guardrail",
+    cadence: "Pre-flight, every asset",
+    detail:
+      "Every asset clears pre-flight against the platform policy model before it goes live — approved, rewritten safer, or blocked.",
+  },
+  {
+    name: "Zero-to-Live Launch",
+    cadence: "On new client URL",
+    detail:
+      "From one product URL: research, personas, strategy, first creative, tracking, and a live campaign — hands-off, wheels up.",
+  },
+];
+
+/**
+ * The flagship engagement. Private, by application, and explicitly bespoke —
+ * which is exactly why an upgrade cannot hide behind "but that's custom". If a
+ * client commissions this, anything here can be engineered into it, and the
+ * page says so rather than pretending otherwise.
+ */
+export const FLAGSHIP = {
+  name: "Automated AI Systems",
+  tagline: "Your business, running itself.",
+  badge: "Flagship \u00b7 Private build",
+  access: "By application",
+  summary:
+    "We engineer the loops above — and the ones your business is missing — into one bespoke system: lead intake, follow-up, fulfillment, reporting and ad optimization, working around the clock without you. Engineered to your stack, never templated.",
+  includes: [
+    "Systems audit + automation map of your whole funnel",
+    "Custom-engineered agent crew + workflow suite",
+    "CRM, ad platforms, Slack and email — wired end to end",
+    "Approval gates, audit logs and dry-run safety on every loop",
+    "White-glove install and training",
+    "Licensed to your business for as long as we fly together",
+  ],
+} as const;
+
 export const REVENUE_LEVERS: { code: string; name: string; claim: string; bullets: string[] }[] = [
   {
     code: "AOV",
@@ -409,10 +473,10 @@ export const UPGRADES: Upgrade[] = [
     leading: true,
   },
   {
-    key: "training-lab",
-    name: "The Training Lab",
+    key: "tuning-lab",
+    name: "The Tuning Lab",
     attachesTo: "ai-employees",
-    promise: "Grade the crew against closed deals and retrain on what actually won.",
+    promise: "Grade the crew against closed deals and retune on what actually won.",
     demandCase:
       "Tower keeps the crew coordinated and healthy, which is an operations job rather than a coaching one. Nobody is reading last month's transcripts against what the deals actually did and rewriting the prompts accordingly. A crew left untuned drifts as your offers and objections change, and the teams getting compounding returns are the ones closing that loop deliberately every month.",
     delivers: [

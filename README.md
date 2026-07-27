@@ -6,19 +6,21 @@ The upgrade counter for [PHX/GROWTH](https://phxgrowth.com).
 flies your ad spend to profit" — sells three à la carte services (Premium AI
 Ads, AI Employees, Website Creation) and three managed flight plans on top of
 them (Pilot, Squadron, Fleet Command), flown by a roster of ten named
-operators. This property sells seven specialised upgrades that bolt onto those
+operators. This property sells five specialised upgrades that bolt onto those
 services, chosen because demand for each is visibly rising into 2027.
 
 `src/lib/upgrades.ts` is the entire public catalogue, and it carries a copy of
 everything PHX/GROWTH publicly promises: the three services' bullet lists, the
-ten named operators, the twelve-item Manifest and the AOV/LTV revenue levers.
-`upgrades.test.ts` checks every upgrade against all four, on distinctive-word
-overlap:
+ten named operators, the twelve-item Manifest, the AOV/LTV revenue levers, the
+four automation loops and the flagship engagement. `upgrades.test.ts` checks
+every upgrade against all of it, on distinctive-word overlap:
 
 1. **Attached** — every upgrade names a real PHX/GROWTH service.
 2. **Additive vs the service** — nothing a service already lists.
 3. **Additive vs the roster** — nothing one of the ten operators already does.
-4. **Additive vs the Manifest and levers** — nothing the ad desk already manages.
+4. **Additive vs the Manifest, levers, loops and flagship** — nothing the ad
+   desk or the automation spine already manages, and no upgrade may borrow a
+   word from the flagship's own engagement list.
 
 Those rules have removed seven upgrades so far, and every one looked obviously
 additive until the parent's own words were sitting in the same file. Herald
@@ -152,7 +154,7 @@ feature gating.
   services, their three managed flight plans, and the upgrades that bolt onto
   each, with the demand argument for every one. `upgrades.test.ts` enforces
   attached and additive (above) plus the rules that keep the page honest: each
-  service keeps at least three upgrades, each group is listed
+  service keeps at least one upgrade, each group is listed
   most-expensive-first, every upgrade costs less than the service it upgrades,
   gold is spent exactly once, the stated performance fees match the parent's
   real 8/6/4%, and **no copy anywhere quotes a percentage or an "N× better"

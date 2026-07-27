@@ -6,6 +6,8 @@ import {
   operatorByName,
   MANIFEST,
   REVENUE_LEVERS,
+  AUTOMATION_LOOPS,
+  FLAGSHIP,
   CREATION_DISCLAIMER,
   UPGRADES,
   serviceByKey,
@@ -172,6 +174,27 @@ describe("rule three: nothing an operator already does", () => {
 });
 
 describe("rule four: nothing the Manifest already promises", () => {
+  it("carries the automation spine and the flagship engagement", () => {
+    expect(AUTOMATION_LOOPS.length).toBeGreaterThanOrEqual(4);
+    for (const l of AUTOMATION_LOOPS) {
+      expect(l.detail.length, l.name).toBeGreaterThan(60);
+      expect(l.cadence.length, l.name).toBeGreaterThan(3);
+    }
+    expect(FLAGSHIP.includes.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("keeps upgrade names clear of the flagship's own vocabulary", () => {
+    // The flagship promises "white-glove install and training". An upgrade
+    // called The Training Lab sat directly across that phrase and would have
+    // had a client asking which training they were buying — so it is now the
+    // Tuning Lab. Same work, no ambiguity.
+    const flagshipWords = FLAGSHIP.includes.join(" ").toLowerCase();
+    for (const u of UPGRADES) {
+      const head = u.name.toLowerCase().replace(/^the /, "").split(" ")[0];
+      expect(flagshipWords, `${u.key} name collides with the flagship`).not.toContain(head);
+    }
+  });
+
   it("carries both revenue levers with their bullets", () => {
     expect(REVENUE_LEVERS.map((l) => l.code)).toEqual(["AOV", "LTV"]);
     for (const l of REVENUE_LEVERS) {
@@ -225,6 +248,8 @@ describe("rule four: nothing the Manifest already promises", () => {
       ...REVENUE_LEVERS.flatMap((l) =>
         l.bullets.map((b) => ({ label: `${l.code} lever`, text: b })),
       ),
+      ...AUTOMATION_LOOPS.map((l) => ({ label: `loop "${l.name}"`, text: `${l.name} ${l.detail}` })),
+      ...FLAGSHIP.includes.map((b) => ({ label: `${FLAGSHIP.name} engagement`, text: b })),
     ];
 
     for (const u of UPGRADES) {

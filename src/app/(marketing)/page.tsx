@@ -6,6 +6,8 @@ import {
   FLIGHT_PLANS,
   OPERATORS,
   MANIFEST,
+  AUTOMATION_LOOPS,
+  FLAGSHIP,
   CREATION_DISCLAIMER,
   UPGRADES,
   upgradesFor,
@@ -388,8 +390,38 @@ export default function Home() {
             </div>
           </div>
 
+          {/* The automation spine, and the flagship above it. Naming the
+              private build explicitly is the honest move: it is bespoke, so it
+              could absorb anything on this page, and saying so is better than
+              letting a client discover it and wonder what else went unsaid. */}
+          <div className="mt-12 grid gap-6 lg:grid-cols-[1fr_20rem] lg:items-start">
+            <div>
+              <div className="eyebrow mb-4 text-[0.6rem] text-muted-foreground">
+                And the automation spine — the loops that run while you sleep
+              </div>
+              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                {AUTOMATION_LOOPS.map((l) => (
+                  <div key={l.name} className="flex flex-col text-sm">
+                    <span className="text-muted-foreground">{l.name}</span>
+                    <span className="text-xs text-cyan/60">{l.cadence}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="phx-card phx-card-gold p-5">
+              <div className="eyebrow text-[0.58rem] text-gold">{FLAGSHIP.badge}</div>
+              <div className="mt-2 font-semibold">{FLAGSHIP.name}</div>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Commission the private build and anything on this page can be engineered into it
+                directly. These upgrades are the productised route for everyone else.
+              </p>
+            </div>
+          </div>
+
           <p className="mt-12 max-w-2xl text-[0.95rem] leading-relaxed text-muted-foreground">
-            Ten operators and twelve managed disciplines. Everything below exists{" "}
+            Ten operators, twelve managed disciplines and four standing loops. Everything below
+            exists{" "}
             <span className="text-foreground">only</span> where that stops — and seven upgrades
             were cut from this page as these details arrived, because the crew already did them.
             The one thing the desk says plainly it does not do:{" "}
