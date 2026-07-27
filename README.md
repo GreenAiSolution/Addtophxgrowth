@@ -37,6 +37,14 @@ because item 07 is terse while the detail that kills it lives in the AOV lever.
 A partial copy of the parent's scope is worse than none, because it reads as a
 check that passed.
 
+**No outcome claims, anywhere.** PHX/GROWTH's results page labels every figure
+"representative" and states plainly that the case studies aren't up yet. An
+upgrade counter quoting hard numbers next to that page would be the less honest
+of the two properties, so this one says so in a section of its own and offers a
+founding rate instead. A test scans every piece of page copy and rejects any
+percentage that isn't one of the parent's real 8/6/4% fee rates, plus any
+multiple or guaranteed-results phrasing.
+
 Design, typography and voice are taken from phxgrowth.com rather than invented:
 the `PHX/GROWTH` wordmark with a gold PLUS chip, Inter, the cyan → violet →
 magenta gradient with gold reserved for apex and green for the guarantee, the

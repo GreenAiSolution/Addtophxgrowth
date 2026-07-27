@@ -8,6 +8,7 @@ import {
   MANIFEST,
   AUTOMATION_LOOPS,
   FLAGSHIP,
+  PROOF_POSTURE,
   CREATION_DISCLAIMER,
   UPGRADES,
   upgradesFor,
@@ -460,6 +461,32 @@ export default function Home() {
             </div>
           );
         })}
+      </section>
+
+      {/* ── No numbers yet ─────────────────────────────────────────────── */}
+      {/* Placed immediately before the guarantee so the two read as one
+          block: here is what we cannot promise, and here is what we will.
+          PHX/GROWTH's results page labels every figure "representative" and
+          says the case studies aren't up. Selling next to that page without
+          matching its candour would make this the less honest property. */}
+      <section className="container py-16">
+        <div className="mx-auto grid max-w-4xl gap-6 lg:grid-cols-2">
+          <div className="phx-card p-8">
+            <p className="eyebrow text-muted-foreground">{PROOF_POSTURE.eyebrow}</p>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight md:text-3xl">
+              {PROOF_POSTURE.headline}
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+              {PROOF_POSTURE.body}
+            </p>
+          </div>
+          <div className="phx-card phx-card-gold p-8">
+            <p className="eyebrow text-gold">The founding rate</p>
+            <p className="mt-3 text-[0.95rem] leading-relaxed text-foreground/90">
+              {PROOF_POSTURE.founding}
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* ── The guarantee ──────────────────────────────────────────────── */}

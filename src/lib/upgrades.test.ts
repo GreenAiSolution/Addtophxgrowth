@@ -8,6 +8,8 @@ import {
   REVENUE_LEVERS,
   AUTOMATION_LOOPS,
   FLAGSHIP,
+  RESULTS_WORK,
+  PROOF_POSTURE,
   CREATION_DISCLAIMER,
   UPGRADES,
   serviceByKey,
@@ -250,6 +252,7 @@ describe("rule four: nothing the Manifest already promises", () => {
       ),
       ...AUTOMATION_LOOPS.map((l) => ({ label: `loop "${l.name}"`, text: `${l.name} ${l.detail}` })),
       ...FLAGSHIP.includes.map((b) => ({ label: `${FLAGSHIP.name} engagement`, text: b })),
+      ...RESULTS_WORK.map((w) => ({ label: "Results-page work", text: w })),
     ];
 
     for (const u of UPGRADES) {
@@ -318,6 +321,47 @@ describe("the upgrades", () => {
         expect(line.length, `${u.key}: "${line}"`).toBeGreaterThan(20);
       }
     }
+  });
+
+  it("claims no outcomes at all, anywhere", () => {
+    // The parent labels every figure on its results page "representative" and
+    // says the case studies aren't up yet. An upgrade counter quoting hard
+    // numbers next to that would be the less honest of the two properties —
+    // so this checks the whole page's copy, not just the catalogue.
+    const everything = [
+      ...UPGRADES.flatMap((u) => [u.name, u.promise, u.demandCase, u.fixes, ...u.delivers]),
+      PROOF_POSTURE.headline,
+      PROOF_POSTURE.body,
+      PROOF_POSTURE.founding,
+      THESIS.headline,
+      THESIS.body,
+      ...FAIR_QUESTIONS.flatMap((f) => [f.q, f.a]),
+    ].join(" ");
+
+    // A percentage is only allowed if it is one of PHX/GROWTH's real
+    // performance-fee rates being quoted as a price. Stating what something
+    // costs is not a results claim, and a check that couldn't tell the
+    // difference would force the fee answer to go vague — which would be a
+    // worse page, not a more honest one.
+    const feeRates = new Set(FLIGHT_PLANS.map((p) => p.fee.match(/\d+%/)![0]));
+    for (const pct of everything.match(/\d+(\.\d+)?\s?%/g) ?? []) {
+      expect(feeRates.has(pct.replace(/\s/g, "")), `"${pct}" is not one of the real fee rates`).toBe(
+        true,
+      );
+    }
+
+    expect(everything).not.toMatch(/\d+(\.\d+)?\s?[x×]\s/i);
+    expect(everything).not.toMatch(/\b(guarantee[ds]?|guaranteed) (results?|roas|revenue|growth)\b/i);
+  });
+
+  it("says out loud that there are no results to show yet", () => {
+    expect(PROOF_POSTURE.body.length).toBeGreaterThan(150);
+    expect(PROOF_POSTURE.founding.length).toBeGreaterThan(80);
+    // The founding rate is the thing offered in place of proof; without it the
+    // section is an apology rather than a position.
+    expect(PROOF_POSTURE.founding.toLowerCase()).toContain("founding");
+    const caseStudies = FAIR_QUESTIONS.find((f) => f.q.toLowerCase().includes("case studies"));
+    expect(caseStudies, "the objection has to be answered where it is asked").toBeDefined();
   });
 
   it("quotes no invented statistics", () => {

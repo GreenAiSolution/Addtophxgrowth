@@ -321,6 +321,49 @@ export const MANIFEST: { n: string; title: string; detail: string }[] = [
  * Employee is the productised route for clients who are not commissioning a
  * private build.
  */
+
+/**
+ * The proof posture, taken from the Results page.
+ *
+ * This is the most consequential thing any of the parent's pages has said, and
+ * it is not about scope. Every number over there is labelled "representative"
+ * and footnoted "not a guarantee", and the page states outright that the case
+ * studies aren't up yet — "when the case studies go up here, the numbers will
+ * be real". They run founding accounts at founding pricing instead.
+ *
+ * An upgrade counter selling four-figure monthly work as though it were a
+ * mature product line, next to a parent that candid, would read as the less
+ * honest of the two properties. So this site matches the posture rather than
+ * quietly benefiting from the contrast: no outcome claims anywhere, said out
+ * loud, plus the same founding-rate offer. `upgrades.test.ts` enforces the
+ * first half — no percentage, multiple or outcome claim may appear in any
+ * upgrade copy — and the page states the second half in its own section.
+ */
+export const PROOF_POSTURE = {
+  eyebrow: "No numbers yet",
+  headline: "We won't show you results we haven't earned.",
+  body: "PHX/GROWTH labels every figure on its results page \u201crepresentative\u201d and says plainly that the case studies aren\u2019t up yet. The same is true here, more so \u2014 these upgrades are new. You will not find a percentage, a multiple or a testimonial anywhere on this page, because there isn\u2019t an honest one to show yet.",
+  founding:
+    "What we can offer instead is the founding rate: the price you start at is the price you keep, for as long as the upgrade runs. Early accounts get the people building it, and when the numbers do exist, they will be real.",
+} as const;
+
+/**
+ * The illustrative before/after work described on the Results page. Checked
+ * like everything else — "built the offer + funnel", "rebuilt the site around
+ * one clear CTA" and "wired tracking honest end to end" are all things an
+ * upgrade might otherwise have tried to sell.
+ */
+export const RESULTS_WORK: string[] = [
+  "Built the offer + funnel",
+  "Generated a 14-day content calendar",
+  "Launched a demo-booking landing page in an afternoon",
+  "Rebuilt the site around one clear CTA",
+  "Wired tracking honest end-to-end",
+  "Reallocated budget to the two channels that actually sold",
+  "Conversion-built pages and sharp offers lift revenue per visitor",
+  "Every concept is tested on synthetic buyers before it spends",
+];
+
 export const AUTOMATION_LOOPS: { name: string; cadence: string; detail: string }[] = [
   {
     name: "Autonomous Budget Allocation",
@@ -586,6 +629,10 @@ export const FAIR_QUESTIONS: { q: string; a: string }[] = [
   {
     q: "Will this duplicate something I already pay for?",
     a: "It can't. Each upgrade is written against the exact bullet list of the service it attaches to, and anything already included is out of scope by construction. If you think you're being sold something twice, say so and we'll cut it.",
+  },
+  {
+    q: "Do you have case studies for these?",
+    a: "No, and we won't pretend otherwise. PHX/GROWTH's own results page labels every figure representative and says the case studies aren't up yet; these upgrades are newer still. You get the founding rate and the people building it, and when there are real numbers you'll see real numbers.",
   },
   {
     q: "Who actually does the work?",
