@@ -47,12 +47,17 @@ export const ALL_AGENT_SLUGS = [
 ] as const;
 
 /**
- * Price ladder. All prices end in 7 and sit just under a psychological wall
- * ($2K, $3.5K, $4.5K, $8K) so each tier reads as a considered number rather
- * than a round one. The two `highlight` tiers (Scale, Operate) are deliberately
- * priced below a straight 3× of the original ladder — they are the tiers most
- * clients land on, so they stay the obvious-value pick, with the flagship
- * anchoring above them.
+ * Price ladder. Every price ends in 7 and sits just under a psychological wall
+ * ($1.3K / $3K / $7K on the agents line, $1.5K / $3.5K / $8K on ad-ops), so
+ * each tier reads as a considered number rather than a round one.
+ *
+ * The agents line climbs in consistent ~2.3× steps ($1,297 → $2,997 → $6,997).
+ * Even steps make each tier feel like a deliberate leap rather than an
+ * arbitrary markup, and the Command anchor at the top makes Scale — the tier
+ * most clients land on — read as the sensible middle.
+ *
+ * Command stays just below Ad Ops' Dominate ($7,997): fully-managed human
+ * ad-ops remains the top of the house, with the all-agents package just under.
  */
 export const PLANS: PlanDef[] = [
   // ---- AI Automation Agents ----
@@ -60,7 +65,7 @@ export const PLANS: PlanDef[] = [
     key: "launch",
     line: "AI_AGENTS",
     name: "Launch",
-    priceMonthly: 89700,
+    priceMonthly: 129700,
     stripePriceEnv: "STRIPE_PRICE_LAUNCH",
     tagline: "Two agents, working your inbound.",
     features: [
@@ -76,7 +81,7 @@ export const PLANS: PlanDef[] = [
     key: "scale",
     line: "AI_AGENTS",
     name: "Scale",
-    priceMonthly: 199700,
+    priceMonthly: 299700,
     stripePriceEnv: "STRIPE_PRICE_SCALE",
     tagline: "A working squad of agents.",
     features: [
@@ -99,7 +104,7 @@ export const PLANS: PlanDef[] = [
     key: "command",
     line: "AI_AGENTS",
     name: "Command",
-    priceMonthly: 449700,
+    priceMonthly: 699700,
     stripePriceEnv: "STRIPE_PRICE_COMMAND",
     tagline: "Full autonomy. All five agents.",
     features: [
