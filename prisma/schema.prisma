@@ -49,6 +49,13 @@ enum MessageRole {
   SYSTEM
 }
 
+/// READY = live now; SCHEDULED = human build work; IN_PROGRESS = being delivered.
+enum ProvisionStatus {
+  READY
+  SCHEDULED
+  IN_PROGRESS
+}
+
 // ---------------------------------------------------------------------------
 // Auth.js (NextAuth) core models
 // ---------------------------------------------------------------------------
@@ -132,6 +139,7 @@ model ClientProfile {
   requests        Request[]
   webhookConfigs  WebhookConfig[]
   agentOverrides  AgentPromptOverride[]
+  provisionedItems ProvisionedItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -358,6 +366,31 @@ model RequestComment {
 // ---------------------------------------------------------------------------
 // Integrations
 // ---------------------------------------------------------------------------
+
+/// One row per system module delivered to a client. Written automatically by
+/// lib/provisioning.ts when a subscription activates; the unique constraint on
+/// (clientId, moduleKey) is what makes repeated webhooks and tier upgrades safe.
+model ProvisionedItem {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  planKey     String
+  moduleKey   String
+  kind        String // AGENT | PLAYBOOK | INTEGRATION | ASSET | MILESTONE
+  name        String
+  description String
+  status      ProvisionStatus @default(READY)
+  agentSlug   String?
+  /// Starter prompt for playbooks, or the artifact body for assets.
+  payload     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, moduleKey])
+  @@index([clientId, kind])
+}
 
 model WebhookConfig {
   id       String        @id @default(cuid())

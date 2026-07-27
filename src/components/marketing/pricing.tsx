@@ -1,13 +1,18 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Check, Loader2, Wrench } from "lucide-react";
+import { SYSTEM_BLUEPRINTS } from "@/lib/systems";
 import { PLANS, PRODUCT_LINES, type ProductLineKey } from "@/lib/catalog";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 const LINE_ORDER: ProductLineKey[] = ["AI_AGENTS", "AD_OPS"];
+
+const SYSTEM_PLAN_KEYS = new Set(SYSTEM_BLUEPRINTS.map((b) => b.planKey));
+const hasSystemPage = (planKey: string) => SYSTEM_PLAN_KEYS.has(planKey);
 
 export function Pricing() {
   const [loading, setLoading] = React.useState<string | null>(null);
@@ -86,18 +91,31 @@ export function Pricing() {
                     </li>
                   ))}
                 </ul>
-                <Button
-                  className="mt-6 w-full"
-                  variant={plan.highlight ? "default" : "outline"}
-                  onClick={() => choose(plan.key)}
-                  disabled={loading === plan.key}
-                >
-                  {loading === plan.key ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Choose " + plan.name
-                  )}
-                </Button>
+                {/* Agent tiers open their system page — the client should see
+                    exactly what gets deployed before they buy. Ad-ops tiers go
+                    straight to checkout, as there is no system to preview. */}
+                {hasSystemPage(plan.key) ? (
+                  <Button
+                    asChild
+                    className="mt-6 w-full"
+                    variant={plan.highlight ? "default" : "outline"}
+                  >
+                    <Link href={`/plans/${plan.key}`}>See the {plan.name} system →</Link>
+                  </Button>
+                ) : (
+                  <Button
+                    className="mt-6 w-full"
+                    variant={plan.highlight ? "default" : "outline"}
+                    onClick={() => choose(plan.key)}
+                    disabled={loading === plan.key}
+                  >
+                    {loading === plan.key ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Choose " + plan.name
+                    )}
+                  </Button>
+                )}
               </div>
             ))}
           </div>

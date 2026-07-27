@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { planByKey } from "@/lib/catalog";
+import { provisionPlan } from "@/lib/provisioning";
 import type { ProductLineKey, SubscriptionStatus } from "@prisma/client";
 
 /**
@@ -84,7 +85,7 @@ async function upsertSubscription(sub: Stripe.Subscription) {
   const status = STATUS_MAP[sub.status] ?? "INCOMPLETE";
   const priceId = sub.items.data[0]?.price.id ?? null;
 
-  await prisma.subscription.upsert({
+  const sub2 = await prisma.subscription.upsert({
     where: { clientId_lineKey: { clientId, lineKey } },
     update: {
       planKey,
@@ -107,4 +108,21 @@ async function upsertSubscription(sub: Stripe.Subscription) {
       cancelAtPeriodEnd: sub.cancel_at_period_end,
     },
   });
+
+  // Automatic fulfilment: the moment the subscription is live, deploy the
+  // tier's system. Idempotent, so Stripe retries and tier upgrades are safe.
+  // Never let a provisioning failure fail the webhook — Stripe would retry the
+  // whole event, and the subscription state above is already correct.
+  if (status === "ACTIVE" || status === "TRIALING") {
+    try {
+      const result = await provisionPlan(clientId, planKey);
+      console.info(
+        `[stripe] provisioned ${result.planKey} for ${clientId} (+${result.created})`,
+      );
+    } catch (err) {
+      console.error("[stripe] provisioning failed (subscription is still active):", err);
+    }
+  }
+
+  return sub2;
 }

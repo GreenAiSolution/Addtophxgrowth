@@ -13,6 +13,12 @@ interface Message {
   content: string;
 }
 
+export interface Playbook {
+  name: string;
+  description: string;
+  prompt: string;
+}
+
 interface AgentChatProps {
   agentSlug: string;
   agentName: string;
@@ -21,6 +27,8 @@ interface AgentChatProps {
   initialConversationId?: string;
   used: number;
   limit: number | null;
+  /** Provisioned starter prompts for this agent, from the client's tier. */
+  playbooks?: Playbook[];
 }
 
 export function AgentChat({
@@ -31,6 +39,7 @@ export function AgentChat({
   initialConversationId,
   used,
   limit,
+  playbooks = [],
 }: AgentChatProps) {
   const [messages, setMessages] = React.useState<Message[]>(initialMessages);
   const [conversationId, setConversationId] = React.useState<string | undefined>(initialConversationId);
@@ -130,6 +139,26 @@ export function AgentChat({
           <div className="hud-panel p-8 text-center text-sm text-muted-foreground">
             <p className="font-heading text-base text-foreground">Start a conversation with {agentName}</p>
             <p className="mt-2">{inputHint}</p>
+
+            {playbooks.length > 0 && (
+              <div className="mt-6 border-t border-border/60 pt-5 text-left">
+                <div className="hud-label mb-3 text-center">Playbooks from your plan</div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {playbooks.map((pb) => (
+                    <button
+                      key={pb.name}
+                      onClick={() => setInput(pb.prompt)}
+                      className="rounded-md border border-border p-3 text-left transition-colors hover:border-cyan/60 hover:bg-muted/30"
+                    >
+                      <span className="block text-xs font-medium text-foreground">{pb.name}</span>
+                      <span className="mt-0.5 block text-[0.7rem] text-muted-foreground">
+                        {pb.description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
         {messages.map((m) => (

@@ -3,6 +3,7 @@ import { requireClient } from "@/lib/tenancy";
 import { getActiveSubscription } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { agentBySlug } from "@/lib/agents";
+import { playbooksForAgent } from "@/lib/systems";
 import { startOfMonthUTC } from "@/lib/utils";
 import { RobotAvatar } from "@/components/robot-avatar";
 import { AgentChat } from "@/components/agent-chat";
@@ -57,6 +58,11 @@ export default async function AgentWorkspacePage({ params }: { params: { agentSl
         }))}
         used={used}
         limit={sub?.plan.maxAgentRunsMonthly ?? null}
+        playbooks={playbooksForAgent(sub?.planKey ?? "", agent.slug).map((p) => ({
+          name: p.name,
+          description: p.description,
+          prompt: p.prompt ?? "",
+        }))}
       />
     </div>
   );
