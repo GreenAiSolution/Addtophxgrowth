@@ -84,8 +84,8 @@ export default async function AdsPage({ searchParams }: { searchParams: { days?:
               cost-per-sale target. Dominate sweeps every morning and watches return on ad spend.
             </p>
             <Button asChild className="mt-4" size="sm">
-              <Link href="/plans/monitor">
-                <ArrowUpCircle className="h-4 w-4" /> See the Spend Watch
+              <Link href="/app/billing?plan=monitor">
+                <ArrowUpCircle className="h-4 w-4" /> Turn the Spend Watch on
               </Link>
             </Button>
           </Card>

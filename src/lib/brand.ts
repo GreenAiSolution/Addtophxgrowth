@@ -4,10 +4,11 @@
  * the admin console, page metadata, and transactional email defaults.
  *
  * POSITIONING
- *   This is not a standalone agency — it is the deluxe tier of phxgrowth.com.
- *   The "Plus" in the name is doing real work: everything here is the layer a
- *   PHX Growth client steps up into. Anywhere the site would otherwise read as
- *   a separate company, it should instead read as the upgrade.
+ *   This is not an agency and does not sell a growth programme — phxgrowth.com
+ *   does that, across AI Employees, Ad Growth Management, and Web / SEO / Paid
+ *   Ads. The "Plus" is doing real work: everything here bolts onto one of those
+ *   three. Anywhere the site would otherwise read as a separate company, it
+ *   should instead read as an upgrade to work already running.
  */
 export const BRAND = {
   /** Full name, used in prose and metadata. */
@@ -29,7 +30,7 @@ export const BRAND = {
    * in so a fresh deploy with zero env config still reaches a human.
    */
   notifyEmail: "jadengreen808@gmail.com",
-  tagline: "The creative studio and automation desk of PHX Growth",
+  tagline: "Specialised upgrades for PHX Growth clients",
 
   /**
    * The house this is an upgrade to. Surfaced on the marketing site so a
@@ -40,6 +41,6 @@ export const BRAND = {
     name: "PHX Growth",
     url: "https://phxgrowth.com",
     relationship:
-      "the deluxe tier of PHX Growth — the creative studio and automation desk our clients step up into",
+      "the upgrade counter for PHX Growth — the specialised work that bolts onto the services they already run for you",
   },
 } as const;

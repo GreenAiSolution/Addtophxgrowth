@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 const DESCRIPTION =
-  "The deluxe tier of PHX Growth, sold from a showroom rather than a proposal. A creative engine that writes, tests and refreshes on a loop, five AI agents working your inbound around the clock, and a desk that catches a broken ad account the day it breaks — every system and service priced on the wall, ready to configure and buy. Built for roofing, HVAC, med spa, dental, legal and remodeling.";
+  "Specialised upgrades that bolt onto PHX Growth's AI Employees, Ad Growth Management and Web / SEO / Paid Ads. Be the business an AI assistant names, own the map pack, answer every call in one ring, and measure it all on data you actually own. Priced on the page, month to month, nothing charged today.";
 
 /**
  * `metadataBase` is what makes relative OG image paths resolve to absolute URLs.

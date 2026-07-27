@@ -110,11 +110,9 @@ export default async function LoginPage({
               ? "Thanks — that's with us."
               : chosen
                 ? `Sign in and we'll pick straight back up at ${chosen.name}.`
-                : next === "/cockpit"
-                  ? "Sign in and we'll take you straight back to your build."
-                  : canSignIn
-                    ? "Access your growth cockpit."
-                    : "Tell us where to reach you and we'll open your cockpit."}
+                : canSignIn
+                  ? "Access your growth cockpit."
+                  : "Tell us where to reach you and we'll open your cockpit."}
           </p>
         </div>
 
@@ -244,12 +242,9 @@ export default async function LoginPage({
           {!canSignIn && (
             <>
               {" "}
-              Prefer to look around first?{" "}
-              <Link
-                href={chosen ? `/cockpit?plan=${chosen.key}` : "/cockpit"}
-                className="text-cyan hover:underline"
-              >
-                Build a cockpit
+              Not a client yet?{" "}
+              <Link href="/" className="text-cyan hover:underline">
+                See the upgrades
               </Link>
               .
             </>

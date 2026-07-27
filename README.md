@@ -1,31 +1,28 @@
 # PHX Growth Plus
 
-The deluxe creative and automation tier of [PHX Growth](https://phxgrowth.com).
+The upgrade counter for [PHX Growth](https://phxgrowth.com).
 
-A production-oriented, self-serve client platform for a growth agency selling two
-subscription product lines:
+**The public site is one page.** PHX Growth sells the growth programme across
+three services — AI Employees, Ad Growth Management, and Web / SEO / Paid Ads.
+This property sells nine specialised upgrades that bolt onto those three,
+chosen because demand for each is visibly rising into 2027: being the business
+an AI assistant names, owning the map pack, answering every call in one ring,
+and measuring it on first-party data.
 
-1. **AI Automation Agents** — clients subscribe to a crew of AI agents
-   (Lead Qualifier, Ad Copy Co-Pilot, Follow-Up Sequencer, CRM Updater,
-   Objection Handler) on strategic tiers.
-2. **Ad Operations Management** — managed ad-ops services (spend monitoring,
-   campaign management, creative rotation, reporting) on strategic tiers.
+Everything that used to be here — six subscription tiers, a showroom, per-trade
+landing pages, a cockpit configurator — was a second agency competing with the
+first, and has been removed. `src/lib/upgrades.ts` is the whole public
+catalogue, and a test enforces the rule the site depends on: **every upgrade
+must attach to one of PHX Growth's three real services.** An upgrade that
+attaches to nothing is a rival agency in disguise.
 
-Clients sign up, choose a subscription, chat with their AI agents in real time,
-view ad-performance dashboards, submit requests, and manage billing — all
-self-serve. An admin console lets the agency operator manage clients, plans,
-agent prompts, ad metrics, and the request queue.
-
-**This site is the counter, not the agency.** phxgrowth.com is where a client
-meets the team and hires it; this property is where the same work is laid out as
-product — every system and service opened up in `/showroom`, priced to the
-dollar, configurable in `/cockpit` and buyable without a proposal. That division
-is modelled explicitly in `src/lib/house.ts`, where each job has exactly one
-owner, so the two properties cannot drift into claiming the same thing.
+Behind the page, the client platform is unchanged and still runs: sign-in, the
+agent workspace, ad dashboards, the Spend Watch, the morning brief, requests,
+reports and Stripe billing, plus an admin console for the agency operator.
+Those surfaces are for existing clients and are not part of the pitch.
 
 Built in the **cockpit / HUD aesthetic**: near-black base, cyan / violet /
-magenta accents, Space Grotesk headings, JetBrains Mono for data. Each agent
-ships with a distinct, self-contained **SVG robot headshot**.
+magenta accents, Space Grotesk headings, JetBrains Mono for data.
 
 ---
 
@@ -128,18 +125,19 @@ feature gating.
 
 ## Architecture notes
 
-- **The storefront** (`src/lib/storefront.ts`) — one `Offer` type covering every
-  purchasable thing: six plan tiers, twenty add-ons and the foundations
-  bundle. Nothing is declared there; every offer is *derived* from `catalog.ts`
-  and `addons.ts`, so a new service automatically gets a `/showroom/[slug]`
-  page, a sitemap entry, structured data and a configurator deep-link, and no
-  price can be stated that the invoice won't use. `storefront.test.ts` asserts
-  the derivation, including that `firstInvoice` agrees with `priceCockpit`.
-- **Cockpit deep-links** — `parseCockpitLink` turns
-  `/cockpit?agents=scale&addons=video-studio,landing-lab` (or `?build=` for a
-  signature build, or `?plan=` when the line is unknown) into a validated
-  selection. Unknown keys degrade to a smaller cockpit rather than a broken
-  page, and a link always wins over the saved basket.
+- **The public catalogue** (`src/lib/upgrades.ts`) — the three PHX Growth
+  services and the upgrades that bolt onto each, with the demand argument for
+  every one. `upgrades.test.ts` enforces the rules that keep the page honest:
+  every upgrade attaches to a real service, each service keeps at least three,
+  each group is listed most-expensive-first, and **no copy anywhere quotes a
+  percentage or an "N× better" claim** — the pitch of the page is that it tells
+  the truth about what it sells, and a fabricated statistic is the easiest
+  thing in the world to add later without thinking.
+- **One conversion path** — `/api/reserve` takes the enquiry. It recomputes the
+  quote from `UPGRADES` rather than trusting any total the browser sent, and
+  deliberately touches no database, no auth and no Stripe, because those are the
+  three things most likely to be unconfigured on a fresh deploy and this is
+  precisely the path that has to survive that.
 - **Multi-tenancy** — every client-owned row carries `clientId`; queries resolve
   the tenant through `src/lib/tenancy.ts` (`requireClient` / `requireAdmin`),
   never trusting a client-supplied id. Admins may pass an explicit `clientId`

@@ -1,91 +1,161 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Radio,
-  Gauge,
+  ArrowUpRight,
+  Phone,
+  Radar,
+  Search,
   ShieldCheck,
   Sparkles,
-  CalendarCheck,
-  SlidersHorizontal,
-  Rocket,
-  Store,
 } from "lucide-react";
-import { AGENTS } from "@/lib/agents";
 import { BRAND } from "@/lib/brand";
-import { PRODUCT_LINES, PLANS } from "@/lib/catalog";
-import { OFFERS, SHELVES, offersOnShelf, priceRange } from "@/lib/storefront";
-import { SHELF_ICONS } from "@/lib/showroom-icons";
+import {
+  PARENT_SERVICES,
+  UPGRADES,
+  upgradesFor,
+  entryPrice,
+  THESIS,
+  TERMS,
+  type ServiceKey,
+  type Upgrade,
+} from "@/lib/upgrades";
 import { formatCurrency } from "@/lib/utils";
 import { env } from "@/lib/env";
-import { RobotAvatar } from "@/components/robot-avatar";
-import { Pricing } from "@/components/marketing/pricing";
-import { LeadForm } from "@/components/marketing/lead-form";
-import { AgentDemo } from "@/components/marketing/agent-demo";
-import { RoiCalculator } from "@/components/marketing/roi-calculator";
-import { Addons } from "@/components/marketing/addons";
-import { VerticalStrip } from "@/components/marketing/verticals";
-import { WasteCalculator } from "@/components/marketing/waste-calculator";
-import { SpendWatchShowcase } from "@/components/marketing/spend-watch-showcase";
-import { CreativeEngine } from "@/components/marketing/creative-engine";
-import { HouseDivision } from "@/components/marketing/house-division";
-import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
-import { Button } from "@/components/ui/button";
+import { Enquiry, AddUpgradeButton } from "@/components/marketing/enquiry";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 /**
- * Marketing landing — "vibe dining" for growth. The energy of the hottest
- * table in town, run with cockpit discipline. Fully static, no client bloat
- * beyond the pricing + lead-form islands.
+ * The site. One page.
+ *
+ * DIRECTION
+ *   PHX Growth Plus is not an agency and does not sell a growth programme —
+ *   phxgrowth.com does that. This sells specialised upgrades that bolt onto the
+ *   three services PHX Growth already runs, chosen because demand for each is
+ *   visibly rising into 2027. Everything else that used to be here — six
+ *   subscription tiers, a showroom, trade pages, a configurator — was a second
+ *   agency competing with the first, and is gone.
+ *
+ * HOW THIS IS BUILT TO BE LOOKED AT
+ *   "Attractive" is not a mood here, it is a set of decisions:
+ *
+ *   - ONE focal point per screen. The eye lands on the largest, highest-contrast
+ *     element first; if two things compete for that, neither wins. Each section
+ *     has exactly one.
+ *   - Contrast carries hierarchy, colour carries meaning. Cyan means "you can
+ *     act on this" and is used nowhere decorative, so a call to action is found
+ *     without reading. Body copy stays under a comfortable measure (~65
+ *     characters) because line length, not font size, is what makes long text
+ *     tiring.
+ *   - Motion only where it explains something — ambient drift in the
+ *     background, a sweep on hover. Nothing animates on a timer near text,
+ *     because movement beside words costs comprehension. All of it stands down
+ *     under prefers-reduced-motion.
+ *   - Proximity does the grouping. Related things sit close and unrelated
+ *     things sit far apart, so the structure is legible before a word is read.
+ *
+ *   And trust is a design surface too: the price is on every card, the terms
+ *   are in a section of their own rather than a footnote, and there is not a
+ *   single countdown, fake scarcity marker, or invented statistic on the page.
+ *
+ * BLUEPRINTS
+ *   Fully static and fully server-rendered apart from two small islands — the
+ *   enquiry form and the "add" buttons that talk to it.
  */
-/**
- * Structured data. Tells Google this is a real business with a service catalogue
- * and a price range, which is what earns the richer result for searches like
- * "roofing marketing agency phoenix". Derived from the catalog so it can't
- * quote a price we no longer charge.
- */
+
+const SERVICE_ICONS: Record<ServiceKey, typeof Radar> = {
+  "ai-employees": Phone,
+  "ad-growth": Radar,
+  "web-seo-ads": Search,
+};
+
+/** The three shifts the catalogue is downstream of. Stated once, up front. */
+const SHIFTS = [
+  {
+    title: "Answers replaced links",
+    body: "Buyers ask an assistant and get two or three names. Ranking fourth on a page nobody opens is worth nothing — being the source that gets quoted is a different job entirely.",
+  },
+  {
+    title: "The signal is disappearing",
+    body: "The tracking most accounts still run was built on cookies and identifiers that keep being taken away. Measurement now has to sit on data the business owns.",
+  },
+  {
+    title: "Speed became the product",
+    body: "When every competitor advertises the same offer at the same price, the one that answers in seconds books the job. That used to be a staffing problem.",
+  },
+];
+
 function structuredData() {
-  const agentPlans = PLANS.filter((p) => p.line === "AI_AGENTS");
-  const cheapest = Math.min(...PLANS.map((p) => p.priceMonthly));
-  const dearest = Math.max(...PLANS.map((p) => p.priceMonthly));
-
   return {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
     name: BRAND.name,
-    description: BRAND.tagline,
+    description: THESIS.body,
     url: env.appUrl,
     email: BRAND.notifyEmail,
     areaServed: "United States",
-    priceRange: `$${Math.round(cheapest / 100)}–$${Math.round(dearest / 100)} per month`,
-    serviceType: [PRODUCT_LINES.AI_AGENTS.name, PRODUCT_LINES.AD_OPS.name],
+    parentOrganization: { "@type": "Organization", name: BRAND.parent.name, url: BRAND.parent.url },
     hasOfferCatalog: {
       "@type": "OfferCatalog",
-      name: "Growth systems",
-      itemListElement: agentPlans.map((p) => ({
+      name: "Growth upgrades",
+      itemListElement: UPGRADES.map((u) => ({
         "@type": "Offer",
-        name: p.name,
-        description: p.tagline,
-        price: (p.priceMonthly / 100).toFixed(2),
+        name: u.name,
+        description: u.promise,
+        price: (u.price / 100).toFixed(2),
         priceCurrency: "USD",
-        url: `${env.appUrl}/plans/${p.key}`,
       })),
     },
   };
 }
 
-/** Ticker copy. Each item is a claim the product actually makes elsewhere. */
-const TICKER = [
-  "Three angles on every offer",
-  "Fatigue caught before CPL moves",
-  "Leads qualified in seconds",
-  "Spend watched daily",
-  "Every price on the wall",
-  "Buy it without a proposal",
-];
+function UpgradeCard({ upgrade, index }: { upgrade: Upgrade; index: number }) {
+  return (
+    <article className="hud-panel lift flex flex-col p-6">
+      <div className="flex items-start justify-between gap-3">
+        <span className="hud-value text-xs text-cyan/50">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        {upgrade.leading && <Badge variant="violet">Taken first</Badge>}
+      </div>
 
-const TICKER_DOTS = ["text-cyan", "text-violet", "text-magenta"];
+      <h3 className="mt-3 font-heading text-xl font-bold">{upgrade.name}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-foreground/90">{upgrade.promise}</p>
 
-export default function MarketingHome() {
+      {/* The demand argument. This is the reason the upgrade is on the page at
+          all, so it gets real space rather than a tooltip. */}
+      <p className="mt-4 border-l-2 border-magenta/40 pl-4 text-[0.78rem] leading-relaxed text-muted-foreground">
+        {upgrade.demandCase}
+      </p>
+
+      <ul className="mt-5 flex-1 space-y-2">
+        {upgrade.delivers.map((line) => (
+          <li key={line} className="flex items-start gap-2 text-[0.8rem] leading-relaxed text-foreground/80">
+            <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-cyan" />
+            {line}
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-border/50 pt-4">
+        <div>
+          <div className="hud-label">{upgrade.fixes}</div>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className="hud-value text-2xl font-bold">{formatCurrency(upgrade.price)}</span>
+            <span className="text-xs text-muted-foreground">
+              {upgrade.billing === "monthly" ? "/mo" : "one-time"}
+            </span>
+          </div>
+        </div>
+        <AddUpgradeButton upgradeKey={upgrade.key} name={upgrade.name} />
+      </div>
+    </article>
+  );
+}
+
+export default function Home() {
+  const from = entryPrice();
+
   return (
     <div className="relative">
       {/* eslint-disable-next-line react/no-danger */}
@@ -93,490 +163,244 @@ export default function MarketingHome() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData()) }}
       />
-      <SiteHeader />
 
-      {/* Hero */}
-      <section className="relative grain py-24 text-center md:py-32">
+      {/* ---------------------------------------------------------------- */}
+      {/* Hero. One focal point: the headline. Everything else is quieter   */}
+      {/* on purpose, including the nav, which is a single link home.       */}
+      {/* ---------------------------------------------------------------- */}
+      <header className="absolute inset-x-0 top-0 z-20">
+        <div className="container flex h-20 items-center justify-between">
+          <span className="flex items-center gap-2.5 font-heading text-base font-bold sm:text-lg">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-primary/15 shadow-hud">
+              <span className="h-2.5 w-2.5 rotate-45 rounded-[2px] bg-gradient-to-br from-cyan via-violet to-magenta" />
+            </span>
+            {BRAND.wordmarkLead}
+            <span className="text-gradient">{BRAND.wordmarkAccent}</span>
+          </span>
+          <a
+            href={BRAND.parent.url}
+            className="hidden items-center gap-1.5 font-mono text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
+          >
+            {BRAND.parent.name} <ArrowUpRight className="h-3 w-3" />
+          </a>
+        </div>
+      </header>
+
+      <section className="relative grain flex min-h-[92vh] items-center overflow-hidden py-28">
         <div className="aurora" />
+        <div className="container relative text-center">
+          <Badge className="mx-auto animate-pulse-glow">{THESIS.eyebrow}</Badge>
+
+          <h1 className="mx-auto mt-8 max-w-5xl font-heading text-[2.75rem] font-bold leading-[1.02] sm:text-6xl md:text-7xl lg:text-8xl">
+            The parts of <span className="text-kinetic">2027</span>
+            <br className="hidden sm:block" /> nobody has staffed yet.
+          </h1>
+
+          {/* Measure held to ~62 characters. Long lines, not small type, are
+              what make a hero paragraph go unread. */}
+          <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+            {BRAND.parent.name} runs your AI employees, your ad growth and your search. This is
+            where you bolt on the specialised work that decides who wins locally next.
+          </p>
+
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+            <Button asChild size="lg">
+              <a href="#upgrades">
+                See the {UPGRADES.length} upgrades <ArrowRight className="h-4 w-4" />
+              </a>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <a href="#enquiry">Talk to us</a>
+            </Button>
+          </div>
+
+          <p className="mt-8 font-mono text-[0.65rem] uppercase tracking-[0.25em] text-muted-foreground">
+            From {formatCurrency(from)}/mo · Month to month · Nothing charged today
+          </p>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* What this is. Said second, plainly, before anything is sold —     */}
+      {/* a visitor who cannot tell how this relates to PHX Growth will     */}
+      {/* not read the prices.                                             */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="border-y border-border/60 bg-card/30 py-16">
         <div className="container">
-          <div className="mx-auto max-w-4xl">
-            <Badge className="mx-auto animate-pulse-glow">
-              The deluxe tier of {BRAND.parent.name}
-            </Badge>
-            <h1 className="mt-6 font-heading text-5xl font-bold leading-[1.02] md:text-8xl">
-              Where the <span className="text-kinetic">creative</span>
-              <br className="hidden sm:block" /> never runs out.
-            </h1>
-            <p className="mx-auto mt-7 max-w-2xl text-lg text-muted-foreground">
-              A creative studio that writes, tests and refreshes on a loop. Five specialist AI
-              agents working your inbound around the clock. A human desk on your ad spend — and
-              every last piece of it priced on the wall, ready to buy today.
-            </p>
-            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-              <Button asChild size="lg">
-                <Link href="/showroom">
-                  Walk the showroom <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="/cockpit">Build your cockpit</Link>
-              </Button>
-            </div>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 font-mono text-xs uppercase tracking-widest text-muted-foreground">
-              <span className="flex items-center gap-2"><Radio className="h-3.5 w-3.5 text-cyan" /> Real-time agent runs</span>
-              <span className="flex items-center gap-2"><Gauge className="h-3.5 w-3.5 text-violet" /> Live ROAS dashboards</span>
-              <span className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-magenta" /> Managed ad-ops</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Ticker. Actually moving now — a static strip pretending to be a ticker
-          was the one piece of the page making a claim its own styling denied.
-          Rendered twice so the -50% loop has no visible seam. */}
-      <div className="marquee-mask border-y border-border/60 bg-card/40 py-3">
-        <div className="marquee-track gap-10 font-mono text-[0.65rem] uppercase tracking-[0.25em] text-muted-foreground">
-          {[0, 1].map((copy) => (
-            <div key={copy} aria-hidden={copy === 1} className="flex shrink-0 items-center gap-10 pr-10">
-              {TICKER.map((item, i) => (
-                <span key={item} className="flex shrink-0 items-center gap-10">
-                  <span>{item}</span>
-                  <span className={TICKER_DOTS[i % TICKER_DOTS.length]}>◆</span>
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* The counter. This is the strategic difference from the agency site and
-          it gets a section of its own, high up, rather than a footer link. */}
-      <section id="showroom" className="container py-20">
-        <div className="mb-10 text-center">
-          <Badge variant="magenta">The Showroom</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-5xl">
-            {OFFERS.length} things you can buy. Every price on the wall.
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-            Most agencies make you sit through a call to learn what anything costs. Here the whole
-            catalogue is open — memberships, creative production, foundations, intelligence and
-            capacity — with the manifest and the number attached to each one.
-          </p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {SHELVES.map((shelf) => {
-            const Icon = SHELF_ICONS[shelf.key];
-            const items = offersOnShelf(shelf.key);
-            const from = Math.min(...items.map((o) => o.price));
-            return (
-              <Link
-                key={shelf.key}
-                href={`/showroom#${shelf.key}`}
-                className="hud-panel lift flex flex-col p-5"
-              >
-                <div className="flex items-center justify-between">
-                  <Icon className="h-5 w-5 text-cyan" />
-                  <span className="hud-value text-[0.65rem] text-cyan/60">
-                    {String(items.length).padStart(2, "0")}
-                  </span>
-                </div>
-                <span className="mt-3 font-heading text-base font-bold">{shelf.label}</span>
-                <span className="mt-1.5 flex-1 text-xs leading-relaxed text-muted-foreground">
-                  {shelf.note}
-                </span>
-                <span className="mt-3 border-t border-border/50 pt-2.5 font-mono text-[0.62rem] uppercase tracking-widest text-secondary">
-                  from {formatCurrency(from)}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-
-        <div className="mt-8 text-center">
-          <Button asChild size="lg" variant="outline">
-            <Link href="/showroom">
-              <Store className="h-4 w-4" /> Open the full showroom
-            </Link>
-          </Button>
-        </div>
-      </section>
-
-      {/* Two doors. Said once, early, plainly — a visitor should never wonder
-          whether they've found a second, unrelated agency. */}
-      <section id="house" className="container py-20">
-        <HouseDivision />
-      </section>
-
-      {/* Interactive test-drive */}
-      <section id="demo" className="container py-20">
-        <div className="mb-10 text-center">
-          <Badge>No signup required</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
-            Take an agent for a spin. Right now.
-          </h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            Pick a specialist and watch it work a real scenario. In your cockpit they run live —
-            on your leads, your offers, your brand voice.
-          </p>
-        </div>
-        <AgentDemo />
-      </section>
-
-      {/* The creative engine — the pillar this tier is built on. */}
-      <section id="creative" className="container py-20">
-        <div className="mb-10 text-center">
-          <Badge variant="magenta">The Creative Engine</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
-            Anyone can buy the media. The ad is the whole game.
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-            Five stages that hand off to each other and then start over, so there is always a
-            fresh ad ready before the current one dies.
-          </p>
-        </div>
-        <CreativeEngine />
-      </section>
-
-      {/* Agent roster */}
-      <section id="agents" className="container py-20">
-        <div className="mb-12 text-center">
-          <Badge variant="magenta">The Crew</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
-            Five specialists. Zero excuses.
-          </h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            Each agent is a distinct character with its own persona, tools, and system prompt —
-            tuned to your saved brand voice.
-          </p>
-        </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
-          {AGENTS.map((agent) => (
-            <div key={agent.slug} className="hud-panel hud-corners group flex flex-col items-center p-6 text-center transition-transform hover:-translate-y-1">
-              <div className="relative h-28 w-28">
-                <RobotAvatar variant={agent.avatar} accent={agent.accent} />
-              </div>
-              <span className="mt-3 font-mono text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
-                {agent.persona}
-              </span>
-              <h3 className="mt-1 font-heading text-base font-semibold">{agent.name}</h3>
-              <p className="mt-2 text-xs text-muted-foreground">{agent.tagline}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Product lines */}
-      <section id="lines" className="container py-20">
-        <div className="mb-12 text-center">
-          <Badge>Two ways to sit down</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">Pick a line. Or take both.</h2>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="hud-panel hud-corners p-8">
-            <Sparkles className="h-8 w-8 text-cyan" />
-            <h3 className="mt-4 font-heading text-2xl font-bold">{PRODUCT_LINES.AI_AGENTS.name}</h3>
-            <p className="mt-2 text-muted-foreground">{PRODUCT_LINES.AI_AGENTS.blurb}</p>
-            <ul className="mt-5 space-y-2 text-sm text-muted-foreground">
-              <li>› Chat with each agent in real time — streamed, persisted</li>
-              <li>› Custom instructions + saved brand voice</li>
-              <li>› Usage metering with graceful limits</li>
-            </ul>
-          </div>
-          <div className="hud-panel hud-corners p-8">
-            <Gauge className="h-8 w-8 text-violet" />
-            <h3 className="mt-4 font-heading text-2xl font-bold">{PRODUCT_LINES.AD_OPS.name}</h3>
-            <p className="mt-2 text-muted-foreground">{PRODUCT_LINES.AD_OPS.blurb}</p>
-            <ul className="mt-5 space-y-2 text-sm text-muted-foreground">
-              <li>› Spend, CPL, and ROAS dashboards — live, filterable</li>
-              <li>› Creative rotation + campaign management by humans</li>
-              <li>› Monthly AI-written executive reports</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="container py-20">
-        <div className="mb-12 text-center">
-          <Badge variant="violet">The experience</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">From reservation to feast</h2>
-        </div>
-        <div className="grid gap-6 md:grid-cols-3">
-          {[
-            {
-              icon: CalendarCheck,
-              step: "01 — Reserve",
-              title: "Choose your seats",
-              body: "Pick a tier on either line — or both. Checkout takes two minutes; your cockpit is live immediately.",
-            },
-            {
-              icon: SlidersHorizontal,
-              step: "02 — Calibrate",
-              title: "We learn your voice",
-              body: "A five-minute onboarding captures your business, platforms, goals, and brand voice. Every agent writes like you from day one.",
-            },
-            {
-              icon: Rocket,
-              step: "03 — Feast",
-              title: "Growth, served",
-              body: "Agents qualify, write, follow up, and file to CRM while the ad-ops crew runs your spend. You watch the dashboards climb.",
-            },
-          ].map((s) => {
-            const Icon = s.icon;
-            return (
-              <div key={s.step} className="hud-panel p-7">
-                <Icon className="h-7 w-7 text-cyan" />
-                <div className="hud-label mt-4">{s.step}</div>
-                <h3 className="mt-1 font-heading text-xl font-bold">{s.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{s.body}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Industry packs */}
-      <section id="trades" className="container py-20">
-        <div className="mb-10 text-center">
-          <Badge>Built for your trade</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
-            It arrives already speaking your language
-          </h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            Same desk, same price — but the qualification bar, the escalation rules and the
-            one-click jobs land pre-written for your industry. Then you edit them until
-            they&apos;re exactly yours.
-          </p>
-        </div>
-        <VerticalStrip />
-      </section>
-
-      {/* Ad operations — the Spend Watch */}
-      <section id="adops" className="container py-20">
-        <div className="mb-10 text-center">
-          <Badge variant="violet">Product Line 02</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
-            Most agencies show you the work once a month
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-            That&apos;s the whole problem with managed ad-ops. On the weeks nothing goes wrong you
-            can&apos;t see what you&apos;re paying for, and on the weeks something does, you find
-            out far too late to fix it cheaply. The Spend Watch runs every check on your accounts
-            unattended and posts what it found — including &ldquo;nothing, you&apos;re fine.&rdquo;
-          </p>
-        </div>
-        <SpendWatchShowcase />
-      </section>
-
-      {/* What the status quo costs */}
-      <section id="waste" className="container py-20">
-        <div className="mb-10 text-center">
-          <Badge variant="magenta">The uncomfortable math</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
-            What an unwatched account costs you
-          </h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            Drag your real numbers in. Every line is something we check for you.
-          </p>
-        </div>
-        <WasteCalculator />
-      </section>
-
-      {/* ROI calculator */}
-      <section id="roi" className="container py-20">
-        <div className="mb-10 text-center">
-          <Badge variant="magenta">Do the math</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
-            See what a tuned funnel is worth
-          </h2>
-        </div>
-        <RoiCalculator />
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="container py-20">
-        <div className="mb-12 text-center">
-          <Badge variant="violet">The Menu</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">Memberships, not retainers.</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            One subscription per line. Upgrade, downgrade, or cancel anytime from the console —
-            no lock-in, no awkward phone call.
-          </p>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-            Agent plans include a <span className="text-secondary">one-time build</span>: we wire
-            the agents into your CRM and ad accounts, train them on your brand voice, tune every
-            prompt against your real leads, and run a supervised pilot before you go live. Billed
-            once, on your first invoice — never again when you change tiers.
-          </p>
-        </div>
-        <Pricing />
-
-        <div className="mx-auto mt-12 max-w-3xl">
-          <div className="hud-panel hud-corners flex flex-col items-center gap-4 p-7 text-center sm:flex-row sm:text-left">
-            <SlidersHorizontal className="h-8 w-8 shrink-0 text-cyan" />
-            <div className="flex-1">
-              <h3 className="font-heading text-lg font-bold">
-                None of these is quite your shape?
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Build your own cockpit instead — pick a crew, an ad desk, your trade and any
-                pairings, and watch the price add up as you go. Take either line on its own if
-                that&apos;s all you need.
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
+            <Sparkles className="h-9 w-9 shrink-0 text-magenta" />
+            <div>
+              <h2 className="font-heading text-xl font-bold">
+                {BRAND.name} is the upgrade counter for {BRAND.parent.name}.
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Nothing here replaces your team or restarts your onboarding. Every upgrade assumes
+                the service it attaches to is already running, and simply makes it do more. If
+                you&apos;re not a {BRAND.parent.name} client yet,{" "}
+                <a href={BRAND.parent.url} className="text-cyan hover:underline">
+                  start there
+                </a>{" "}
+                — this only makes sense on top.
               </p>
             </div>
-            <Button asChild size="lg" className="shrink-0">
-              <Link href="/cockpit">
-                Build your cockpit <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
           </div>
         </div>
       </section>
 
-      {/* À la carte add-ons */}
-      <section id="pairings" className="container py-20">
-        <div className="mb-12 text-center">
-          <Badge variant="violet">À la carte</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">Pairings</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            What our fastest-growing clients add alongside a membership. Take one, take none —
-            the plan works either way. Every item has its own page in the showroom.
+      {/* ---------------------------------------------------------------- */}
+      {/* Why these, and not fifty others.                                  */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="container py-24">
+        <div className="mx-auto max-w-2xl text-center">
+          <span className="section-index">The argument</span>
+          <h2 className="mt-3 font-heading text-3xl font-bold md:text-5xl">
+            Three things changed. Most local businesses have staffed for none of them.
+          </h2>
+          <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+            Every upgrade on this page is downstream of one of these. If a service isn&apos;t, it
+            isn&apos;t here — which is why there are {UPGRADES.length} of them and not fifty.
           </p>
         </div>
-        <Addons />
-      </section>
 
-      {/* Social proof */}
-      <section className="container py-16">
-        <div className="hud-panel grid gap-6 p-8 text-center sm:grid-cols-3">
-          {[
-            { k: "3.8×", v: "Avg. ROAS lift" },
-            { k: "−34%", v: "Cost per lead" },
-            { k: "12k+", v: "Agent runs / week" },
-          ].map((s) => (
-            <div key={s.v}>
-              <div className="hud-value text-4xl font-bold text-gradient">{s.k}</div>
-              <div className="hud-label mt-2">{s.v}</div>
+        <div className="mt-14 grid gap-5 md:grid-cols-3">
+          {SHIFTS.map((s, i) => (
+            <div key={s.title} className="hud-panel hud-corners p-7">
+              <span className="hud-value text-3xl font-bold text-cyan/40">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <h3 className="mt-3 font-heading text-lg font-bold">{s.title}</h3>
+              <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
             </div>
           ))}
         </div>
-
-        <div className="mt-6 grid gap-6 md:grid-cols-3">
-          {[
-            {
-              quote:
-                "It feels like having a full growth team on staff — except the lead scoring happens before I finish my coffee.",
-              who: "Founder, DTC skincare brand",
-            },
-            {
-              quote:
-                "The ad-ops crew rotates creative before fatigue hits. Our CPL chart just… stopped spiking.",
-              who: "CMO, home-services franchise",
-            },
-            {
-              quote:
-                "I paste call notes, hit send, and my CRM is clean. That alone pays for the membership.",
-              who: "Head of Sales, B2B SaaS",
-            },
-          ].map((t) => (
-            <figure key={t.who} className="hud-panel flex flex-col p-6">
-              <blockquote className="flex-1 text-sm leading-relaxed text-foreground/90">
-                &ldquo;{t.quote}&rdquo;
-              </blockquote>
-              <figcaption className="mt-4 border-t border-border/60 pt-3 font-mono text-xs text-muted-foreground">
-                {t.who}
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-        <p className="mt-3 text-center font-mono text-[0.6rem] uppercase tracking-widest text-muted-foreground/60">
-          Illustrative testimonials — replace with client results
-        </p>
       </section>
 
-      {/* FAQ */}
-      <section id="faq" className="container py-20">
-        <div className="mb-10 text-center">
-          <Badge>FAQ</Badge>
-          <h2 className="mt-3 font-heading text-3xl font-bold">Before you&apos;re seated</h2>
-        </div>
-        <div className="mx-auto max-w-2xl space-y-3">
-          {[
-            {
-              q: "Can I hold subscriptions on both product lines?",
-              a: "Yes — one subscription per line, simultaneously. Many clients run Scale (agents) alongside Operate (ad-ops). Each line is billed and managed independently from your console.",
-            },
-            {
-              q: "What is the one-time build fee, and why is there one?",
-              a: "An agent that hasn't been trained on your business is a demo, not an asset. The build is where we earn the monthly: we connect your CRM and ad accounts, load your brand voice, write and tune each agent's prompts against your actual leads and offers, then run a supervised pilot until the output is something you'd send without editing. It's $2,500 on Launch, $3,000 on Scale, and $3,500 on Command — billed once on your first invoice, alongside month one. Change tiers later and you are never charged it again.",
-            },
-            {
-              q: "What counts as an agent run?",
-              a: "One completed agent response. Your tier includes a monthly allowance (500 / 2,500 / 10,000); the usage meter in your workspace shows exactly where you stand, and we block gracefully at the limit with an upgrade path — never a surprise invoice.",
-            },
-            {
-              q: "Do the agents write in my brand voice?",
-              a: "Yes. Onboarding captures your voice and tone, and every agent honors it on every run. Scale and Command tiers add custom per-agent instructions.",
-            },
-            {
-              q: "Who actually manages the ad spend?",
-              a: "Humans. The AI agents handle the words and the data hygiene; a dedicated ad-ops crew handles campaign management, creative rotation, and strategy on the Operate and Dominate tiers.",
-            },
-            {
-              q: "Can I cancel or switch tiers?",
-              a: "Anytime, self-serve, from Billing — powered by the Stripe customer portal. Changes prorate automatically.",
-            },
-          ].map((f) => (
-            <details key={f.q} className="hud-panel group p-5 [&_summary::-webkit-details-marker]:hidden">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-heading font-semibold">
-                {f.q}
-                <span className="text-cyan transition-transform group-open:rotate-45">+</span>
-              </summary>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
-            </details>
-          ))}
-        </div>
+      {/* ---------------------------------------------------------------- */}
+      {/* The catalogue, grouped by the service each upgrade bolts onto.    */}
+      {/* Grouping by parent service is what keeps this from reading as a   */}
+      {/* rival menu — every heading is one of PHX Growth's own services.   */}
+      {/* ---------------------------------------------------------------- */}
+      <section id="upgrades" className="scroll-mt-4 py-10">
+        {PARENT_SERVICES.map((service, si) => {
+          const Icon = SERVICE_ICONS[service.key];
+          const items = upgradesFor(service.key);
+          return (
+            <div key={service.key} className="container py-14">
+              <hr className="rule-glow mb-10" />
+
+              <div className="grid gap-8 lg:grid-cols-[22rem_1fr] lg:items-start">
+                <div className="lg:sticky lg:top-24">
+                  <span className="section-index">
+                    {String(si + 1).padStart(2, "0")} — Bolts onto
+                  </span>
+                  <h2 className="mt-2 flex items-center gap-3 font-heading text-3xl font-bold md:text-4xl">
+                    <Icon className="h-7 w-7 shrink-0 text-cyan" />
+                    {service.name}
+                  </h2>
+                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+                    {service.role}
+                  </p>
+                  {/* The ceiling. Naming the limit of the service honestly is
+                      what earns the right to sell the upgrade — and PHX Growth
+                      sells that service, so this has to be fair to it. */}
+                  <p className="mt-4 border-l-2 border-cyan/40 pl-4 text-sm leading-relaxed text-foreground/85">
+                    {service.ceiling}
+                  </p>
+                  <p className="hud-label mt-5">
+                    {items.length} upgrades · from{" "}
+                    {formatCurrency(Math.min(...items.map((u) => u.price)))}
+                  </p>
+                </div>
+
+                <div className="grid gap-5 xl:grid-cols-2">
+                  {items.map((u, i) => (
+                    <UpgradeCard key={u.key} upgrade={u} index={i} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </section>
 
-      {/* Final CTA band */}
-      <section className="container pb-20">
-        <div className="hud-panel hud-corners relative overflow-hidden p-10 text-center md:p-16">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-cyan/10 via-violet/10 to-magenta/10" />
-          <h2 className="relative font-heading text-3xl font-bold md:text-5xl">
-            Your table is <span className="text-gradient">waiting</span>.
-          </h2>
-          <p className="relative mx-auto mt-3 max-w-xl text-muted-foreground">
-            The roster is limited on purpose — every client gets the full attention of the crew.
-          </p>
-          <div className="relative mt-7">
-            <Button asChild size="lg">
-              <Link href="/cockpit">
-                Claim your seat <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+      {/* ---------------------------------------------------------------- */}
+      {/* Terms. A section, not a footnote — on four-figure monthly work    */}
+      {/* the commitment is the objection, and answering it in public is    */}
+      {/* worth more than any badge.                                        */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="border-y border-border/60 bg-card/30 py-20">
+        <div className="container">
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="section-index">Before you ask</span>
+            <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
+              What you&apos;re actually committing to.
+            </h2>
+          </div>
+          <div className="mx-auto mt-12 grid max-w-4xl gap-5 sm:grid-cols-2">
+            {TERMS.map((t) => (
+              <div key={t.term} className="flex gap-4">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+                <div>
+                  <h3 className="font-heading text-base font-bold">{t.term}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{t.detail}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Lead capture */}
-      <section id="contact" className="container pb-20">
-        <div className="grid items-center gap-10 md:grid-cols-2">
-          <div>
-            <Badge>Talk to us</Badge>
-            <h2 className="mt-3 font-heading text-3xl font-bold">
-              Prefer to be walked in?
-            </h2>
-            <p className="mt-3 text-muted-foreground">
-              Tell us about your funnel and we&apos;ll map the exact agents and ad-ops tier to hit
-              your targets. Submissions flow straight into our CRM.
+      {/* ---------------------------------------------------------------- */}
+      {/* The one thing to do.                                              */}
+      {/* ---------------------------------------------------------------- */}
+      <section id="enquiry" className="container scroll-mt-8 py-24">
+        <div className="mx-auto mb-12 max-w-2xl text-center">
+          <span className="section-index">Start</span>
+          <h2 className="mt-3 font-heading text-3xl font-bold md:text-5xl">
+            Pick what you want. We&apos;ll price it in writing.
+          </h2>
+          <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+            Tick the upgrades you&apos;re interested in and the total assembles as you go. This
+            sends an enquiry to a human — no card, no automated sequence, and nothing on your
+            account changes until you agree the scope.
+          </p>
+        </div>
+        <Enquiry />
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      <footer className="border-t border-border/60 py-12">
+        <div className="container space-y-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <a
+              href={BRAND.parent.url}
+              className="inline-flex items-center gap-2 font-heading text-lg font-bold transition-colors hover:text-cyan"
+            >
+              {BRAND.parent.name} <ArrowUpRight className="h-4 w-4" />
+            </a>
+            <p className="max-w-md text-sm text-muted-foreground">
+              {BRAND.name} is the upgrade counter for {BRAND.parent.name}. The agency, the team and
+              the relationship all live over there.
             </p>
           </div>
-          <LeadForm />
-        </div>
-      </section>
 
-      <SiteFooter />
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 border-t border-border/40 pt-6 text-sm text-muted-foreground">
+            <a href="#upgrades" className="hover:text-foreground">Upgrades</a>
+            <a href="#enquiry" className="hover:text-foreground">Enquire</a>
+            <a href={`mailto:${BRAND.notifyEmail}`} className="hover:text-foreground">
+              {BRAND.notifyEmail}
+            </a>
+            <Link href="/legal/terms" className="hover:text-foreground">Terms</Link>
+            <Link href="/legal/privacy" className="hover:text-foreground">Privacy</Link>
+            <Link href="/legal/msa" className="hover:text-foreground">Services agreement</Link>
+            <Link href="/login" className="hover:text-foreground">Client sign-in</Link>
+          </div>
+
+          <div className="text-center text-sm text-muted-foreground">
+            © {new Date().getFullYear()} {BRAND.name}
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

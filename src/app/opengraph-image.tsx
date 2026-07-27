@@ -73,7 +73,7 @@ export default function OpengraphImage() {
               letterSpacing: -2,
             }}
           >
-            Where the creative
+            The parts of 2027
           </div>
           <div
             style={{
@@ -85,7 +85,7 @@ export default function OpengraphImage() {
               letterSpacing: -2,
             }}
           >
-            never runs out.
+            nobody has staffed.
           </div>
         </div>
 
@@ -99,14 +99,14 @@ export default function OpengraphImage() {
             textTransform: "uppercase",
           }}
         >
-          <span>The deluxe tier of PHX Growth</span>
+          <span>Upgrades for PHX Growth clients</span>
           <div style={{ display: "flex", width: 8, height: 8, background: "#22d3ee", transform: "rotate(45deg)", marginTop: 8 }} />
-          <span>Creative on a loop</span>
+          <span>Upgrades, not another agency</span>
           <div style={{ display: "flex", width: 8, height: 8, background: "#e879f9", transform: "rotate(45deg)", marginTop: 8 }} />
-          {/* The differentiator, on the card itself. Somebody scrolling a Slack
-              channel gets one line to understand why this link is worth a
-              click, and "you can see the prices" is the strongest one we have. */}
-          <span>Every price on the wall</span>
+          {/* The differentiator, on the card itself. Somebody scrolling a
+              Slack channel gets one line to understand why this link is worth
+              a click, and "you can see the prices" is the strongest one. */}
+          <span>Priced on the page</span>
         </div>
       </div>
     ),
