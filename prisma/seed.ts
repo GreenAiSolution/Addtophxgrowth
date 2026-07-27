@@ -90,7 +90,14 @@ async function upsertClient(opts: {
   verticalKey?: string;
   agentsPlan?: string;
   adOpsPlan?: string;
-  adAccounts: { platform: string; name: string }[];
+  adAccounts: {
+    platform: string;
+    name: string;
+    /** Targets the Spend Watch measures against. Omitted = that check is skipped. */
+    monthlyBudgetCents?: number;
+    targetCpaCents?: number;
+    targetRoas?: number;
+  }[];
 }) {
   const user = await prisma.user.upsert({
     where: { email: opts.email },
@@ -147,10 +154,21 @@ async function upsertClient(opts: {
 
   // Ad accounts + 90 days of metrics
   for (const acc of opts.adAccounts) {
+    const targets = {
+      monthlyBudgetCents: acc.monthlyBudgetCents ?? null,
+      targetCpaCents: acc.targetCpaCents ?? null,
+      targetRoas: acc.targetRoas ?? null,
+    };
     const account = await prisma.adAccount.upsert({
       where: { id: `${client.id}-${acc.platform}` },
-      update: { name: acc.name },
-      create: { id: `${client.id}-${acc.platform}`, clientId: client.id, platform: acc.platform, name: acc.name },
+      update: { name: acc.name, ...targets },
+      create: {
+        id: `${client.id}-${acc.platform}`,
+        clientId: client.id,
+        platform: acc.platform,
+        name: acc.name,
+        ...targets,
+      },
     });
 
     for (let i = 0; i < 90; i++) {
@@ -393,6 +411,39 @@ async function seedNightShiftDemo(clientId: string) {
   });
 }
 
+/**
+ * Degrade one of demo client #1's accounts over the last week and then run the
+ * real Spend Watch against it, so /app/ads has genuine alerts on a fresh
+ * install. As with the memory demo, the alerts are produced by production code
+ * rather than hand-written — a threshold change updates the demo automatically.
+ */
+async function seedSpendWatchDemo(clientId: string) {
+  const meta = await prisma.adAccount.findFirst({
+    where: { clientId, platform: "META" },
+    select: { id: true },
+  });
+  if (!meta) return;
+
+  // Last 7 complete days: spend held, clicks and leads fall away. That is what
+  // creative fatigue plus cost-per-lead drift actually looks like in the data.
+  for (let i = 1; i <= 7; i++) {
+    const date = new Date();
+    date.setUTCHours(0, 0, 0, 0);
+    date.setUTCDate(date.getUTCDate() - i);
+    await prisma.adMetricDaily.updateMany({
+      where: { adAccountId: meta.id, date },
+      data: { spend: 24_000, clicks: 120, leads: 3, conversions: 1, revenue: 42_000 },
+    });
+  }
+
+  const { runSpendWatch } = await import("../src/lib/spend-watch");
+  // Force the sweep past its hour gate — the seed runs whenever it runs.
+  const now = new Date();
+  now.setUTCHours(23, 0, 0, 0);
+  const result = await runSpendWatch(clientId, now);
+  console.log(`   \u00b7 spend watch: ${result.raised ?? 0} alerts raised`);
+}
+
 async function main() {
   console.log("→ Seeding catalog (product lines + plans)…");
   await seedCatalog();
@@ -425,11 +476,24 @@ async function main() {
     agentsPlan: "scale",
     adOpsPlan: "operate",
     adAccounts: [
-      { platform: "META", name: "Peak — Meta Ads" },
-      { platform: "GOOGLE", name: "Peak — Google Ads" },
+      {
+        platform: "META",
+        name: "Peak — Meta Ads",
+        monthlyBudgetCents: 250_000,
+        targetCpaCents: 55_000,
+        targetRoas: 3,
+      },
+      {
+        platform: "GOOGLE",
+        name: "Peak — Google Ads",
+        monthlyBudgetCents: 400_000,
+        targetCpaCents: 60_000,
+        targetRoas: 3,
+      },
     ],
   });
   await seedSampleConversation(c1.id);
+  await seedSpendWatchDemo(c1.id);
 
   console.log("→ Seeding demo client #2 (Launch)…");
   await upsertClient({

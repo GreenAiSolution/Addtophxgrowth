@@ -18,7 +18,16 @@
 
 import { ALL_AGENT_SLUGS } from "@/lib/catalog";
 
-export type ModuleKind = "AGENT" | "PLAYBOOK" | "INTEGRATION" | "ASSET" | "MILESTONE";
+export type ModuleKind =
+  | "AGENT"
+  | "PLAYBOOK"
+  | "INTEGRATION"
+  | "ASSET"
+  | "MILESTONE"
+  /** An automated check that runs against ad data without anyone asking. */
+  | "MONITOR"
+  /** A recurring deliverable that arrives on a schedule. */
+  | "REPORT";
 
 /**
  * INSTANT — provisioned by the platform on payment, live in seconds.
@@ -313,6 +322,246 @@ const COMMAND_MODULES: SystemModule[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Monitor — the spend watch
+//
+// The ad-ops line is a managed service, so the instinct is to sell hours. That
+// is exactly why agencies get fired: the client can't see the work. Every
+// INSTANT module below is a check the platform runs on its own and shows the
+// client, so the value is visible on the days nothing goes wrong too.
+// ---------------------------------------------------------------------------
+
+const MONITOR_MODULES: SystemModule[] = [
+  {
+    key: "adops-integration-accounts",
+    kind: "INTEGRATION",
+    name: "Ad Account Connection",
+    description: "Your accounts wired in, with daily spend and results flowing into one dashboard.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "adops-monitor-pacing",
+    kind: "MONITOR",
+    name: "Budget Pacing Watch",
+    description: "Catches an account burning the month's budget by the 12th — or barely spending at all.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "adops-monitor-cpl-drift",
+    kind: "MONITOR",
+    name: "Cost-Per-Lead Drift Alarm",
+    description: "Compares this week's cost per lead against the last month and flags the climb early.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "adops-monitor-delivery-gap",
+    kind: "MONITOR",
+    name: "Delivery Gap Alarm",
+    description: "Tells you the day an account stops spending, instead of at the end of the month.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "adops-report-weekly",
+    kind: "REPORT",
+    name: "Weekly Performance Report",
+    description: "Spend, leads, cost per lead and what changed — in plain English, every week.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "adops-asset-metric-definitions",
+    kind: "ASSET",
+    name: "Metric Definitions Sheet",
+    description: "What counts as a lead, what counts as a conversion. Agreed once, so no report is ever argued about.",
+    delivery: "INSTANT",
+    body:
+      "Agree these once and every report means the same thing every month:\n\n" +
+      "• A LEAD is: (e.g. a form fill or a call over 60 seconds)\n" +
+      "• A QUALIFIED lead is: \n" +
+      "• A CONVERSION is: \n" +
+      "• Revenue is counted: (at close / at signature / at cash collected)\n" +
+      "• Our target cost per lead: \n" +
+      "• Our target cost per sale: \n\n" +
+      "Anything not on this list is not counted in your reports.",
+  },
+  {
+    key: "adops-milestone-audit",
+    kind: "MILESTONE",
+    name: "Account audit",
+    description: "We go through every campaign, ad set and keyword and write down what's wasting money.",
+    delivery: "BUILD",
+  },
+  {
+    key: "adops-milestone-tracking",
+    kind: "MILESTONE",
+    name: "Conversion tracking repair",
+    description: "Most accounts are measuring the wrong thing. We fix that before we optimise anything.",
+    delivery: "BUILD",
+  },
+  {
+    key: "adops-milestone-baseline",
+    kind: "MILESTONE",
+    name: "Baseline + target setting",
+    description: "Where you are today, written down, so improvement is provable rather than claimed.",
+    delivery: "BUILD",
+  },
+  {
+    key: "adops-milestone-monthly-review",
+    kind: "MILESTONE",
+    name: "Monthly review call",
+    description: "A standing call on what the numbers did and what we're changing because of it.",
+    delivery: "BUILD",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Operate — the campaign desk (Monitor + hands on the controls)
+// ---------------------------------------------------------------------------
+
+const OPERATE_MODULES: SystemModule[] = [
+  ...MONITOR_MODULES,
+  {
+    key: "adops-monitor-creative-fatigue",
+    kind: "MONITOR",
+    name: "Creative Fatigue Radar",
+    description: "Watches click-through decay so an ad gets refreshed before it starts costing you.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "adops-monitor-cpa-guardrail",
+    kind: "MONITOR",
+    name: "Target CPA Guardrail",
+    description: "Your target cost per sale, enforced — we're told the moment an account drifts past it.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "adops-report-action-log",
+    kind: "REPORT",
+    name: "Change Log",
+    description: "Every change we make to your account, dated and explained. No black box.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "adops-asset-testing-framework",
+    kind: "ASSET",
+    name: "Creative Testing Framework",
+    description: "How we test, what wins, and when we kill it — written down before we spend a dollar on it.",
+    delivery: "INSTANT",
+    body:
+      "One variable at a time. No exceptions.\n\n" +
+      "• Minimum spend before a verdict: 3× your target cost per lead\n" +
+      "• Minimum run time: 7 days (covers a full week's day-of-week pattern)\n" +
+      "• Winner threshold: beats control on cost per lead, not on click-through\n" +
+      "• Kill rule: 2× target cost per lead with no conversions\n" +
+      "• Refresh trigger: click-through down 25% from its first-week average\n\n" +
+      "Change these numbers to match your risk appetite and we test to them.",
+  },
+  {
+    key: "adops-asset-naming",
+    kind: "ASSET",
+    name: "Campaign Naming Convention",
+    description: "The structure that makes your account readable — by us, by you, by whoever comes next.",
+    delivery: "INSTANT",
+    body:
+      "PLATFORM_OBJECTIVE_AUDIENCE_OFFER_DATE\n\n" +
+      "Example: META_LEADS_HOMEOWNERS-35-65_FREE-INSPECTION_2026-07\n\n" +
+      "Why it matters: you can filter, compare and hand the account to anyone without a\n" +
+      "translation call. An account nobody else can read is how agencies hold clients hostage.",
+  },
+  {
+    key: "adops-milestone-restructure",
+    kind: "MILESTONE",
+    name: "Account restructure",
+    description: "Rebuilt to the naming convention and the testing framework, not left as we found it.",
+    delivery: "BUILD",
+  },
+  {
+    key: "adops-milestone-creative-pipeline",
+    kind: "MILESTONE",
+    name: "Creative pipeline setup",
+    description: "A standing queue of concepts so there is always a fresh ad ready before fatigue hits.",
+    delivery: "BUILD",
+  },
+  {
+    key: "adops-milestone-biweekly-strategy",
+    kind: "MILESTONE",
+    name: "Bi-weekly strategy call",
+    description: "Every two weeks with your dedicated ad-ops manager, not a rotating account exec.",
+    delivery: "BUILD",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Dominate — the full-funnel command (Operate + the rest of the funnel)
+// ---------------------------------------------------------------------------
+
+const DOMINATE_MODULES: SystemModule[] = [
+  ...OPERATE_MODULES,
+  {
+    key: "adops-monitor-roas-trend",
+    kind: "MONITOR",
+    name: "ROAS Trend Watch",
+    description: "Return on ad spend tracked against target, with the trend called before the month ends.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "adops-monitor-anomaly",
+    kind: "MONITOR",
+    name: "Daily Anomaly Sweep",
+    description: "Every account checked every morning for anything that broke overnight.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "adops-report-executive",
+    kind: "REPORT",
+    name: "Executive Monthly Report",
+    description: "The one-page version for whoever signs the cheques — spend in, revenue out, what's next.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "adops-asset-funnel-map",
+    kind: "ASSET",
+    name: "Full-Funnel Map",
+    description: "Every step from impression to signed deal, with the drop-off rate at each one.",
+    delivery: "INSTANT",
+    body:
+      "Fill in your real numbers and the leaks become obvious:\n\n" +
+      "Impressions → Clicks         (click-through rate: ____%)\n" +
+      "Clicks      → Leads          (landing page conversion: ____%)\n" +
+      "Leads       → Contacted      (speed to lead: ____ minutes)\n" +
+      "Contacted   → Appointments   (booking rate: ____%)\n" +
+      "Appointments→ Sales          (close rate: ____%)\n\n" +
+      "The cheapest win is almost never more traffic. It is the worst percentage on this page.",
+  },
+  {
+    key: "adops-integration-slack",
+    kind: "INTEGRATION",
+    name: "Dedicated Slack Channel",
+    description: "A shared channel with your ad-ops lead and strategist. No ticket queue.",
+    delivery: "BUILD",
+  },
+  {
+    key: "adops-milestone-landing-pages",
+    kind: "MILESTONE",
+    name: "Landing page optimization",
+    description: "We test the page, not just the ad — where most of the wasted spend actually dies.",
+    delivery: "BUILD",
+  },
+  {
+    key: "adops-milestone-weekly-strategy",
+    kind: "MILESTONE",
+    name: "Weekly strategy call",
+    description: "Every week, with the person actually running your account.",
+    delivery: "BUILD",
+  },
+  {
+    key: "adops-milestone-roadmap",
+    kind: "MILESTONE",
+    name: "Quarterly growth roadmap",
+    description: "What we're doing next quarter and what it should be worth, agreed in advance.",
+    delivery: "BUILD",
+  },
+];
+
 export const SYSTEM_BLUEPRINTS: SystemBlueprint[] = [
   {
     planKey: "launch",
@@ -349,6 +598,42 @@ export const SYSTEM_BLUEPRINTS: SystemBlueprint[] = [
       "Unlimited runs — the system scales past your busiest month",
     ],
     modules: COMMAND_MODULES,
+  },
+  {
+    planKey: "monitor",
+    systemName: "The Spend Watch",
+    promise:
+      "Every dollar accounted for, and every problem caught the day it starts — not in next month's report.",
+    outcomes: [
+      "You find out an account stopped delivering the same day, not three weeks later",
+      "Rising cost per lead gets flagged while it's still fixable",
+      "One number for what you spent and what it bought, agreed in advance",
+    ],
+    modules: MONITOR_MODULES,
+  },
+  {
+    planKey: "operate",
+    systemName: "The Campaign Desk",
+    promise:
+      "Everything in the Spend Watch, plus somebody with their hands on the controls every single day.",
+    outcomes: [
+      "Creative gets refreshed before fatigue starts costing you money",
+      "Every change to your account is logged, dated and explained",
+      "Your account is structured so anyone can read it — including you",
+    ],
+    modules: OPERATE_MODULES,
+  },
+  {
+    planKey: "dominate",
+    systemName: "The Full-Funnel Command",
+    promise:
+      "The whole funnel owned end to end — impression to signed deal — with the drop-off at every step on one page.",
+    outcomes: [
+      "The leak gets fixed where it actually is, which is rarely the ad",
+      "Return on ad spend tracked against target, called before the month closes",
+      "A quarterly roadmap agreed in advance, so nobody is guessing what's next",
+    ],
+    modules: DOMINATE_MODULES,
   },
 ];
 

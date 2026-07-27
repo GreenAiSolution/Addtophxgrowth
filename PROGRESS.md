@@ -152,9 +152,88 @@ bought it and identical a year later.
 
 ---
 
+## Phase 9 — The ad-ops line, built to parity ✅
+
+The agents line was a system you could see. Ad-ops was still a retainer: a
+dashboard, a monthly report, and trust. This closes that gap.
+
+### Ad-ops system blueprints
+- Three blueprints added to `systems.ts` — **The Spend Watch** (monitor),
+  **The Campaign Desk** (operate), **The Full-Funnel Command** (dominate) —
+  so every tier on both lines is now a system with a `/plans/[key]` page that
+  sells before purchase and becomes the delivery receipt after.
+- Two new module kinds: `MONITOR` (a check that runs unattended) and `REPORT`
+  (a recurring deliverable). Counts: Monitor 10 modules (6 instant / 4 build),
+  Operate 18 (11 / 7), Dominate 26 (15 / 11).
+- Ad-ops tiers now provision automatically on payment through the same
+  `provisionPlan` path as the agents line — previously `blueprintFor` returned
+  undefined for them and nothing was delivered.
+- Assets ship pre-written: Metric Definitions Sheet, Creative Testing Framework,
+  Campaign Naming Convention, Full-Funnel Map.
+- Build fees added: **$1,500 / $2,500 / $4,000**, covering the account audit,
+  conversion-tracking repair and baseline — the work that has to happen before
+  optimisation means anything. Ladders below the agents line with a steeper
+  climb, for the reason documented in `catalog.ts`.
+
+### The Spend Watch (`src/lib/spend-watch.ts`)
+- Seven checks, every one a pure function of (daily metrics, targets):
+  budget pacing over and under, cost-per-lead drift, delivery gap, creative
+  fatigue, cost-per-sale breach, ROAS decline, spend anomaly.
+- **No model anywhere in it.** An alert is a claim about someone's money, so it
+  has to be arithmetic we can point at.
+- Which checks run is derived from the MONITOR modules in the tier's blueprint,
+  not hardcoded — a test asserts the mapping covers every MONITOR module in
+  both directions, so the sales page and the engine can't drift.
+- Anti-noise rules, all tested: a missing target skips the check rather than
+  guessing; `MIN_HISTORY_DAYS` before any trend; minimum lead and impression
+  volume before movement counts; pacing ignored in the first days of a month;
+  a delivery gap suppresses the redundant underspend alert; findings that clear
+  are auto-resolved; ROAS within 10% of target is a normal fortnight, not a
+  finding.
+- Every trend window ends at the last **complete** day. Including today would
+  compare a part-day against full ones and manufacture a decline every morning.
+- Cadence is the tier lever again: Monitor sweeps weekly, Operate and Dominate
+  every morning. `isSweepDue` gates on a `spendWatchLastRunAt` timestamp rather
+  than inferring from alert rows — a clean sweep writes no rows and would
+  otherwise look like it never ran, then run again every hour.
+- The hourly cron now drives both lines; each rosters off its own product line.
+- 40 tests.
+
+### Marketing
+- **Spend Watch showcase** on the landing page — the sample alerts are produced
+  by running the real `analyzeAccount` against a labelled demo account at build
+  time. Nobody writes that copy by hand, so the page cannot promise wording the
+  product doesn't produce, and a threshold change updates it automatically.
+  Running it for real immediately surfaced two defects (stray cents in alert
+  copy, a ROAS alert firing on a 2% miss) that a mockup would have hidden.
+- **Wasted-spend calculator** — the ad-ops counterpart to the ROI calculator.
+  Sells the cost of the status quo rather than the upside, which is the stronger
+  motivator for someone already spending. Every lever maps to a specific check,
+  the model is conservative, and the arithmetic is disclosed on the face of it.
+- Ad-ops gets its own nav entry and full-width section instead of one line in a
+  product-lines grid.
+
+### Portal
+- `/app/ads` leads with the Spend Watch: open alerts with severity, the account
+  they came from, and a "mark seen" action. Empty state says *"{n} checks ran
+  across {n} accounts and found nothing that needs you"* — the point being that
+  the quiet weeks now show work too.
+- Non-qualifying tiers get an upgrade panel naming what each tier watches.
+
+### Schema
+- New `AdAlert` model + three enums; `AdAccount` gains `monthlyBudgetCents`,
+  `targetCplCents`, `targetCpaCents`, `targetRoas`; `ClientProfile` gains
+  `spendWatchLastRunAt`.
+- Seed gives demo client #1 real targets and a degraded week of Meta data, then
+  runs the actual `runSpendWatch` — so a fresh install has genuine alerts.
+
+---
+
 ## Verified this session
-- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (33 routes,
-  6 vertical pages prerendered) · `pnpm test` ✅ (87 tests, 4 files).
+- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (39 static
+  pages: 6 plan systems + 6 vertical packs) · `pnpm test` ✅ (148 tests, 5 files).
+- Landing page and both new plan pages rendered against a production server and
+  read back as text, not just compiled.
 - Not yet run against a live DB / Stripe / Anthropic (no credentials in this
   environment) — those are the 🟡 items above.
 

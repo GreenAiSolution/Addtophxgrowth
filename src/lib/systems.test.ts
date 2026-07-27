@@ -12,10 +12,11 @@ import { planProvisioning } from "@/lib/provisioning";
 const AGENT_SLUGS = new Set(AGENTS.map((a) => a.slug));
 
 describe("system blueprints", () => {
-  it("covers every AI agent plan in the catalog", () => {
-    const agentPlans = PLANS.filter((p) => p.line === "AI_AGENTS").map((p) => p.key).sort();
+  it("covers every plan in the catalog, on both lines", () => {
+    // Every tier is a system, not just a price — including ad-ops.
+    const allPlans = PLANS.map((p) => p.key).sort();
     const blueprinted = SYSTEM_BLUEPRINTS.map((b) => b.planKey).sort();
-    expect(blueprinted).toEqual(agentPlans);
+    expect(blueprinted).toEqual(allPlans);
   });
 
   it.each(SYSTEM_BLUEPRINTS)("$planKey has unique module keys", (b) => {
@@ -100,8 +101,13 @@ describe("provisioning planner", () => {
     expect(plan.toCreate.map((m) => m.key)).toContain("agent-objection-handler");
   });
 
-  it("returns an empty plan for a plan with no blueprint (ad-ops)", () => {
+  it("provisions ad-ops tiers too", () => {
     const plan = planProvisioning("operate", new Set());
-    expect(plan.toCreate).toHaveLength(0);
+    expect(plan.toCreate.map((m) => m.key)).toContain("adops-monitor-creative-fatigue");
+    expect(plan.toCreate.some((m) => m.kind === "MONITOR")).toBe(true);
+  });
+
+  it("returns an empty plan for a plan key that does not exist", () => {
+    expect(planProvisioning("not-a-plan", new Set()).toCreate).toHaveLength(0);
   });
 });

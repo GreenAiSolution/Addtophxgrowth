@@ -19,6 +19,8 @@ import { AgentDemo } from "@/components/marketing/agent-demo";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
 import { Addons } from "@/components/marketing/addons";
 import { VerticalStrip } from "@/components/marketing/verticals";
+import { WasteCalculator } from "@/components/marketing/waste-calculator";
+import { SpendWatchShowcase } from "@/components/marketing/spend-watch-showcase";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -46,6 +48,7 @@ export default function MarketingHome() {
             <a href="#demo" className="hover:text-foreground">Test Drive</a>
             <a href="#agents" className="hover:text-foreground">The Crew</a>
             <a href="#trades" className="hover:text-foreground">Your Trade</a>
+            <a href="#adops" className="hover:text-foreground">Ad Ops</a>
             <a href="#pricing" className="hover:text-foreground">The Menu</a>
             <a href="#pairings" className="hover:text-foreground">Pairings</a>
             <a href="#faq" className="hover:text-foreground">FAQ</a>
@@ -233,6 +236,37 @@ export default function MarketingHome() {
           </p>
         </div>
         <VerticalStrip />
+      </section>
+
+      {/* Ad operations — the Spend Watch */}
+      <section id="adops" className="container py-20">
+        <div className="mb-10 text-center">
+          <Badge variant="violet">Product Line 02</Badge>
+          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
+            Most agencies show you the work once a month
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+            That&apos;s the whole problem with managed ad-ops. On the weeks nothing goes wrong you
+            can&apos;t see what you&apos;re paying for, and on the weeks something does, you find
+            out far too late to fix it cheaply. The Spend Watch runs every check on your accounts
+            unattended and posts what it found — including &ldquo;nothing, you&apos;re fine.&rdquo;
+          </p>
+        </div>
+        <SpendWatchShowcase />
+      </section>
+
+      {/* What the status quo costs */}
+      <section id="waste" className="container py-20">
+        <div className="mb-10 text-center">
+          <Badge variant="magenta">The uncomfortable math</Badge>
+          <h2 className="mt-3 font-heading text-3xl font-bold md:text-4xl">
+            What an unwatched account costs you
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+            Drag your real numbers in. Every line is something we check for you.
+          </p>
+        </div>
+        <WasteCalculator />
       </section>
 
       {/* ROI calculator */}

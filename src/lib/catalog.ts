@@ -65,6 +65,14 @@ export const ALL_AGENT_SLUGS = [
  *
  * Command stays just below Ad Ops' Dominate ($7,997): fully-managed human
  * ad-ops remains the top of the house, with the all-agents package just under.
+ *
+ * Both lines carry a one-time build fee, because both have real setup work that
+ * happens once. On ad-ops it pays for the account audit, the conversion-tracking
+ * repair and the baseline — the work that has to happen before optimisation
+ * means anything. It ladders below the agents line ($1,500 / $2,500 / $4,000 vs
+ * $2,500 / $3,000 / $3,500) with a steeper climb: auditing two accounts is a
+ * different job from rebuilding a full funnel, whereas building two agents is
+ * not that different from building five.
  */
 export const PLANS: PlanDef[] = [
   // ---- AI Automation Agents ----
@@ -137,6 +145,8 @@ export const PLANS: PlanDef[] = [
     name: "Monitor",
     priceMonthly: 149700,
     stripePriceEnv: "STRIPE_PRICE_MONITOR",
+    setupFee: 150000,
+    setupPriceEnv: "STRIPE_PRICE_MONITOR_SETUP",
     tagline: "Eyes on every dollar.",
     features: [
       "2 ad accounts",
@@ -153,6 +163,8 @@ export const PLANS: PlanDef[] = [
     name: "Operate",
     priceMonthly: 349700,
     stripePriceEnv: "STRIPE_PRICE_OPERATE",
+    setupFee: 250000,
+    setupPriceEnv: "STRIPE_PRICE_OPERATE_SETUP",
     tagline: "Hands on the controls.",
     features: [
       "5 ad accounts",
@@ -171,6 +183,8 @@ export const PLANS: PlanDef[] = [
     name: "Dominate",
     priceMonthly: 799700,
     stripePriceEnv: "STRIPE_PRICE_DOMINATE",
+    setupFee: 400000,
+    setupPriceEnv: "STRIPE_PRICE_DOMINATE_SETUP",
     tagline: "Own the whole funnel.",
     features: [
       "Unlimited ad accounts",

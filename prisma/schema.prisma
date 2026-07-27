@@ -82,6 +82,30 @@ enum DealOutcomeKind {
   LOST
 }
 
+/// What the Spend Watch found. One value per check in lib/spend-watch.ts.
+enum AdAlertKind {
+  PACING_OVER
+  PACING_UNDER
+  CPL_DRIFT
+  DELIVERY_GAP
+  CREATIVE_FATIGUE
+  CPA_BREACH
+  ROAS_DECLINE
+  ANOMALY
+}
+
+enum AdAlertSeverity {
+  CRITICAL
+  WARNING
+  INFO
+}
+
+enum AdAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
 // ---------------------------------------------------------------------------
 // Auth.js (NextAuth) core models
 // ---------------------------------------------------------------------------
@@ -164,9 +188,12 @@ model ClientProfile {
   intakeToken String? @unique
 
   /// Night shift: the unattended run that produces the morning brief.
-  nightShiftEnabled Boolean @default(true)
+  nightShiftEnabled   Boolean   @default(true)
   /// UTC hour (0-23) the brief should be waiting by. Default 13:00 UTC = 6am Phoenix.
-  briefHourUtc      Int     @default(13)
+  briefHourUtc        Int       @default(13)
+  /// Last completed Spend Watch sweep. Gates the hourly cron to one sweep a day
+  /// even when a sweep finds nothing and so writes no alert rows.
+  spendWatchLastRunAt DateTime?
 
   stripeCustomerId String? @unique
 
@@ -182,6 +209,7 @@ model ClientProfile {
   briefRuns        BriefRun[]
   dealOutcomes     DealOutcome[]
   memoryEntries    MemoryEntry[]
+  adAlerts         AdAlert[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -340,7 +368,16 @@ model AdAccount {
   name       String
   currency   String  @default("USD")
 
+  /// Targets the Spend Watch measures against. Null = that check is skipped
+  /// rather than guessed — an alert fired against an invented target is worse
+  /// than no alert.
+  monthlyBudgetCents Int?
+  targetCplCents     Int?
+  targetCpaCents     Int?
+  targetRoas         Float?
+
   metrics AdMetricDaily[]
+  alerts  AdAlert[]
 
   createdAt DateTime @default(now())
 
@@ -365,6 +402,39 @@ model AdMetricDaily {
 
   @@unique([adAccountId, date])
   @@index([adAccountId, date])
+}
+
+/// One finding from the Spend Watch. The unique constraint on
+/// (adAccountId, kind, dateBucket) is what stops a daily sweep re-raising the
+/// same problem every morning — an alert feed that cries wolf gets ignored,
+/// and an ignored alert feed is worth less than none.
+model AdAlert {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  adAccountId String
+  adAccount   AdAccount @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+
+  kind     AdAlertKind
+  severity AdAlertSeverity @default(WARNING)
+  status   AdAlertStatus   @default(OPEN)
+
+  title      String
+  detail     String   @db.Text
+  /// What the number was, and what it should have been.
+  observed   Float?
+  expected   Float?
+  /// UTC day the finding belongs to.
+  dateBucket DateTime
+
+  createdAt      DateTime  @default(now())
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+
+  @@unique([adAccountId, kind, dateBucket])
+  @@index([clientId, status])
+  @@index([clientId, createdAt])
 }
 
 // ---------------------------------------------------------------------------

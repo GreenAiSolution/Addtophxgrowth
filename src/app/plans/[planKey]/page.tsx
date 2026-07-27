@@ -10,11 +10,19 @@ import {
   Check,
   Zap,
   Wrench,
+  Radar,
+  LineChart,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { planByKey } from "@/lib/catalog";
-import { blueprintFor, modulesByDelivery, type ModuleKind, type SystemModule } from "@/lib/systems";
+import {
+  SYSTEM_BLUEPRINTS,
+  blueprintFor,
+  modulesByDelivery,
+  type ModuleKind,
+  type SystemModule,
+} from "@/lib/systems";
 import { agentBySlug } from "@/lib/agents";
 import { formatCurrency } from "@/lib/utils";
 import { BRAND } from "@/lib/brand";
@@ -31,7 +39,7 @@ import type { AgentAccent } from "@/lib/agents";
  */
 
 export function generateStaticParams() {
-  return [{ planKey: "launch" }, { planKey: "scale" }, { planKey: "command" }];
+  return SYSTEM_BLUEPRINTS.map((b) => ({ planKey: b.planKey }));
 }
 
 const KIND_META: Record<ModuleKind, { label: string; icon: typeof Bot; blurb: string }> = {
@@ -40,9 +48,19 @@ const KIND_META: Record<ModuleKind, { label: string; icon: typeof Bot; blurb: st
   INTEGRATION: { label: "Integrations wired", icon: Plug, blurb: "Endpoints your stack can talk to." },
   ASSET: { label: "Assets delivered", icon: FileText, blurb: "Documents your team owns and edits." },
   MILESTONE: { label: "Build schedule", icon: CalendarClock, blurb: "Human work during your onboarding." },
+  MONITOR: { label: "Watches running", icon: Radar, blurb: "Checks that run without anyone asking." },
+  REPORT: { label: "Reports delivered", icon: LineChart, blurb: "What lands on a schedule, in plain English." },
 };
 
-const KIND_ORDER: ModuleKind[] = ["AGENT", "PLAYBOOK", "INTEGRATION", "ASSET", "MILESTONE"];
+const KIND_ORDER: ModuleKind[] = [
+  "AGENT",
+  "MONITOR",
+  "PLAYBOOK",
+  "REPORT",
+  "INTEGRATION",
+  "ASSET",
+  "MILESTONE",
+];
 
 export default async function PlanPage({ params }: { params: { planKey: string } }) {
   const plan = planByKey(params.planKey);
@@ -131,8 +149,8 @@ export default async function PlanPage({ params }: { params: { planKey: string }
         </div>
       </section>
 
-      {/* The crew you get */}
-      <section className="container pb-10">
+      {/* The crew you get — agents line only; ad-ops tiers have no roster. */}
+      <section className={agentModules.length === 0 ? "hidden" : "container pb-10"}>
         <div className="flex flex-wrap justify-center gap-6">
           {agentModules.map((m) => {
             const agent = m.agentSlug ? agentBySlug(m.agentSlug) : undefined;
