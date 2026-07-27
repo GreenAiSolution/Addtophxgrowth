@@ -13,6 +13,7 @@ import {
   Minus,
   ArrowRight,
   RotateCcw,
+  CheckCircle2,
 } from "lucide-react";
 import { PLANS, type PlanDef } from "@/lib/catalog";
 import { ADDONS, ADDON_GROUPS, type AddonGroupKey } from "@/lib/addons";
@@ -26,6 +27,8 @@ import {
 import { formatCurrency, cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 /**
  * The cockpit configurator.
@@ -192,6 +195,10 @@ export function CockpitConfigurator({ signedIn }: { signedIn: boolean }) {
   const [showAddons, setShowAddons] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  // Logged-out visitors reserve by leaving details rather than being bounced to
+  // a login form, which on an unconfigured deploy is a wall.
+  const [reserving, setReserving] = React.useState(false);
+  const [reserved, setReserved] = React.useState(false);
 
   // Restore a build across a login round-trip. Nothing here is sensitive — it's
   // a shopping basket — but losing it after signing in would be maddening.
@@ -250,6 +257,13 @@ export function CockpitConfigurator({ signedIn }: { signedIn: boolean }) {
   }
 
   async function activate() {
+    // Not signed in: take their details here. Never send someone who has just
+    // configured a five-figure build off to a login form.
+    if (!signedIn) {
+      setReserving(true);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -259,7 +273,7 @@ export function CockpitConfigurator({ signedIn }: { signedIn: boolean }) {
         body: JSON.stringify(selection),
       });
       if (res.status === 401) {
-        window.location.href = "/login?next=/cockpit";
+        setReserving(true);
         return;
       }
       const data = (await res.json()) as { url?: string; error?: string };
@@ -267,7 +281,39 @@ export function CockpitConfigurator({ signedIn }: { signedIn: boolean }) {
         window.location.href = data.url;
         return;
       }
-      setError(data.error ?? "Could not start checkout. Please try again.");
+      // Billing or the database may not be wired up yet. Falling back to the
+      // reservation form means the build still reaches a human.
+      setReserving(true);
+    } catch {
+      setError("Connection dropped. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitReservation(formData: FormData) {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/reserve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: String(formData.get("name") ?? ""),
+          email: String(formData.get("email") ?? ""),
+          phone: String(formData.get("phone") ?? ""),
+          company: String(formData.get("company") ?? ""),
+          note: String(formData.get("note") ?? ""),
+          selection,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (data.ok) {
+        setReserved(true);
+        setReserving(false);
+        return;
+      }
+      setError(data.error ?? "Something went wrong. Please try again.");
     } catch {
       setError("Connection dropped. Please try again.");
     } finally {
@@ -573,26 +619,76 @@ export function CockpitConfigurator({ signedIn }: { signedIn: boolean }) {
               </p>
             )}
 
-            <Button
-              className="w-full"
-              size="lg"
-              disabled={quote.isEmpty || submitting}
-              onClick={() => void activate()}
-            >
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  {signedIn ? "Activate this cockpit" : "Reserve this cockpit"}
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
+            {reserved ? (
+              <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-4 text-center">
+                <CheckCircle2 className="mx-auto h-6 w-6 text-emerald-400" />
+                <p className="mt-2 text-sm font-medium text-emerald-300">Reserved.</p>
+                <p className="mt-1 text-[0.7rem] leading-relaxed text-muted-foreground">
+                  Your build is with us and we&apos;ll be in touch today. Nothing has been charged.
+                </p>
+              </div>
+            ) : reserving ? (
+              <form
+                action={(fd) => void submitReservation(fd)}
+                className="space-y-2.5 border-t border-border/50 pt-4"
+              >
+                <div className="hud-label">Where should we reach you?</div>
+                <Input name="name" required placeholder="Your name" autoComplete="name" />
+                <Input
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="you@company.com"
+                  autoComplete="email"
+                />
+                <Input name="phone" placeholder="Phone (optional)" autoComplete="tel" />
+                <Input name="company" placeholder="Business name (optional)" autoComplete="organization" />
+                <Textarea
+                  name="note"
+                  rows={2}
+                  placeholder="Anything we should know? (optional)"
+                />
+                <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+                  {submitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      Send my build <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setReserving(false)}
+                  className="w-full text-center text-[0.65rem] text-muted-foreground hover:text-foreground"
+                >
+                  Keep editing
+                </button>
+              </form>
+            ) : (
+              <Button
+                className="w-full"
+                size="lg"
+                disabled={quote.isEmpty || submitting}
+                onClick={() => void activate()}
+              >
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    {signedIn ? "Activate this cockpit" : "Reserve this cockpit"}
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            )}
 
-            <p className="mt-2.5 text-center text-[0.65rem] leading-relaxed text-muted-foreground">
-              No contract. Change tiers or cancel from your console any time — the build fee is
-              charged once and never again.
-            </p>
+            {!reserved && !reserving && (
+              <p className="mt-2.5 text-center text-[0.65rem] leading-relaxed text-muted-foreground">
+                No contract, and nothing is charged today. Change tiers or cancel from your console
+                any time — the build fee is charged once and never again.
+              </p>
+            )}
 
             {!quote.isEmpty && (
               <button
@@ -618,7 +714,7 @@ export function CockpitConfigurator({ signedIn }: { signedIn: boolean }) {
           very long page, so the running total — the entire point of a
           configurator — would be invisible while choosing. This keeps it in
           view. Hidden on lg, where the sticky rail does the job. */}
-      {!quote.isEmpty && (
+      {!quote.isEmpty && !reserving && !reserved && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-cyan/20 bg-background/90 backdrop-blur-md lg:hidden">
           <div className="container flex items-center justify-between gap-3 py-3">
             <div className="min-w-0">

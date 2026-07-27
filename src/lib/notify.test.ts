@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderNotification, type NotificationKind } from "@/lib/notify";
+import { renderNotification, agencyAddress, type NotificationKind } from "@/lib/notify";
 import { BRAND } from "@/lib/brand";
 
 const ALL_KINDS: NotificationKind[] = [
@@ -9,6 +9,8 @@ const ALL_KINDS: NotificationKind[] = [
   "BRIEF_READY",
   "ALERT_CRITICAL",
   "COCKPIT_CONFIGURED",
+  "RESERVATION",
+  "MARKETING_LEAD",
 ];
 
 const base = { businessName: "Ironclad Roofing", title: "Rotate the Meta creative" };
@@ -44,7 +46,13 @@ describe("renderNotification", () => {
   it("names the client on agency-bound mail", () => {
     // The agency handles many clients; a subject without the business name
     // forces them to open it to find out who it's about.
-    for (const kind of ["REQUEST_FILED", "REQUEST_REPLY_TO_AGENCY", "COCKPIT_CONFIGURED"] as const) {
+    for (const kind of [
+      "REQUEST_FILED",
+      "REQUEST_REPLY_TO_AGENCY",
+      "COCKPIT_CONFIGURED",
+      "RESERVATION",
+      "MARKETING_LEAD",
+    ] as const) {
       expect(renderNotification(kind, base).subject, kind).toContain("Ironclad Roofing");
     }
   });
@@ -102,5 +110,43 @@ describe("renderNotification", () => {
     const a = renderNotification("ALERT_CRITICAL", base);
     const b = renderNotification("ALERT_CRITICAL", base);
     expect(a).toEqual(b);
+  });
+});
+
+describe("agencyAddress", () => {
+  it("always resolves to a real inbox", () => {
+    // "Nobody was told" is the failure mode that costs an actual sale, so this
+    // must never return undefined however little is configured.
+    const before = { agency: process.env.AGENCY_NOTIFY_EMAIL, seed: process.env.SEED_ADMIN_EMAIL };
+    delete process.env.AGENCY_NOTIFY_EMAIL;
+    delete process.env.SEED_ADMIN_EMAIL;
+    expect(agencyAddress()).toBe(BRAND.notifyEmail);
+    expect(agencyAddress()).toContain("@");
+    if (before.agency) process.env.AGENCY_NOTIFY_EMAIL = before.agency;
+    if (before.seed) process.env.SEED_ADMIN_EMAIL = before.seed;
+  });
+
+  it("lets the env override the baked-in default", () => {
+    const before = process.env.AGENCY_NOTIFY_EMAIL;
+    process.env.AGENCY_NOTIFY_EMAIL = "ops@example.com";
+    expect(agencyAddress()).toBe("ops@example.com");
+    if (before) process.env.AGENCY_NOTIFY_EMAIL = before;
+    else delete process.env.AGENCY_NOTIFY_EMAIL;
+  });
+});
+
+describe("reservation template", () => {
+  it("shouts, because this one is a live sale", () => {
+    const out = renderNotification("RESERVATION", {
+      businessName: "Ironclad Roofing",
+      title: "The House Favourite",
+      detail: "Name: Rae\nEmail: rae@example.com",
+      lines: ["$6,494/mo", "$12,700 one-time build"],
+    });
+    expect(out.subject).toContain("NEW RESERVATION");
+    expect(out.subject).toContain("Ironclad Roofing");
+    expect(out.text).toContain("rae@example.com");
+    expect(out.text).toContain("• $6,494/mo");
+    expect(out.text).toContain("expecting to hear from you");
   });
 });

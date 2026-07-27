@@ -17,5 +17,11 @@ export const BRAND = {
   domain: "phxgrowth.com",
   /** Default transactional sender (override with EMAIL_FROM). */
   fromEmail: "no-reply@phxgrowth.com",
+  /**
+   * Where agency-bound notifications land by default — new reservations,
+   * requests, critical alerts. Overridable with AGENCY_NOTIFY_EMAIL, but baked
+   * in so a fresh deploy with zero env config still reaches a human.
+   */
+  notifyEmail: "jadengreen808@gmail.com",
   tagline: "AI Agents + Managed Ad Ops",
 } as const;

@@ -415,9 +415,61 @@ whose checks are all asleep — none of it surfaced anywhere.
 
 ---
 
+## Phase 13 — No dead end at the moment of intent ✅
+
+A visitor built a cockpit on the live site, pressed Reserve, and landed on
+*"No auth providers configured yet. Set GOOGLE_CLIENT_ID or SMTP
+(EMAIL_SERVER_HOST) in your .env"* — a developer's TODO shown to a prospect,
+at the exact moment of purchase intent. Fixed properly rather than patched.
+
+### The reservation path now always completes
+- **`/api/reserve`** — takes contact details plus the build and gets them to a
+  human. Deliberately touches **no database, no auth and no Stripe**, because
+  those are exactly the three things most likely to be unconfigured on a fresh
+  deploy and this is the path that has to survive that. Zod-validated,
+  rate-limited by IP.
+- **The configurator** no longer bounces a logged-out visitor to `/login`.
+  Pressing Reserve opens an inline capture form in the summary rail, submits,
+  and confirms in place: *"Reserved. Your build is with us and we'll be in
+  touch today. Nothing has been charged."* It also falls back to this form if
+  the authenticated checkout path fails, so a missing Stripe key degrades to a
+  captured lead rather than an error.
+- **`/login`** always offers a way through. With no provider configured it
+  shows a "Request your cockpit" form instead of the developer message.
+
+### Everything reaches one inbox
+- `agencyAddress()` can no longer return undefined: `AGENCY_NOTIFY_EMAIL` →
+  `SEED_ADMIN_EMAIL` → `BRAND.notifyEmail`. "Nobody was told" is the failure
+  mode that costs a real sale, so the destination is baked in.
+- Two new notification kinds, `RESERVATION` and `MARKETING_LEAD`. The
+  reservation subject deliberately shouts — `NEW RESERVATION — {business}` —
+  and carries the full build sheet, the monthly, the one-time and the first
+  invoice.
+- The marketing contact form now emails the agency as well as firing Zapier,
+  so an enquiry can't be lost merely because no Zap has been built yet.
+- **Resend HTTPS delivery added.** One secret (`RESEND_API_KEY`) and their
+  onboarding sender works before any domain is verified — the difference
+  between "email works after you paste a key" and "email works after you get
+  five SMTP variables right". SMTP still works and is tried second.
+
+### Verified by walking it
+Built and served with **zero** environment variables, then submitted a real
+reservation through the browser at mobile width. The flow completes, the
+confirmation renders, and the log reads:
+
+```
+[notify] RESERVATION → jadengreen808@gmail.com skipped — set RESEND_API_KEY
+         or EMAIL_SERVER_HOST to deliver
+```
+
+Which is the honest state: the destination is right with no config, and one
+secret turns the log line into an email.
+
+---
+
 ## Verified this session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
-  pages: 6 plan systems + 6 vertical packs) · `pnpm test` ✅ (230 tests, 9 files).
+  pages: 6 plan systems + 6 vertical packs) · `pnpm test` ✅ (233 tests, 9 files).
 - Landing page, both new plan pages and `/cockpit` rendered against a production
   server and read back — and `/cockpit` screenshotted at desktop and mobile
   widths, which is how the sticky-rail defect above was found.

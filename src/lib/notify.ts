@@ -30,7 +30,9 @@ export type NotificationKind =
   | "REQUEST_REPLY_TO_AGENCY"
   | "BRIEF_READY"
   | "ALERT_CRITICAL"
-  | "COCKPIT_CONFIGURED";
+  | "COCKPIT_CONFIGURED"
+  | "RESERVATION"
+  | "MARKETING_LEAD";
 
 export interface NotificationPayload {
   businessName: string;
@@ -137,6 +139,35 @@ export function renderNotification(
           .join("\n") + sign,
       };
 
+    case "RESERVATION":
+      return {
+        subject: `NEW RESERVATION — ${payload.businessName}: ${payload.title}`,
+        text: [
+          `Somebody built a cockpit on the site and asked to be contacted.`,
+          "",
+          `Business: ${payload.businessName}`,
+          payload.detail ? `\n${payload.detail}` : "",
+          bullets ? `\n${bullets}` : "",
+          "",
+          "Reply to them directly — they are expecting to hear from you.",
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
+    case "MARKETING_LEAD":
+      return {
+        subject: `New enquiry — ${payload.businessName}`,
+        text: [
+          `Someone filled in the contact form.`,
+          "",
+          payload.detail ?? "",
+          bullets ? `\n${bullets}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
     case "COCKPIT_CONFIGURED":
       return {
         subject: `${payload.businessName} built a cockpit: ${payload.title}`,
@@ -152,9 +183,13 @@ export function renderNotification(
   }
 }
 
-/** Where agency-bound notifications go. Falls back to the seed admin. */
-export function agencyAddress(): string | undefined {
-  return process.env.AGENCY_NOTIFY_EMAIL ?? process.env.SEED_ADMIN_EMAIL ?? undefined;
+/**
+ * Where agency-bound notifications go. Never undefined: a deploy with no env
+ * config at all still reaches a real inbox, because "nobody was told" is the
+ * failure mode that costs an actual sale.
+ */
+export function agencyAddress(): string {
+  return process.env.AGENCY_NOTIFY_EMAIL ?? process.env.SEED_ADMIN_EMAIL ?? BRAND.notifyEmail;
 }
 
 export type NotifyStatus = "sent" | "skipped" | "failed";
@@ -162,6 +197,42 @@ export type NotifyStatus = "sent" | "skipped" | "failed";
 export interface NotifyResult {
   status: NotifyStatus;
   reason?: string;
+}
+
+/**
+ * Resend's HTTPS API. Preferred over SMTP because it needs exactly one secret
+ * and their onboarding sender works before any domain is verified — the
+ * difference between "email works after you paste a key" and "email works
+ * after you get five SMTP variables right".
+ */
+async function sendViaResend(
+  to: string,
+  rendered: RenderedNotification,
+): Promise<NotifyResult | null> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM ?? "Add To PHX <onboarding@resend.dev>",
+        to: [to],
+        subject: rendered.subject,
+        text: rendered.text,
+      }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.error(`[notify] resend rejected: ${res.status} ${detail.slice(0, 200)}`);
+      return { status: "failed", reason: `resend ${res.status}` };
+    }
+    return { status: "sent" };
+  } catch (err) {
+    console.error("[notify] resend failed:", (err as Error).message);
+    return { status: "failed", reason: (err as Error).message };
+  }
 }
 
 let transport: nodemailer.Transporter | null = null;
@@ -218,10 +289,19 @@ export async function sendNotification({ kind, to, payload }: SendInput): Promis
     return { status: "skipped", reason: "no recipient" };
   }
 
+  // Resend first — it's the one-secret path.
+  const viaResend = await sendViaResend(to, rendered);
+  if (viaResend) {
+    console.info(`[notify] ${kind} → ${to} ${viaResend.status} (resend)`);
+    return viaResend;
+  }
+
   const t = mailer();
   if (!t) {
-    console.info(`[notify] ${kind} → ${to} skipped — SMTP not configured`);
-    return { status: "skipped", reason: "no smtp" };
+    console.info(
+      `[notify] ${kind} → ${to} skipped — set RESEND_API_KEY or EMAIL_SERVER_HOST to deliver`,
+    );
+    return { status: "skipped", reason: "no mail transport" };
   }
 
   try {
