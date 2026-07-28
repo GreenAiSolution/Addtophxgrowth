@@ -1,9 +1,12 @@
 name: CI
 
-# The 268 tests in this repo are not decoration. Several of them are the only
-# thing standing between the catalogue and selling a client something PHX/GROWTH
+# The tests in this repo are not decoration. Several of them are the only thing
+# standing between the catalogue and selling a client something PHX/GROWTH
 # already does for them — the additive rules read the parent's own published
-# copy and fail the build on overlap. A guardrail that only runs when someone
+# copy and fail the build on overlap. Others guard defects that are invisible
+# by nature: security headers announce their absence only on the day someone
+# frames our enquiry form, and robots.txt advertised localhost to Googlebot for
+# weeks without erroring once. A guardrail that only runs when someone
 # remembers to run it is not a guardrail.
 on:
   push:

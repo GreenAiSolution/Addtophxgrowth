@@ -120,7 +120,7 @@ function structuredData() {
     "@type": "ProfessionalService",
     name: BRAND.name,
     description: THESIS.body,
-    url: env.appUrl,
+    url: env.siteUrl,
     email: BRAND.notifyEmail,
     areaServed: "United States",
     parentOrganization: {

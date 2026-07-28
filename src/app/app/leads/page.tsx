@@ -93,7 +93,7 @@ export default async function LeadsPage({
 
   const unscored = countFor(["NEW"]);
   const intakeUrl = client.intakeToken
-    ? `${env.appUrl}/api/intake/${client.id}?token=${client.intakeToken}`
+    ? `${env.siteUrl}/api/intake/${client.id}?token=${client.intakeToken}`
     : null;
 
   async function scoreLead(formData: FormData) {

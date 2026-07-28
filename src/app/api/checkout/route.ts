@@ -76,8 +76,8 @@ export async function POST(req: Request) {
     mode: "subscription",
     customer: customerId,
     line_items: lineItems,
-    success_url: `${env.appUrl}/app/billing?checkout=success`,
-    cancel_url: `${env.appUrl}/app/billing?checkout=cancelled`,
+    success_url: `${env.siteUrl}/app/billing?checkout=success`,
+    cancel_url: `${env.siteUrl}/app/billing?checkout=cancelled`,
     metadata: { clientId: client.id, planKey: plan.key, lineKey: plan.line },
     subscription_data: { metadata: { clientId: client.id, planKey: plan.key, lineKey: plan.line } },
   });

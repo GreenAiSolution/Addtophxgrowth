@@ -9,9 +9,20 @@ import { env } from "@/lib/env";
  * by nature and have nothing to gain from being crawled. Generated from
  * `LEGAL_DOCUMENTS` rather than typed out, so a new document is discoverable the
  * moment it ships rather than whenever somebody remembers to edit a list.
+ *
+ * `siteUrl`, not `appUrl`: with NEXT_PUBLIC_APP_URL unset, every <loc> in this
+ * file read `http://localhost:3000`, which submits a sitemap of dead URLs.
+ *
+ * Note it is not `publicUrl` either. That one falls back to phxgrowth.com so
+ * email links always land somewhere real — correct for a link, catastrophic
+ * here, because a sitemap listing another domain's URLs as ours is a claim
+ * Google acts on.
  */
+/** Per request, not at build time — see the note in `robots.ts`. */
+export const dynamic = "force-dynamic";
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = env.appUrl.replace(/\/$/, "");
+  const base = env.siteUrl;
   const now = new Date();
 
   return [

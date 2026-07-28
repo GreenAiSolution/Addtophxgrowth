@@ -157,6 +157,12 @@ feature gating.
 6. Configure the Google OAuth redirect URI:
    `https://<your-app>/api/auth/callback/google`.
 
+`NEXT_PUBLIC_APP_URL` is no longer load-bearing for identity: `env.siteUrl`
+falls back to Vercel's own `VERCEL_PROJECT_PRODUCTION_URL`, so a deploy
+self-identifies correctly with no dashboard step. Set it anyway if the site
+sits behind a domain Vercel doesn't know about. `/api/health` reports which
+source answered.
+
 ---
 
 ## Architecture notes
@@ -187,10 +193,38 @@ feature gating.
   `sendBeacon` to our own origin. No vendor, no cookie, no consent banner, and
   a malformed beacon returns 204 rather than an error, because measurement must
   never be able to affect the person browsing.
-- **CI** (`.github/workflows/ci.yml`) — typecheck, lint, 269 tests and a
-  secret-free build on every push. The additive rules are the only thing
+- **CI** (`.github/workflows/ci.yml`) — typecheck, lint, the full test suite and
+  a secret-free build on every push. The additive rules are the only thing
   standing between the catalogue and selling a client something they already
   pay for; a guardrail that runs when someone remembers to run it is not one.
+- **Security headers** (`next.config.mjs`, `src/lib/headers.test.ts`) — the site
+  shipped with none. CSP, `X-Frame-Options`, `nosniff`, a referrer policy,
+  `Permissions-Policy` and HSTS now go out on every response, and
+  `poweredByHeader` is off. The CSP keeps `'unsafe-inline'` on `script-src`
+  deliberately — Next's App Router injects inline bootstrap scripts, and
+  removing it means per-request nonces, which means every page goes dynamic.
+  The comment in the config argues the trade rather than pretending the policy
+  is stricter than it is. Tests assert each header, because a missing security
+  header breaks nothing until the day it matters.
+- **The site knows its own address** (`env.siteUrl`, `src/lib/crawlable.test.ts`)
+  — `robots.txt` and `sitemap.xml` were both serving `http://localhost:3000` to
+  Googlebot, and `metadataBase` was pointing every share preview's OG image at
+  localhost too. Neither errored; the site was just invisible. `siteUrl` reads
+  `NEXT_PUBLIC_APP_URL`, then Vercel's own domain variables, so a deploy
+  self-identifies with no dashboard step, and both routes are `force-dynamic`
+  so the value is resolved per request rather than frozen at build time — the
+  original bug was a build-time value being debugged as a runtime one.
+  `siteUrl` is deliberately distinct from `publicUrl`: a link only has to be
+  clickable, so `publicUrl` may borrow phxgrowth.com; a sitemap has to be true,
+  so `siteUrl` must never borrow anything. Swapping one for the other is
+  test-enforced, because the first attempt at this fix did exactly that and
+  produced a sitemap claiming the parent's URLs as ours.
+- **The catalogue is machine-readable** (`/api/catalogue`) — the whole offer as
+  JSON, read-only, and explicitly allowed in `robots.txt` against the general
+  `/api/` block. This site sells Answer Engine Visibility; publishing our own
+  offer as structured facts is the least we can do while charging for it. It is
+  also the single source the MCP server reads, so there is never a second copy
+  of a price.
 - **Bundles are priced server-side** (`BUNDLES` in `upgrades.ts`) — the browser
   posts a bundle *key*, never a total, and the endpoint prices it from its
   members. Tests enforce what a bundle has to be: at least two real members,

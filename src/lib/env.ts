@@ -60,7 +60,32 @@ export const env = {
     return firstOf("ZAPIER_LEAD_HOOK_URL", "zapier_lead", "ZAPIER_LEAD");
   },
 
-  appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  /**
+   * Where this site actually lives — its own canonical origin.
+   *
+   * Used for anything that asserts identity: canonical tags, robots.txt,
+   * sitemap.xml. Those must name *this* property and no other, which is why
+   * this is separate from `publicUrl` below.
+   *
+   * NEXT_PUBLIC_APP_URL is still the answer when somebody has set it. When
+   * nobody has, Vercel already knows: it injects the stable production domain
+   * as VERCEL_PROJECT_PRODUCTION_URL and the per-deploy domain as VERCEL_URL,
+   * both without the scheme. Reading those means a deploy is correctly
+   * self-identifying on day one with no dashboard step — which matters,
+   * because the dashboard step is precisely the one that didn't happen.
+   *
+   * Falls through to localhost only when nothing else is available, which in
+   * practice means a local build. That is the one context where localhost is
+   * the honest answer rather than a bug.
+   */
+  get siteUrl() {
+    const explicit = process.env.NEXT_PUBLIC_APP_URL;
+    if (explicit && !explicit.includes("localhost")) return explicit.replace(/\/$/, "");
+    const vercel =
+      process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+    if (vercel) return `https://${vercel.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
+    return "http://localhost:3000";
+  },
 
   /**
    * A URL safe to put in an email.
@@ -68,12 +93,18 @@ export const env = {
    * With NEXT_PUBLIC_APP_URL unset, `appUrl` is localhost — which is correct
    * for a dev server and useless in somebody's inbox. A real enquiry
    * notification went out signed "http://localhost:3000/", which is a dead
-   * link for every recipient on earth. Falling back to the parent site keeps
-   * the link real; /api/health flags the underlying misconfiguration.
+   * link for every recipient on earth.
+   *
+   * Different job from `siteUrl`, and the difference is the whole point: this
+   * one only has to be *clickable*, so when we can't identify ourselves it
+   * borrows the parent site and the reader still lands somewhere real. `siteUrl`
+   * has to be *true*, so it must never borrow anything — a sitemap that claims
+   * phxgrowth.com's URLs as our own is a worse lie than one pointing at
+   * localhost, because Google acts on it.
    */
   get publicUrl() {
-    const u = process.env.NEXT_PUBLIC_APP_URL;
-    if (u && !u.includes("localhost")) return u.replace(/\/$/, "");
+    const own = this.siteUrl;
+    if (!own.includes("localhost")) return own;
     return "https://phxgrowth.com";
   },
 };

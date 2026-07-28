@@ -31,7 +31,7 @@ const DESCRIPTION =
  * is exactly what was happening before.
  */
 export const metadata: Metadata = {
-  metadataBase: new URL(env.appUrl),
+  metadataBase: new URL(env.siteUrl),
   title: {
     default: `${BRAND.name} — ${BRAND.tagline}`,
     // Child pages set their own title; this keeps the brand on the end of it.
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     siteName: BRAND.name,
     title: `${BRAND.name} — ${BRAND.tagline}`,
     description: DESCRIPTION,
-    url: env.appUrl,
+    url: env.siteUrl,
   },
   twitter: {
     card: "summary_large_image",

@@ -43,7 +43,7 @@ export default async function BriefPage() {
 
   const [latest, ...history] = briefs;
   const intakeUrl = client.intakeToken
-    ? `${env.appUrl}/api/intake/${client.id}?token=${client.intakeToken}`
+    ? `${env.siteUrl}/api/intake/${client.id}?token=${client.intakeToken}`
     : null;
 
   return (

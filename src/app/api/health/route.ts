@@ -37,9 +37,19 @@ export async function GET() {
         ...(c.live ? { configuredAs: c.via } : { fix: c.hint }),
       })),
       catalogue: { upgrades: UPGRADES.length },
-      appUrl: env.appUrl,
-      // Set NEXT_PUBLIC_APP_URL or the sitemap advertises localhost to Google.
-      appUrlLooksReal: !env.appUrl.includes("localhost"),
+      // What the site believes its own address is — the value that goes into
+      // the sitemap, the canonical tag and every share preview.
+      siteUrl: env.siteUrl,
+      knowsItsOwnAddress: !env.siteUrl.includes("localhost"),
+      // Which source answered, so a wrong-looking domain is traceable to the
+      // thing that set it rather than a guess.
+      siteUrlFrom: process.env.NEXT_PUBLIC_APP_URL
+        ? "NEXT_PUBLIC_APP_URL"
+        : process.env.VERCEL_PROJECT_PRODUCTION_URL
+          ? "VERCEL_PROJECT_PRODUCTION_URL"
+          : process.env.VERCEL_URL
+            ? "VERCEL_URL"
+            : "fallback (localhost)",
       checkedAt: new Date().toISOString(),
     },
     {
