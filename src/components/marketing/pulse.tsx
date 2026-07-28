@@ -15,6 +15,7 @@ export type PulseEvent =
   | "view"
   | "depth"
   | "gap_finder"
+  | "instrument"
   | "upgrade_added"
   | "enquiry_started";
 

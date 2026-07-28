@@ -5,6 +5,8 @@ import { Loader2, CheckCircle2, Check, ArrowRight, AlertTriangle } from "lucide-
 import {
   PARENT_SERVICES,
   UPGRADES,
+  BUNDLES,
+  bundleSaving,
   upgradesFor,
   type ServiceKey,
   type Upgrade,
@@ -70,8 +72,33 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
     () => UPGRADES.filter((u) => picked.includes(u.key)),
     [picked],
   );
-  const monthly = chosen.filter((u) => u.billing === "monthly").reduce((s, u) => s + u.price, 0);
-  const oneTime = chosen.filter((u) => u.billing === "one_time").reduce((s, u) => s + u.price, 0);
+  /**
+   * An exact bundle match is quoted as the bundle, always.
+   *
+   * The Stack Composer tells a visitor "those exact five are The Deluxe Deck,
+   * we will quote the bundle" — and then this form used to post five separate
+   * upgrade keys, which the server correctly priced à la carte. The page
+   * promised one number and the enquiry asked for a bigger one. Correct
+   * arithmetic on both sides and a broken promise in the middle, which is the
+   * only kind of pricing bug that survives review.
+   *
+   * Only the bundle *key* travels either way; the server prices it.
+   */
+  const bundle = React.useMemo(
+    () =>
+      BUNDLES.find(
+        (b) => b.members.length === picked.length && b.members.every((m) => picked.includes(m)),
+      ),
+    [picked],
+  );
+
+  const listMonthly = chosen
+    .filter((u) => u.billing === "monthly")
+    .reduce((s, u) => s + u.price, 0);
+  const monthly = bundle ? bundle.price : listMonthly;
+  const oneTime = bundle
+    ? 0
+    : chosen.filter((u) => u.billing === "one_time").reduce((s, u) => s + u.price, 0);
 
   function toggle(key: string) {
     setPicked((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
@@ -97,7 +124,9 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
           phone: String(form.get("phone") ?? ""),
           company: String(form.get("company") ?? ""),
           note: String(form.get("note") ?? ""),
-          upgrades: picked,
+          // A bundle wins outright. Its members are implied, and the server
+          // prices it from its own figure rather than the sum of its parts.
+          ...(bundle ? { bundle: bundle.key } : { upgrades: picked }),
         }),
       });
       const data = (await res.json()) as {
@@ -197,10 +226,20 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
           {oneTime > 0 && (
             <div className="mt-1 text-xs text-gold">+ {formatCurrency(oneTime)} one-time</div>
           )}
+          {bundle && (
+            <div className="mt-1.5 text-xs">
+              <s className="text-muted-foreground/60">{formatCurrency(listMonthly)}</s>{" "}
+              <span className="text-signal">
+                {bundle.name} — saves {formatCurrency(bundleSaving(bundle))}/mo
+              </span>
+            </div>
+          )}
           <p className="mt-2 text-[0.7rem] leading-relaxed text-muted-foreground">
             {picked.length === 0
               ? "Nothing picked yet — tick what you want on the left."
-              : `${picked.length} upgrade${picked.length === 1 ? "" : "s"} selected. This is an enquiry, not a payment.`}
+              : bundle
+                ? `Those exact ${bundle.members.length} are a bundle, so you are quoted the bundle. This is an enquiry, not a payment.`
+                : `${picked.length} upgrade${picked.length === 1 ? "" : "s"} selected. This is an enquiry, not a payment.`}
           </p>
         </div>
 
