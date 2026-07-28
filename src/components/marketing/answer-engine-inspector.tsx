@@ -15,7 +15,7 @@ import { usePlayground } from "@/components/marketing/playground";
 import { pulse } from "@/components/marketing/pulse";
 
 /**
- * INSTRUMENT 01 — THE ANSWER ENGINE INSPECTOR
+ * THE ANSWER ENGINE INSPECTOR
  *
  * The flagship, and the one that has to justify the whole page.
  *
@@ -61,7 +61,7 @@ const CONFIDENCE: Record<
   },
 };
 
-export function AnswerEngineInspector() {
+export function AnswerEngineInspector({ index }: { index: number }) {
   // State lives in the playground so instrument 02 can read the same answers.
   const { entity: answers, setEntity: setAnswers, business: name, setBusiness: setName, add, justSeeded } =
     usePlayground();
@@ -95,7 +95,7 @@ export function AnswerEngineInspector() {
 
   return (
     <Instrument
-      index={1}
+      index={index}
       id="inspector"
       name="Can AI Find You?"
       reads="When somebody asks ChatGPT or Siri for a business like yours, whether it knows enough to name you."

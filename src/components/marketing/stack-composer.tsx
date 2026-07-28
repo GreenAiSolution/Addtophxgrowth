@@ -15,7 +15,7 @@ import { Instrument, Figure } from "@/components/marketing/instrument";
 import { usePlayground } from "@/components/marketing/playground";
 
 /**
- * INSTRUMENT 06 — THE STACK COMPOSER
+ * THE STACK COMPOSER
  *
  * Where six readouts become one number.
  *
@@ -68,7 +68,7 @@ const SERVICE_TONE: Record<string, { dot: string; ring: string; text: string }> 
   "website-creation": { dot: "bg-cyan", ring: "border-cyan/50", text: "text-cyan" },
 };
 
-export function StackComposer() {
+export function StackComposer({ index }: { index: number }) {
   const { picked, toggle } = usePlayground();
 
   const chosen = UPGRADES.filter((u) => picked.includes(u.key));
@@ -86,7 +86,7 @@ export function StackComposer() {
 
   return (
     <Instrument
-      index={6}
+      index={index}
       id="compose"
       name="Build Your Package"
       reads="Pick what you want. It shows which ones work better together, and tells you when a bundle is cheaper."

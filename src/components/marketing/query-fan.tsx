@@ -8,7 +8,7 @@ import { Instrument, Readout, Figure } from "@/components/marketing/instrument";
 import { FxCanvas } from "@/components/marketing/fx";
 
 /**
- * INSTRUMENT 02 — THE QUERY FAN
+ * THE QUERY FAN
  *
  * Instrument 01 shows what a model can determine about you. This shows what
  * that costs, and it is the one that makes people wince.
@@ -33,14 +33,14 @@ import { FxCanvas } from "@/components/marketing/fx";
 
 const HUB = "#22d3ee";
 
-export function QueryFan({ answers }: { answers: EntityAnswers }) {
+export function QueryFan({ answers, index }: { answers: EntityAnswers; index: number }) {
   const reading = React.useMemo(() => readFan(answers), [answers]);
   const nodes = React.useMemo(() => fanLayout(reading), [reading]);
   const [focus, setFocus] = React.useState<string | null>(null);
 
   return (
     <Instrument
-      index={2}
+      index={index}
       id="fan"
       name="The Questions You Lose"
       reads="The questions people actually ask AI — and which ones throw you out before anyone gets to compare you."

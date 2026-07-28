@@ -14,7 +14,7 @@ import { usePlayground } from "@/components/marketing/playground";
 import { FxCanvas } from "@/components/marketing/fx";
 
 /**
- * INSTRUMENT 05 — THE MARGINAL DOLLAR
+ * THE MARGINAL DOLLAR
  *
  * The instrument that sells nothing, and the reason the other six are worth
  * reading.
@@ -50,7 +50,7 @@ import { FxCanvas } from "@/components/marketing/fx";
 
 const COLORS = ["#22d3ee", "#8b5cf6", "#ec4899", "#f0b429"];
 
-export function MarginalDollar() {
+export function MarginalDollar({ index }: { index: number }) {
   const { channels, setChannels, exponent, setExponent, justSeeded } = usePlayground();
   const reading = React.useMemo(() => readMarginal(channels, exponent), [channels, exponent]);
 
@@ -62,7 +62,7 @@ export function MarginalDollar() {
 
   return (
     <Instrument
-      index={5}
+      index={index}
       id="marginal"
       name="Where Your Next Ad Dollar Goes"
       reads="Which channel deserves your next dollar. It&rsquo;s almost never the one with the best average — here&rsquo;s why."

@@ -312,6 +312,7 @@ describe("the public site and the client console stay separate", () => {
     "src/app/layout.tsx",
     "src/app/opengraph-image.tsx",
     "src/app/(marketing)/page.tsx",
+    "src/app/upgrades/page.tsx",
     "src/app/legal/[slug]/page.tsx",
     "src/app/api/catalogue/route.ts",
     "src/app/api/reserve/route.ts",
@@ -340,6 +341,161 @@ describe("the public site and the client console stay separate", () => {
       expect(src, `${f} reaches into the console's catalogue`).not.toMatch(
         /from ["']@\/lib\/catalog["']/,
       );
+    }
+  });
+});
+
+describe("the price list is the catalogue, rendered", () => {
+  /**
+   * `/upgrades` exists because the deck asked for eight modules of attention
+   * before it would show a number. It is the page a client screenshots and the
+   * page an assistant quotes, which makes it the worst possible place for a
+   * figure to be typed by hand.
+   *
+   * So nothing on it is. These tests read the file and fail if a price, a fee
+   * rate, a service name or a count was written rather than resolved.
+   */
+  async function pricingSource(): Promise<string> {
+    const { readFile } = await import("node:fs/promises");
+    return readFile(new URL("../app/upgrades/page.tsx", import.meta.url), "utf8");
+  }
+
+  it("types no dollar figure of its own", async () => {
+    const src = await pricingSource();
+    // `formatCurrency(...)` and the parent's own `priceLabel` strings are the
+    // only routes to a price on this page. A literal like "$4,200" would look
+    // right the day it was written and be wrong the day the catalogue moved.
+    const literals = (src.match(/\$[\d,]+/g) ?? []).filter((m) => !m.startsWith("${"));
+    expect(literals, `hand-typed prices on the price list: ${literals.join(", ")}`).toEqual([]);
+  });
+
+  it("types no percentage of its own", async () => {
+    const src = await pricingSource();
+    // The parent's fee rates are the only percentages this site is allowed to
+    // state, and they arrive through FLIGHT_PLANS. Anything else is a claim.
+    const inCode = (src.match(/\d+%/g) ?? []).filter(
+      // Tailwind widths and CSS values are not claims about the business.
+      (m) => !/^100%$/.test(m),
+    );
+    expect(inCode, `hand-typed percentages: ${inCode.join(", ")}`).toEqual([]);
+  });
+
+  it("shows every upgrade and every bundle, none of them invented", async () => {
+    const src = await pricingSource();
+    // Rendered from the arrays, so the count can never fall behind the
+    // catalogue: five upgrades on the page and six in the file was exactly the
+    // failure the deck's hardcoded "five" produced three times.
+    expect(src).toMatch(/UPGRADES\.map/);
+    expect(src).toMatch(/BUNDLES\.map/);
+    expect(src).toMatch(/formatCurrency\(u\.price\)/);
+    expect(src).toMatch(/formatCurrency\(b\.price\)/);
+    expect(src).toMatch(/bundleSaving\(b\)/);
+  });
+
+  it("answers 'am I already paying for this?' from the parent's own bullets", async () => {
+    const src = await pricingSource();
+    // The first question a price list gets. It is answered with
+    // PARENT_SERVICES[].includes — phxgrowth.com's own list, verbatim — rather
+    // than a reassuring sentence written here.
+    expect(src).toMatch(/service\.includes\.map/);
+    expect(src).toMatch(/service\.priceLabel/);
+    expect(src).toMatch(/upgradesFor\(service\.key\)/);
+  });
+
+  it("carries the same guarantee and posture as everywhere else", async () => {
+    const src = await pricingSource();
+    for (const symbol of ["FLIGHT_CHECK", "PROOF_POSTURE", "FAIR_QUESTIONS", "FLIGHT_PLANS"]) {
+      expect(src, `the price list omits ${symbol}`).toContain(symbol);
+    }
+  });
+
+  it("is crawlable — it is the page 'what does X cost' should find", async () => {
+    const { default: sitemap } = await import("@/app/sitemap");
+    const urls = sitemap().map((e) => e.url);
+    expect(urls.some((u) => u.endsWith("/upgrades"))).toBe(true);
+  });
+
+  it("is reachable from the deck, and the deck from it", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const deck = await readFile(
+      new URL("../app/(marketing)/page.tsx", import.meta.url),
+      "utf8",
+    );
+    // A price list nobody can find is the same as no price list. The deck was
+    // the only public page on this site for months; the route out of it is the
+    // whole point of the new one.
+    expect(deck, "the deck never links to the price list").toContain('href="/upgrades"');
+    expect(await pricingSource(), "the price list never links back").toMatch(
+      /href="\/"|href=\{"\/"\}/,
+    );
+  });
+});
+
+describe("the contents page indexes the deck that exists", () => {
+  /**
+   * The index down the top of the home page is the most-clicked element on the
+   * site, and it is a list of anchors into a component it cannot see. When the
+   * deck was re-ordered, the index kept printing the old numbers against the
+   * new links — nothing errored, because a contents page has no way to tell
+   * that its anchors moved.
+   */
+  async function deckSource(): Promise<string> {
+    const { readFile } = await import("node:fs/promises");
+    return readFile(new URL("../components/marketing/deck.tsx", import.meta.url), "utf8");
+  }
+
+  it("lists the tools in the order the deck renders them", async () => {
+    const { TOOL_IDS } = await import("@/lib/deck");
+    const src = await deckSource();
+    // UP_FRONT then DEEPER, in source order — which is render order.
+    const rendered = [...src.matchAll(/\{\s*id:\s*"([a-z]+)",\s*render:/g)].map((m) => m[1]!);
+    expect(rendered).toEqual(TOOL_IDS);
+  });
+
+  it("numbers them from zero with no gaps and no repeats", async () => {
+    const { DECK_INDEX } = await import("@/lib/deck");
+    const numbered = DECK_INDEX.filter((d) => d.n !== "◇").map((d) => d.n);
+    expect(numbered).toEqual(numbered.map((_, i) => String(i).padStart(2, "0")));
+  });
+
+  it("points every entry at an anchor an instrument actually renders", async () => {
+    const { readdir, readFile } = await import("node:fs/promises");
+    const { DECK_INDEX } = await import("@/lib/deck");
+    const dir = new URL("../components/marketing/", import.meta.url);
+    const sources = await Promise.all(
+      (await readdir(dir))
+        .filter((f) => f.endsWith(".tsx"))
+        .map((f) => readFile(new URL(f, dir), "utf8")),
+    );
+    const all = sources.join("\n");
+    for (const entry of DECK_INDEX) {
+      expect(all, `nothing renders id="${entry.id}" for "${entry.name}"`).toContain(
+        `id="${entry.id}"`,
+      );
+    }
+  });
+
+  it("can still reach the tools it hides", async () => {
+    const { DECK_INDEX } = await import("@/lib/deck");
+    const src = await deckSource();
+    // Three entries link into a closed <details>, which most browsers refuse to
+    // scroll to. Without this handler those were dead links that changed the
+    // URL and moved nothing.
+    expect(DECK_INDEX.some((d) => d.folded)).toBe(true);
+    expect(src, "folded tools are unreachable from the index").toMatch(
+      /closest\("details"\)/,
+    );
+    expect(src).toMatch(/fold\.open = true/);
+  });
+
+  it("keeps the module number out of the instruments themselves", async () => {
+    const { readdir, readFile } = await import("node:fs/promises");
+    const dir = new URL("../components/marketing/", import.meta.url);
+    for (const f of (await readdir(dir)).filter((n) => n.endsWith(".tsx"))) {
+      const src = await readFile(new URL(f, dir), "utf8");
+      // Seven files each printing their own position is seven places to miss
+      // when the order changes — and a duplicate number is visible to a visitor.
+      expect(src, `${f} hardcodes its position in the deck`).not.toMatch(/index=\{\d+\}/);
     }
   });
 });

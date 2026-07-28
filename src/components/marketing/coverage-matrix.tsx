@@ -13,7 +13,7 @@ import { Instrument, Figure } from "@/components/marketing/instrument";
 import { pulse } from "@/components/marketing/pulse";
 
 /**
- * INSTRUMENT 00 — THE COVERAGE MATRIX
+ * THE COVERAGE MATRIX
  *
  * The first thing on the page, and it is an argument against buying anything.
  *
@@ -106,12 +106,12 @@ const BAND: Record<Band, { cell: string; on: string; dot: string; name: string }
   },
 };
 
-export function CoverageMatrix() {
+export function CoverageMatrix({ index }: { index: number }) {
   const [selected, setSelected] = React.useState<Cell | null>(null);
 
   return (
     <Instrument
-      index={0}
+      index={index}
       id="matrix"
       name="What You&rsquo;re Already Paying For"
       reads="Every person and system already working your account — and the handful of jobs nobody is doing."

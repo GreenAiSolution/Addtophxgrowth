@@ -11,6 +11,7 @@ import {
 } from "@/lib/upgrades";
 import { formatCurrency } from "@/lib/utils";
 import { env } from "@/lib/env";
+import { DECK_INDEX } from "@/lib/deck";
 import { Enquiry } from "@/components/marketing/enquiry";
 import { Pulse } from "@/components/marketing/pulse";
 import { Wordmark } from "@/components/marketing/site-chrome";
@@ -84,17 +85,8 @@ function structuredData() {
   };
 }
 
-/** The deck index, so a visitor can see the whole machine before using it. */
-const DECK = [
-  { n: "◇", id: "map", name: "The System Map", reads: "The whole thing in one object" },
-  { n: "00", id: "matrix", name: "What You're Already Paying For", reads: "Who covers what today" },
-  { n: "01", id: "inspector", name: "Can AI Find You?", reads: "What ChatGPT knows about you" },
-  { n: "02", id: "fan", name: "The Questions You Lose", reads: "Where you're not even in the running" },
-  { n: "03", id: "web", name: "Does Anyone Back You Up?", reads: "Whether other sites agree" },
-  { n: "04", id: "clock", name: "What a Missed Call Costs", reads: "In dollars, on your numbers" },
-  { n: "05", id: "marginal", name: "Where Your Next Ad Dollar Goes", reads: "Which channel has room left" },
-  { n: "06", id: "compose", name: "Build Your Package", reads: "What it all adds up to" },
-];
+/** The contents page for the deck. Its order is the deck's order — see `@/lib/deck`. */
+const DECK = DECK_INDEX;
 
 export default function Home() {
   const from = entryPrice();
@@ -123,6 +115,15 @@ export default function Home() {
             >
               {BRAND.parent.name} <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
+            {/* The escape hatch, and it is never hidden.
+                The deck is the better experience and it stays the primary
+                action — but it asks for eight modules of attention before it
+                will show a number, and for a while it was the only public page
+                on the site. Anybody who arrives already sold, or arrives with
+                four minutes, gets a straight route to the price list. */}
+            <Link href="/upgrades" className="pill-ghost px-4 py-2.5 text-sm">
+              Prices
+            </Link>
             <a href="#map" className="pill-primary px-4 py-2.5 text-sm sm:px-5">
               <span className="sm:hidden">Start</span>
               <span className="hidden sm:inline">Start reading</span>
@@ -164,6 +165,12 @@ export default function Home() {
             <a href="#map" className="pill-ghost text-sm">
               Or use my own numbers <ArrowRight className="h-4 w-4" />
             </a>
+            <Link
+              href="/upgrades"
+              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            >
+              Skip to prices
+            </Link>
           </div>
 
           {/* The index. Every entry is a real anchor, so the machine is
@@ -190,6 +197,9 @@ export default function Home() {
                     </span>
                     <span className="mt-0.5 block text-[0.75rem] text-muted-foreground">
                       {d.reads}
+                      {d.folded && (
+                        <span className="text-muted-foreground/50"> · under “more tools”</span>
+                      )}
                     </span>
                   </span>
                   <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0 self-center text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-cyan" />
@@ -312,6 +322,11 @@ export default function Home() {
           <div>
             <p className="eyebrow text-muted-foreground">The deck</p>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <Link href="/upgrades" className="text-cyan transition-colors hover:text-foreground">
+                  Upgrades &amp; prices
+                </Link>
+              </li>
               {DECK.map((d) => (
                 <li key={d.id}>
                   <a href={`#${d.id}`} className="transition-colors hover:text-foreground">

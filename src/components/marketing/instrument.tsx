@@ -324,6 +324,75 @@ export function Dial({
 }
 
 /**
+ * A disclosure. Everything optional on this site hides behind one of these.
+ *
+ * WHY IT EXISTS
+ *   The Response Clock shipped asking for ten numbers. Every other instrument
+ *   asks for one to three, and ten in a column reads as a tax return — the
+ *   visitor stops before the instrument has told them anything, which is a
+ *   worse outcome than a slightly less precise answer. The same problem at
+ *   page scale: eight modules stacked is a wall, however good each one is.
+ *
+ *   So the rule is the same in both places. Show the few inputs that move the
+ *   answer most, put the rest behind a fold with honest defaults already
+ *   applied, and say in the summary what is inside so opening it is a choice
+ *   rather than a gamble. Nothing is hidden that changes what is being claimed.
+ *
+ * WHY <details>
+ *   Native, so it is keyboard-reachable and screen-reader-announced without a
+ *   line of state, it works before hydration, and it opens instantly under
+ *   `prefers-reduced-motion` because there is no animation to suppress. A
+ *   hand-rolled version would have had to earn all four back.
+ */
+export function Fold({
+  summary,
+  hint,
+  children,
+  defaultOpen = false,
+  className,
+}: {
+  summary: string;
+  /** What is inside, so opening it is an informed choice. */
+  hint?: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className={cn("group rounded-xl border border-white/[0.07] bg-black/20", className)}
+    >
+      <summary
+        className={cn(
+          "flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan",
+          "[&::-webkit-details-marker]:hidden",
+        )}
+      >
+        <span
+          aria-hidden
+          className="grid h-5 w-5 shrink-0 place-items-center rounded border border-white/15 text-muted-foreground transition-transform duration-200 group-open:rotate-45"
+        >
+          <svg viewBox="0 0 10 10" className="h-2.5 w-2.5" fill="none" stroke="currentColor">
+            <path d="M5 1v8M1 5h8" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[0.85rem] font-medium leading-tight">{summary}</span>
+          {hint && (
+            <span className="mt-0.5 block text-[0.72rem] leading-snug text-muted-foreground">
+              {hint}
+            </span>
+          )}
+        </span>
+      </summary>
+      <div className="border-t border-white/[0.06] p-4">{children}</div>
+    </details>
+  );
+}
+
+/**
  * A two-state switch used wherever the visitor is asserting a fact about their
  * own business. Deliberately not a checkbox: the two states are not on/off,
  * they are two different claims, and naming both keeps the visitor from

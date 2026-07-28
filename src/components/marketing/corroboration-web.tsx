@@ -14,7 +14,7 @@ import { FxCanvas } from "@/components/marketing/fx";
 import { pulse } from "@/components/marketing/pulse";
 
 /**
- * INSTRUMENT 03 — THE CORROBORATION WEB
+ * THE CORROBORATION WEB
  *
  * Drawn on canvas because the subject is a shape.
  *
@@ -47,7 +47,7 @@ const COLORS = {
   text: "rgba(255,255,255,0.55)",
 };
 
-export function CorroborationWeb() {
+export function CorroborationWeb({ index }: { index: number }) {
   const { citations: answers, setCitations: setAnswers, add, justSeeded } = usePlayground();
   const reading = React.useMemo(() => readCorroboration(answers), [answers]);
 
@@ -64,7 +64,7 @@ export function CorroborationWeb() {
 
   return (
     <Instrument
-      index={3}
+      index={index}
       id="web"
       name="Does Anyone Back You Up?"
       reads="Whether other websites confirm your business exists — and whether they all say the same thing."

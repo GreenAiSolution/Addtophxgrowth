@@ -13,10 +13,14 @@ import { cn } from "@/lib/utils";
  *   the parent's own apex accent — a separate logo here would read as a
  *   separate company, which is exactly the confusion this property must avoid.
  *
- *   There is one marketing page, and it carries its own header and footer
- *   because both are part of its composition. This is the plain version legal
- *   documents wear: a way back, the mark, and the parent relationship. No nav,
- *   because there is nowhere else to navigate to.
+ *   The two marketing pages carry their own headers, because in both cases the
+ *   header is part of the composition. This is the plain version legal
+ *   documents wear: a way back, the mark, and the parent relationship.
+ *
+ *   The footer is shared, and it names both public pages. It used to offer one
+ *   link, labelled "Upgrades", pointing at the instrument deck — which was the
+ *   only page there was. Somebody who reached the bottom of a contract wanting
+ *   a price got a canvas.
  */
 
 export function Wordmark({ size = "sm" }: { size?: "sm" | "lg" }) {
@@ -67,7 +71,10 @@ export function SiteFooter() {
     <footer className="border-t border-white/[0.06] py-12">
       <div className="container space-y-6">
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-          <Link href="/" className="transition-colors hover:text-foreground">Upgrades</Link>
+          <Link href="/" className="transition-colors hover:text-foreground">The tools</Link>
+          <Link href="/upgrades" className="transition-colors hover:text-foreground">
+            Upgrades &amp; prices
+          </Link>
           <a
             href={`mailto:${BRAND.parent.email}`}
             className="transition-colors hover:text-foreground"

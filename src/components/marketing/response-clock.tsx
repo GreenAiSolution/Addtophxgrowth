@@ -5,11 +5,11 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { CLOCK_DEFAULTS, readClock, type ClockInputs } from "@/lib/instruments/response";
 import { computeLeak, type LeakInputs } from "@/lib/leak";
 import { upgradeByKey } from "@/lib/upgrades";
-import { Instrument, Readout, Figure, Dial } from "@/components/marketing/instrument";
+import { Instrument, Readout, Figure, Dial, Fold } from "@/components/marketing/instrument";
 import { usePlayground } from "@/components/marketing/playground";
 
 /**
- * INSTRUMENT 04 — THE RESPONSE CLOCK
+ * THE RESPONSE CLOCK
  *
  * Every owner knows they miss calls. Almost none can describe the shape of
  * what happens next, because it happens while they are under a sink.
@@ -33,7 +33,7 @@ import { usePlayground } from "@/components/marketing/playground";
 
 const FIX = upgradeByKey("voice-employee")!;
 
-export function ResponseClock() {
+export function ResponseClock({ index }: { index: number }) {
   const { clock, setClock, money, setMoney, add, justSeeded } = usePlayground();
 
   const reading = React.useMemo(() => readClock(clock), [clock]);
@@ -58,7 +58,7 @@ export function ResponseClock() {
 
   return (
     <Instrument
-      index={4}
+      index={index}
       id="clock"
       name="What a Missed Call Costs"
       reads="What actually happens in the twenty minutes after you miss a call — including the bit where somebody else picks up."
@@ -171,46 +171,24 @@ export function ResponseClock() {
         </div>
 
         {/* ---- the dials ---- */}
+        {/*
+          THREE IN FRONT, SIX BEHIND A FOLD.
+
+          This instrument used to ask for nine numbers before it would say
+          anything, in a column that ran past the fold on every laptop. It was
+          the only tool on the site asking for more than three, and it sat deep
+          enough into the deck that attention was already spent — so the ask was
+          landing exactly where the visitor was most likely to give up.
+
+          These three are the ones that move the money: how many calls, how
+          many are missed, what a job is worth. The other six are real and stay
+          adjustable, but every one already carries a default the visitor can
+          live with, and none of them changes the shape of the answer nearly as
+          much. The fold names what is inside so opening it is a choice.
+        */}
         <div className="flex flex-col gap-5">
           <div className="phx-card space-y-4 p-5">
-            <div className="eyebrow text-[0.58rem] text-muted-foreground">The call</div>
-            <Dial
-              label="Rings before it goes to voicemail"
-              value={clock.rings}
-              display={`${clock.rings}`}
-              min={1}
-              max={12}
-              onChange={(n) => setClock((c) => ({ ...c, rings: n }))}
-            />
-            <Dial
-              label="How long before you ring them back"
-              value={clock.callbackMinutes}
-              display={`${clock.callbackMinutes} min`}
-              min={0}
-              max={120}
-              onChange={(n) => setClock((c) => ({ ...c, callbackMinutes: n }))}
-            />
-            <Dial
-              label="How long before they try the next guy"
-              hint="Your guess, not ours. Be as generous to yourself as you like."
-              value={clock.competitorMinutes}
-              display={`${clock.competitorMinutes} min`}
-              min={0}
-              max={120}
-              onChange={(n) => setClock((c) => ({ ...c, competitorMinutes: n }))}
-            />
-            <Dial
-              label="Out of 10 missed calls, how many leave a message"
-              value={clock.voicemailRate}
-              display={`${clock.voicemailRate}`}
-              min={0}
-              max={10}
-              onChange={(n) => setClock((c) => ({ ...c, voicemailRate: n }))}
-            />
-          </div>
-
-          <div className="phx-card space-y-4 p-5">
-            <div className="eyebrow text-[0.58rem] text-muted-foreground">What it costs you</div>
+            <div className="eyebrow text-[0.58rem] text-muted-foreground">Your numbers</div>
             <Dial
               label="Calls you get a month"
               value={money.callsPerMonth}
@@ -229,14 +207,6 @@ export function ResponseClock() {
               onChange={(n) => setMoney((m) => ({ ...m, missedPct: n }))}
             />
             <Dial
-              label="How many you win when you do answer"
-              value={money.closeRate}
-              display={`${money.closeRate}%`}
-              min={5}
-              max={90}
-              onChange={(n) => setMoney((m) => ({ ...m, closeRate: n }))}
-            />
-            <Dial
               label="What an average job is worth"
               value={money.jobValue}
               display={formatCurrency(money.jobValue)}
@@ -245,17 +215,66 @@ export function ResponseClock() {
               step={5000}
               onChange={(n) => setMoney((m) => ({ ...m, jobValue: n }))}
             />
-            <Dial
-              label="How many of the missed ones you could realistically save"
-              hint="Set below 100% on purpose. Nobody saves every one."
-              value={money.recovery}
-              display={`${Math.round(money.recovery * 100)}%`}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={(n) => setMoney((m) => ({ ...m, recovery: n }))}
-            />
           </div>
+
+          <Fold
+            summary="Change the assumptions"
+            hint="Ring count, how fast you call back, how fast a rival picks up, voicemail rate, your close rate and how many you'd realistically save. All six are set to something reasonable already."
+          >
+            <div className="space-y-4">
+              <Dial
+                label="How many you win when you do answer"
+                value={money.closeRate}
+                display={`${money.closeRate}%`}
+                min={5}
+                max={90}
+                onChange={(n) => setMoney((m) => ({ ...m, closeRate: n }))}
+              />
+              <Dial
+                label="How many of the missed ones you could realistically save"
+                hint="Set below 100% on purpose. Nobody saves every one."
+                value={money.recovery}
+                display={`${Math.round(money.recovery * 100)}%`}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={(n) => setMoney((m) => ({ ...m, recovery: n }))}
+              />
+              <Dial
+                label="Rings before it goes to voicemail"
+                value={clock.rings}
+                display={`${clock.rings}`}
+                min={1}
+                max={12}
+                onChange={(n) => setClock((c) => ({ ...c, rings: n }))}
+              />
+              <Dial
+                label="How long before you ring them back"
+                value={clock.callbackMinutes}
+                display={`${clock.callbackMinutes} min`}
+                min={0}
+                max={120}
+                onChange={(n) => setClock((c) => ({ ...c, callbackMinutes: n }))}
+              />
+              <Dial
+                label="How long before they try the next guy"
+                hint="Your guess, not ours. Be as generous to yourself as you like."
+                value={clock.competitorMinutes}
+                display={`${clock.competitorMinutes} min`}
+                min={0}
+                max={120}
+                onChange={(n) => setClock((c) => ({ ...c, competitorMinutes: n }))}
+              />
+              <Dial
+                label="Out of 10 missed calls, how many leave a message"
+                value={clock.voicemailRate}
+                display={`${clock.voicemailRate}`}
+                min={0}
+                max={10}
+                onChange={(n) => setClock((c) => ({ ...c, voicemailRate: n }))}
+              />
+            </div>
+          </Fold>
 
           <div className="grid grid-cols-3 gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-4">
             <Figure
