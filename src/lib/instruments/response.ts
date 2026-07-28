@@ -81,40 +81,40 @@ export function readClock(raw: ClockInputs): ClockReading {
   const events: ClockEvent[] = ([
     {
       key: "ring",
-      label: "They call",
+      label: "Your phone rings",
       at: 0,
       tone: "you",
-      detail: "Somebody who needs the thing you sell, deciding right now.",
+      detail: "Somebody who needs exactly what you sell, deciding right now.",
     },
     {
       key: "window",
-      label: `${rings} rings — ${answerWindow}s`,
+      label: `${rings} rings · ${answerWindow} seconds`,
       at: answerWindow,
       tone: "you",
-      detail: "The entire window in which answering costs you nothing.",
+      detail: "This is your whole chance. Answering here costs you nothing at all.",
     },
     {
       key: "voicemail",
       label: "Voicemail",
       at: answerWindow + 1,
       tone: "lost",
-      detail: `${10 - vmRate} of every 10 callers leave nothing, so you never learn they called.`,
+      detail: `${10 - vmRate} of every 10 hang up without leaving a message — so you never even find out they called.`,
     },
     {
       key: "rival",
-      label: "Somebody else answers",
+      label: "A competitor picks up",
       at: answerWindow + rival,
       tone: "rival",
-      detail: "The next number on the list. Not a better business — a reachable one.",
+      detail: "Just the next number on their list. Not a better business than you — a reachable one.",
     },
     {
       key: "callback",
-      label: "You call back",
+      label: "You ring back",
       at: answerWindow + callback,
       tone: overtaken ? "lost" : "you",
       detail: overtaken
-        ? "The job is already booked. You are ringing a customer who has one."
-        : "Still in time — provided they left a number at all.",
+        ? "Too late. The job is booked and you're calling somebody who already has a plumber."
+        : "Still in time — as long as they actually left a number.",
     },
   ] as ClockEvent[]).sort((a, b) => a.at - b.at);
 

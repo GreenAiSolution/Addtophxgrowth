@@ -16,6 +16,7 @@ import { Pulse } from "@/components/marketing/pulse";
 import { Wordmark } from "@/components/marketing/site-chrome";
 import { Deck } from "@/components/marketing/deck";
 import { SeedButton } from "@/components/marketing/playground";
+import { SystemField } from "@/components/marketing/system-field";
 
 /**
  * THE INSTRUMENT DECK
@@ -85,13 +86,13 @@ function structuredData() {
 
 /** The deck index, so a visitor can see the whole machine before using it. */
 const DECK = [
-  { n: "00", id: "matrix", name: "The Coverage Matrix", reads: "What is already running" },
-  { n: "01", id: "inspector", name: "The Answer Engine Inspector", reads: "What a model can determine" },
-  { n: "02", id: "fan", name: "The Query Fan", reads: "Which questions exclude you" },
-  { n: "03", id: "web", name: "The Corroboration Web", reads: "Who else confirms you" },
-  { n: "04", id: "clock", name: "The Response Clock", reads: "The five minutes after a call" },
-  { n: "05", id: "marginal", name: "The Marginal Dollar", reads: "Where the next dollar goes" },
-  { n: "06", id: "compose", name: "The Stack Composer", reads: "What it adds up to" },
+  { n: "00", id: "matrix", name: "What You're Already Paying For", reads: "Who covers what today" },
+  { n: "01", id: "inspector", name: "Can AI Find You?", reads: "What ChatGPT knows about you" },
+  { n: "02", id: "fan", name: "The Questions You Lose", reads: "Where you're not even in the running" },
+  { n: "03", id: "web", name: "Does Anyone Back You Up?", reads: "Whether other sites agree" },
+  { n: "04", id: "clock", name: "What a Missed Call Costs", reads: "In dollars, on your numbers" },
+  { n: "05", id: "marginal", name: "Where Your Next Ad Dollar Goes", reads: "Which channel has room left" },
+  { n: "06", id: "compose", name: "Build Your Package", reads: "What it all adds up to" },
 ];
 
 export default function Home() {
@@ -99,6 +100,10 @@ export default function Home() {
 
   return (
     <div className="relative">
+      {/* The live substrate everything sits on. Seven panels on flat black
+          read as seven widgets; seven panels over a running graph read as one
+          machine. Fixed, behind everything, and it never takes a click. */}
+      <SystemField />
       <Pulse />
       {/* eslint-disable-next-line react/no-danger */}
       <script
@@ -134,20 +139,20 @@ export default function Home() {
           <p className="inline-flex items-start gap-2.5 rounded-full border border-white/10 px-5 py-2">
             <span className="mt-[0.42rem] h-1.5 w-1.5 shrink-0 rounded-full bg-magenta" />
             <span className="eyebrow text-[0.68rem] text-muted-foreground">
-              {DECK.length} instruments · one sells nothing
+              One system · {DECK.length} tools · one of them sells you nothing
             </span>
           </p>
 
           <h1 className="mt-7 max-w-4xl text-[2.6rem] font-bold leading-[1.03] tracking-tight sm:text-6xl md:text-7xl">
-            Read your own
+            See your business
             <br />
-            <span className="text-gradient">business the way</span>
-            <br />a machine does.
+            <span className="text-gradient">the way AI sees it.</span>
           </h1>
 
           <p className="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
-            No case studies, no slide deck. Seven instruments that take something you cannot
-            currently see and put it on a screen — using your numbers, not ours.
+            No slide deck, no case studies. Seven connected tools that show you what you
+            can&rsquo;t currently see about your own business — using your numbers, not ours.
+            Free to play with, nothing to sign up for.
           </p>
 
           {/* An empty instrument is a chore. One click fills all seven with a
@@ -156,7 +161,7 @@ export default function Home() {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <SeedButton />
             <a href="#matrix" className="pill-ghost text-sm">
-              Or start from empty <ArrowRight className="h-4 w-4" />
+              Or use my own numbers <ArrowRight className="h-4 w-4" />
             </a>
           </div>
 
@@ -212,6 +217,26 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── System header — names the machine before its first module ──── */}
+      <section className="relative border-y border-white/[0.07] bg-black/30 py-5 backdrop-blur-sm">
+        <div className="fx-rainbow-rule absolute inset-x-0 top-0" />
+        <div className="container flex flex-wrap items-center gap-x-8 gap-y-3">
+          <div className="flex items-center gap-2.5">
+            <span className="fx-live h-1.5 w-1.5 rounded-full bg-signal text-signal" />
+            <span className="eyebrow text-[0.6rem] text-signal">System online</span>
+          </div>
+          <span className="eyebrow text-[0.6rem] text-muted-foreground">
+            {BRAND.name} Growth Intelligence
+          </span>
+          <span className="hidden text-[0.75rem] text-muted-foreground sm:inline">
+            {DECK.length} modules · one shared brain · everything you type stays in this tab
+          </span>
+          <span className="ml-auto font-mono text-[0.62rem] tracking-[0.2em] text-muted-foreground/50">
+            v1 · {BRAND.parent.name}
+          </span>
+        </div>
+      </section>
+
       {/* ── The deck ───────────────────────────────────────────────────── */}
       <Deck />
 
@@ -227,11 +252,11 @@ export default function Home() {
             </span>
             <div>
               <h2 className="text-[1.75rem] font-bold leading-[1.1] tracking-tight md:text-4xl">
-                Send it
+                Send it to us
               </h2>
               <p className="mt-2 max-w-2xl text-[0.95rem] leading-relaxed text-muted-foreground">
-                Whatever the instruments added is already ticked. A human reads it and prices it
-                in writing — no card, no sequence.
+                Whatever the tools found is already ticked. A real person reads it and sends you a
+                price in writing. No card, no automated sequence, nothing charged.
               </p>
             </div>
           </div>

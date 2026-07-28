@@ -60,8 +60,8 @@ export function ResponseClock() {
     <Instrument
       index={4}
       id="clock"
-      name="The Response Clock"
-      reads="The five minutes after somebody calls you, second by second — including the part where somebody else answers."
+      name="What a Missed Call Costs"
+      reads="What actually happens in the twenty minutes after you miss a call — including the bit where somebody else picks up."
     >
       <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr]">
         <div className={cn("phx-card fx-panel self-start p-5 md:p-6", justSeeded && "fx-sheen")}>
@@ -173,9 +173,9 @@ export function ResponseClock() {
         {/* ---- the dials ---- */}
         <div className="flex flex-col gap-5">
           <div className="phx-card space-y-4 p-5">
-            <div className="eyebrow text-[0.58rem] text-muted-foreground">The interval</div>
+            <div className="eyebrow text-[0.58rem] text-muted-foreground">The call</div>
             <Dial
-              label="Rings before it diverts"
+              label="Rings before it goes to voicemail"
               value={clock.rings}
               display={`${clock.rings}`}
               min={1}
@@ -183,7 +183,7 @@ export function ResponseClock() {
               onChange={(n) => setClock((c) => ({ ...c, rings: n }))}
             />
             <Dial
-              label="Your callback lag"
+              label="How long before you ring them back"
               value={clock.callbackMinutes}
               display={`${clock.callbackMinutes} min`}
               min={0}
@@ -191,8 +191,8 @@ export function ResponseClock() {
               onChange={(n) => setClock((c) => ({ ...c, callbackMinutes: n }))}
             />
             <Dial
-              label="Before they reach somebody else"
-              hint="Your estimate, not ours. Set it as generously as you like."
+              label="How long before they try the next guy"
+              hint="Your guess, not ours. Be as generous to yourself as you like."
               value={clock.competitorMinutes}
               display={`${clock.competitorMinutes} min`}
               min={0}
@@ -200,7 +200,7 @@ export function ResponseClock() {
               onChange={(n) => setClock((c) => ({ ...c, competitorMinutes: n }))}
             />
             <Dial
-              label="Of 10 callers, how many leave a voicemail"
+              label="Out of 10 missed calls, how many leave a message"
               value={clock.voicemailRate}
               display={`${clock.voicemailRate}`}
               min={0}
@@ -210,9 +210,9 @@ export function ResponseClock() {
           </div>
 
           <div className="phx-card space-y-4 p-5">
-            <div className="eyebrow text-[0.58rem] text-muted-foreground">What it costs</div>
+            <div className="eyebrow text-[0.58rem] text-muted-foreground">What it costs you</div>
             <Dial
-              label="Calls a month"
+              label="Calls you get a month"
               value={money.callsPerMonth}
               display={String(money.callsPerMonth)}
               min={10}
@@ -221,7 +221,7 @@ export function ResponseClock() {
               onChange={(n) => setMoney((m) => ({ ...m, callsPerMonth: n }))}
             />
             <Dial
-              label="Missed"
+              label="How many you miss"
               value={money.missedPct}
               display={`${money.missedPct}%`}
               min={0}
@@ -229,7 +229,7 @@ export function ResponseClock() {
               onChange={(n) => setMoney((m) => ({ ...m, missedPct: n }))}
             />
             <Dial
-              label="You close"
+              label="How many you win when you do answer"
               value={money.closeRate}
               display={`${money.closeRate}%`}
               min={5}
@@ -237,7 +237,7 @@ export function ResponseClock() {
               onChange={(n) => setMoney((m) => ({ ...m, closeRate: n }))}
             />
             <Dial
-              label="Average job"
+              label="What an average job is worth"
               value={money.jobValue}
               display={formatCurrency(money.jobValue)}
               min={10000}
@@ -246,8 +246,8 @@ export function ResponseClock() {
               onChange={(n) => setMoney((m) => ({ ...m, jobValue: n }))}
             />
             <Dial
-              label="Share of those you'd actually recover"
-              hint="Below 1 on purpose. Nobody recovers all of them."
+              label="How many of the missed ones you could realistically save"
+              hint="Set below 100% on purpose. Nobody saves every one."
               value={money.recovery}
               display={`${Math.round(money.recovery * 100)}%`}
               min={0}
@@ -261,17 +261,17 @@ export function ResponseClock() {
             <Figure
               value={String(reading.silentOfTen)}
               unit="/10"
-              caption="Callers who leave no trace"
+              caption="Of every 10, leave no message at all"
               tone="gold"
             />
             <Figure
               value={formatCurrency(leak.monthlyLeak)}
-              caption="Leaving every month"
+              caption="Walking out the door monthly"
               tone="magenta"
             />
             <Figure
               value={formatCurrency(leak.recoverable)}
-              caption="Recoverable, by your own estimate"
+              caption="You could save, by your own numbers"
               tone="signal"
             />
           </div>
@@ -282,15 +282,15 @@ export function ResponseClock() {
         verdict={reading.overtaken ? "gap" : leak.underwater ? "clear" : "gap"}
         headline={
           reading.overtaken
-            ? `Somebody else answers ${fmt(reading.beatenBy)} before you call back.`
-            : "You call back before anybody else picks up."
+            ? `Somebody else picks up ${fmt(reading.beatenBy)} before you ring back.`
+            : "You ring back before anyone else picks up. Good."
         }
         body={
           leak.underwater
-            ? `On your own numbers this recovers ${formatCurrency(leak.recoverable)} a month against a ${formatCurrency(FIX.price)} fee. It does not pay for itself, so do not buy it. Come back when the call volume is higher.`
+            ? `On your own numbers this saves ${formatCurrency(leak.recoverable)} a month and costs ${formatCurrency(FIX.price)}. It doesn't pay for itself, so don't buy it. Come back when you're taking more calls.`
             : reading.overtaken
-              ? `${reading.silentOfTen} in 10 of those callers leave no voicemail, so most of this never appears anywhere you would look for it. The window that costs you nothing is ${reading.answerWindow} seconds wide.`
-              : `Your callback beats the field — but ${reading.silentOfTen} in 10 callers leave no message at all, so you are only calling back the minority who did.`
+              ? `${reading.silentOfTen} in 10 of them never leave a message, so most of this never shows up anywhere you'd think to look. You get ${reading.answerWindow} seconds to answer, and answering costs you nothing.`
+              : `You beat them back to the phone — but ${reading.silentOfTen} in 10 never leave a message, so you're only ringing back the few who did.`
         }
         upgradeKey={leak.underwater ? undefined : FIX.key}
         onAdd={add}

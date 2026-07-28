@@ -42,19 +42,19 @@ const CONFIDENCE: Record<
   { label: string; dot: string; text: string; cell: string }
 > = {
   resolved: {
-    label: "Resolved",
+    label: "Confirmed",
     dot: "bg-signal",
     text: "text-signal",
     cell: "border-signal/40 bg-signal/[0.08]",
   },
   inferred: {
-    label: "Claimed, uncorroborated",
+    label: "You say it, nobody backs it up",
     dot: "bg-gold",
     text: "text-gold",
     cell: "border-gold/35 bg-gold/[0.06]",
   },
   absent: {
-    label: "Absent",
+    label: "Missing",
     dot: "bg-white/20",
     text: "text-muted-foreground",
     cell: "border-white/[0.07] bg-white/[0.015]",
@@ -97,8 +97,8 @@ export function AnswerEngineInspector() {
     <Instrument
       index={1}
       id="inspector"
-      name="The Answer Engine Inspector"
-      reads="What a language model can actually determine about your business — and what it can only guess."
+      name="Can AI Find You?"
+      reads="When somebody asks ChatGPT or Siri for a business like yours, whether it knows enough to name you."
     >
       <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
         {/* ---- the attribute grid ---- */}
@@ -119,10 +119,10 @@ export function AnswerEngineInspector() {
           </div>
 
           <p className="mt-4 text-[0.78rem] leading-relaxed text-muted-foreground">
-            Click each attribute to cycle it:{" "}
-            <span className="text-muted-foreground/70">absent</span> →{" "}
-            <span className="text-gold">you say it</span> →{" "}
-            <span className="text-signal">somebody else confirms it</span>.
+            Tap each line three times to cycle it:{" "}
+            <span className="text-muted-foreground/70">missing</span> →{" "}
+            <span className="text-gold">on your site</span> →{" "}
+            <span className="text-signal">and confirmed elsewhere</span>.
           </p>
 
           <ul className="mt-4 grid gap-1.5">
@@ -175,7 +175,7 @@ export function AnswerEngineInspector() {
           <div className="phx-card overflow-hidden p-0">
             <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-2.5">
               <span className="eyebrow text-[0.58rem] text-muted-foreground">
-                What a crawler reads
+                What the AI actually reads
               </span>
               <span className="font-mono text-[0.62rem] text-muted-foreground/60">
                 application/ld+json
@@ -189,7 +189,7 @@ export function AnswerEngineInspector() {
               tabIndex={0}
               role="region"
               aria-live="polite"
-              aria-label="The structured data your answers produce"
+              aria-label="The code an AI reads about your business"
               className="max-h-[19rem] overflow-auto p-4 font-mono text-[0.72rem] leading-[1.7] text-cyan/90 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-cyan"
             >
               {json}
@@ -197,14 +197,14 @@ export function AnswerEngineInspector() {
           </div>
 
           <div className="grid grid-cols-3 gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-4">
-            <Figure value={String(reading.resolved)} caption="Resolved" tone="signal" />
-            <Figure value={String(reading.inferred)} caption="Your word only" tone="gold" />
-            <Figure value={String(reading.absent)} caption="Nothing to read" />
+            <Figure value={String(reading.resolved)} caption="Confirmed" tone="signal" />
+            <Figure value={String(reading.inferred)} caption="Only your word" tone="gold" />
+            <Figure value={String(reading.absent)} caption="Missing entirely" />
           </div>
 
           <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
             <div className="eyebrow text-[0.58rem] text-muted-foreground">
-              The sentence it could say
+What AI could say about you
             </div>
             <p className="mt-2 text-[0.9rem] leading-relaxed text-foreground/90">{sentence.can}</p>
             {sentence.cannot && (
@@ -218,17 +218,17 @@ export function AnswerEngineInspector() {
         verdict={reading.resolvable ? (reading.inferred > 0 ? "gap" : "clear") : "gap"}
         headline={
           !reading.resolvable
-            ? "An assistant cannot name you at all."
+            ? "AI can't name you at all right now."
             : reading.inferred > 0
-              ? `${reading.inferred} of your facts rest on your word alone.`
-              : "Every attribute is stated and corroborated."
+              ? `${reading.inferred} things are only your word for it.`
+              : "Everything is there and backed up. Nice."
         }
         body={
           !reading.resolvable
-            ? `${reading.blocking.length} required attribute${reading.blocking.length === 1 ? " is" : "s are"} missing, so you are not a weak candidate — you are not a candidate. A resolver skips to somebody it can describe.`
+            ? `${reading.blocking.length} must-have${reading.blocking.length === 1 ? " is" : "s are"} missing. That doesn't put you lower down the list — it keeps you off the list. AI moves on to a business it can actually describe.`
             : reading.inferred > 0
-              ? "A model can read them and has no reason to believe them. Corroboration is what turns a claim into a fact, and it happens on domains you do not own."
-              : "Nothing on this instrument is missing. Run the Corroboration Web below to check the sources actually agree with each other."
+              ? "AI can read them, but it has no reason to believe them yet. Something you don't own has to say the same thing — that's what turns a claim into a fact."
+              : "Nothing missing here. Next, check that everyone else is saying the same thing about you."
         }
         upgradeKey={reading.resolvable && reading.inferred === 0 ? undefined : "answer-engine"}
         onAdd={add}

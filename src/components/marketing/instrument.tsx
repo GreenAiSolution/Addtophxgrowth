@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { upgradeByKey } from "@/lib/upgrades";
 import { formatCurrency } from "@/lib/utils";
 import { pulse } from "@/components/marketing/pulse";
-import { useCountUp, Reveal } from "@/components/marketing/fx";
+import { useCountUp, Reveal, useInView } from "@/components/marketing/fx";
 
 /**
  * The shared chassis every instrument is mounted in.
@@ -58,39 +58,94 @@ export function Instrument({
   reads,
   children,
   id,
+  total = 7,
 }: {
   index: number;
   name: string;
-  /** One line. What complicated thing does this make legible? */
+  /** One line, in plain English. What does this tool show you? */
   reads: string;
   id: string;
+  total?: number;
   children: React.ReactNode;
 }) {
+  const [ref, live] = useInView<HTMLElement>();
+
   return (
     <section
       id={id}
-      className="scroll-mt-24 border-t border-white/[0.06] py-16 md:py-20"
+      ref={ref}
+      className="relative scroll-mt-24 py-16 md:py-24"
+      data-module={String(index).padStart(2, "0")}
     >
+      {/*
+        THE SPINE.
+
+        A glowing line running the full height of every module, with a node at
+        this module's header. It is what turns seven stacked panels into one
+        machine you are travelling down — the single cheapest way to say "these
+        are connected" without writing the sentence.
+
+        Hidden below lg, where there is no gutter to put it in and it would
+        just eat width from the tools themselves.
+      */}
+      <div
+        aria-hidden
+        /*
+          Parked in the gutter to the LEFT of the container, never inside it.
+          The container is centred at max 1400px with 1.5rem padding, so at
+          1440px the free gutter is only ~44px wide — an earlier value of
+          50%-38rem put the rail at 112px, straight through the module number.
+          `max()` keeps it on screen on narrower viewports, and it is hidden
+          below xl where there is no gutter worth the name.
+        */
+        className="pointer-events-none absolute inset-y-0 left-[max(0.75rem,calc(50%-45rem))] hidden xl:block"
+      >
+        <div className="h-full w-px bg-gradient-to-b from-transparent via-cyan/25 to-transparent" />
+        <div
+          className={cn(
+            "absolute left-1/2 top-[5.4rem] h-2.5 w-2.5 -translate-x-1/2 rounded-full border transition-all duration-700",
+            live
+              ? "border-cyan bg-cyan shadow-[0_0_18px_2px_hsl(var(--hud-cyan)/0.75)]"
+              : "border-white/25 bg-background",
+          )}
+        />
+      </div>
+
       <div className="container">
         <Reveal>
-          <header className="flex flex-col gap-3 md:flex-row md:items-baseline md:gap-6">
-            <span className="font-mono text-[0.7rem] tabular-nums tracking-[0.3em] text-cyan">
-              {String(index).padStart(2, "0")}
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-[1.75rem] font-bold leading-[1.1] tracking-tight md:text-4xl">
+          <header className="flex flex-col gap-4 md:flex-row md:items-start md:gap-7">
+            {/* The module stamp. Reads as a serial number on a rack unit. */}
+            <div className="flex shrink-0 items-center gap-3 md:flex-col md:items-start md:gap-1.5">
+              <span
+                className={cn(
+                  "font-mono text-[2.4rem] font-bold leading-none tabular-nums tracking-tighter transition-colors duration-700 md:text-[3.4rem]",
+                  live ? "text-gradient" : "text-white/12",
+                )}
+              >
+                {String(index).padStart(2, "0")}
+              </span>
+              <span className="font-mono text-[0.58rem] tracking-[0.24em] text-muted-foreground/50">
+                / {String(total).padStart(2, "0")}
+              </span>
+            </div>
+
+            <div className="min-w-0 pt-1">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className={cn("h-1.5 w-1.5 rounded-full bg-signal", live && "fx-live text-signal")} />
+                <span className="eyebrow text-[0.56rem] text-signal">
+                  {live ? "Module running" : "Module ready"}
+                </span>
+              </div>
+              <h2 className="mt-2.5 text-[2rem] font-bold leading-[1.05] tracking-tight md:text-[2.9rem]">
                 {name}
               </h2>
-              <p className="mt-2 max-w-2xl text-[0.95rem] leading-relaxed text-muted-foreground">
-                <span className="eyebrow mr-2 text-[0.6rem] text-muted-foreground/60">
-                  Reads
-                </span>
+              <p className="mt-3 max-w-2xl text-[1.02rem] leading-relaxed text-muted-foreground">
                 {reads}
               </p>
             </div>
           </header>
         </Reveal>
-        <Reveal delay={80} className="mt-9">
+        <Reveal delay={90} className="mt-10">
           {children}
         </Reveal>
       </div>

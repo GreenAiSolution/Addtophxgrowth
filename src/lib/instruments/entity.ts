@@ -58,72 +58,72 @@ export interface EntityAttribute {
 export const ENTITY_ATTRIBUTES: EntityAttribute[] = [
   {
     key: "name",
-    label: "Legal and trading name",
+    label: "Your business name",
     property: "name",
-    why: "Two names for one business reads as two businesses, and neither gets the confidence.",
+    why: "If your name is written two different ways, AI thinks you're two businesses and trusts neither.",
     required: true,
   },
   {
     key: "category",
-    label: "Primary category",
+    label: "What kind of business you are",
     property: "@type",
-    why: "The question is a category before it is anything else. Unfiled means unasked.",
+    why: "People ask for a plumber before they ask for you. If AI doesn't know what you do, you never come up.",
     required: true,
   },
   {
     key: "area",
-    label: "Service area",
+    label: "Where you work",
     property: "areaServed",
-    why: "Nearly every one of these questions carries a place in it.",
+    why: "Almost every question has a place in it — \"near me\", \"in Mesa\". No area, no match.",
     required: true,
   },
   {
     key: "phone",
-    label: "Phone and address",
+    label: "Phone number and address",
     property: "telephone / address",
-    why: "An assistant will not hand out a number it cannot corroborate.",
+    why: "AI won't give someone a phone number it can't double-check somewhere else.",
     required: true,
   },
   {
     key: "hours",
-    label: "Opening hours",
+    label: "When you're open",
     property: "openingHoursSpecification",
-    why: "“open now” is a filter applied before anything else is considered.",
+    why: "\"Who's open now\" is the most common question there is. No hours means you're skipped.",
     required: false,
   },
   {
     key: "services",
-    label: "Itemised services",
+    label: "The exact jobs you do",
     property: "hasOfferCatalog",
-    why: "A list of services is what lets a specific question match you rather than your category.",
+    why: "Listing the actual jobs is what gets you matched to a specific question instead of a general one.",
     required: true,
   },
   {
     key: "price",
-    label: "Price range or call-out fee",
+    label: "Roughly what you charge",
     property: "priceRange",
-    why: "Withholding it removes you from every question with a budget in it.",
+    why: "Hiding your prices takes you out of every question that mentions money.",
     required: false,
   },
   {
     key: "credentials",
-    label: "Licence, bond and insurance",
+    label: "Licence and insurance",
     property: "hasCredential",
-    why: "In trades this is the difference between a mention and a recommendation.",
+    why: "In the trades this is the difference between being mentioned and being recommended.",
     required: false,
   },
   {
     key: "reviews",
-    label: "Structured review data",
+    label: "Your star rating",
     property: "aggregateRating",
-    why: "Stars a human can see in a screenshot are not stars a machine can read.",
+    why: "Stars a person can see on your page aren't stars a computer can read. They have to be coded in.",
     required: false,
   },
   {
     key: "sameAs",
-    label: "Linked profiles",
+    label: "Links to your other profiles",
     property: "sameAs",
-    why: "This is the edge that joins your site to every other record of you.",
+    why: "These links are what tie your website to your Google listing, your Yelp page, all of it.",
     required: true,
   },
 ];
@@ -250,25 +250,25 @@ export function entitySentence(
 
   if (!reading.resolvable) {
     return {
-      can: `An assistant asked to recommend someone cannot name ${name} at all.`,
-      cannot: `Missing: ${reading.blocking.map((b) => b.label.toLowerCase()).join(", ")}.`,
+      can: `Somebody asks AI who to call. It cannot name ${name} at all.`,
+      cannot: `It doesn't know: ${reading.blocking.map((b) => b.label.toLowerCase()).join(", ")}.`,
     };
   }
 
   const parts = [`${name} is a`];
-  parts.push(ok("category") ? "business of a known category" : "business");
-  if (ok("area")) parts.push("in a known service area");
-  if (ok("hours")) parts.push("with published hours");
-  if (ok("price")) parts.push("and a published price range");
+  parts.push(ok("category") ? "business it knows the type of" : "business");
+  if (ok("area")) parts.push("working in a known area");
+  if (ok("hours")) parts.push("with hours it can check");
+  if (ok("price")) parts.push("and a price range it can quote");
 
   const missing = [
-    !ok("credentials") ? "whether it is licensed" : "",
-    !ok("reviews") ? "how it is rated" : "",
-    !ok("services") ? "what it actually does" : "",
+    !ok("credentials") ? "whether you're licensed" : "",
+    !ok("reviews") ? "how you're rated" : "",
+    !ok("services") ? "what jobs you actually do" : "",
   ].filter(Boolean);
 
   return {
     can: `${parts.join(" ")}.`,
-    cannot: missing.length ? `It still cannot say ${missing.join(", or ")}.` : null,
+    cannot: missing.length ? `It still can't tell anyone ${missing.join(", or ")}.` : null,
   };
 }

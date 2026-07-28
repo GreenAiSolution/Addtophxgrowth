@@ -64,8 +64,8 @@ export function MarginalDollar() {
     <Instrument
       index={5}
       id="marginal"
-      name="The Marginal Dollar"
-      reads="Where your next advertising dollar should go — which is never the channel with the best average."
+      name="Where Your Next Ad Dollar Goes"
+      reads="Which channel deserves your next dollar. It&rsquo;s almost never the one with the best average — here&rsquo;s why."
     >
       <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         <div className={cn("phx-card fx-panel flex flex-col p-5 md:p-6", justSeeded && "fx-sheen")}>
@@ -186,19 +186,19 @@ export function MarginalDollar() {
                   {c.name}
                 </span>
               ))}
-            <span className="ml-auto">leads per month vs monthly spend</span>
+            <span className="ml-auto">leads a month vs what you spend a month</span>
           </div>
 
           <div className="mt-auto border-t border-white/[0.07] pt-5">
             <Dial
-              label="How hard do returns diminish in your account?"
+              label="How quickly does a channel run out of room?"
               hint={
                 reading.neutral
-                  ? "At 1.00 you are asserting no ceiling at all — so this instrument reports nothing, on purpose. Pull it left."
-                  : "Your assumption, not a measurement. The curve passes exactly through the numbers you entered."
+                  ? "Right now you're saying a channel never runs out of room — that you could put $1m into Meta and keep the same cost per lead. Nobody believes that, so this tool refuses to guess. Drag it left."
+                  : "This is your guess, not our data. Whatever you set, the curves still run exactly through the real numbers you typed above."
               }
               value={exponent}
-              display={reading.neutral ? "1.00 — linear" : exponent.toFixed(2)}
+              display={reading.neutral ? "Never runs out" : exponent < 0.55 ? "Runs out fast" : "Runs out slowly"}
               min={0.3}
               max={1}
               step={0.01}
@@ -229,7 +229,7 @@ export function MarginalDollar() {
 
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <label className="block">
-                      <span className="text-[0.7rem] text-muted-foreground">Spend / mo</span>
+                      <span className="text-[0.7rem] text-muted-foreground">You spend / month</span>
                       <input
                         type="number"
                         min={0}
@@ -239,7 +239,7 @@ export function MarginalDollar() {
                       />
                     </label>
                     <label className="block">
-                      <span className="text-[0.7rem] text-muted-foreground">Leads</span>
+                      <span className="text-[0.7rem] text-muted-foreground">You get / month</span>
                       <input
                         type="number"
                         min={0}
@@ -253,10 +253,10 @@ export function MarginalDollar() {
                   {!r.idle && (
                     <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-white/[0.06] pt-3 font-mono text-[0.72rem] tabular-nums">
                       <span className="text-muted-foreground">
-                        avg ${r.averageCpl.toFixed(0)}
+                        avg lead ${r.averageCpl.toFixed(0)}
                       </span>
                       <span className={reading.neutral ? "text-muted-foreground" : "text-gold"}>
-                        next ${Number.isFinite(r.marginalCpl) ? r.marginalCpl.toFixed(0) : "—"}
+                        NEXT lead ${Number.isFinite(r.marginalCpl) ? r.marginalCpl.toFixed(0) : "—"}
                       </span>
                     </div>
                   )}
@@ -268,13 +268,13 @@ export function MarginalDollar() {
           <div className="mt-5 grid grid-cols-3 gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-4">
             <Figure
               value={`$${reading.blendedCpl.toFixed(0)}`}
-              caption="Blended cost per lead"
+              caption="Average cost per lead"
               tone="cyan"
             />
-            <Figure value={String(Math.round(reading.totalLeads))} caption="Leads today" />
+            <Figure value={String(Math.round(reading.totalLeads))} caption="Leads a month today" />
             <Figure
               value={reading.neutral ? "—" : `+${Math.round(reading.headroom)}`}
-              caption="Same money, under your curve"
+              caption="Extra leads for the same money"
               tone={reading.neutral ? "plain" : "signal"}
             />
           </div>
@@ -285,13 +285,13 @@ export function MarginalDollar() {
         verdict="covered"
         headline={
           reading.neutral
-            ? "This instrument is telling you nothing, and that is the correct reading."
-            : `Your own curve says the same budget is worth about ${Math.round(reading.headroom)} more leads a month.`
+            ? "This tool is deliberately telling you nothing yet."
+            : `On your own assumption, the same budget could be worth about ${Math.round(reading.headroom)} more leads a month — just moved around.`
         }
         body={
           reading.neutral
-            ? "You have set returns as perfectly linear, which asserts no channel has a ceiling. Under that assumption reallocation cannot help, so it reports no gain rather than inventing one. Pull the curvature slider left to say what you actually believe."
-            : `That figure is what your assumption implies, not a measurement — and it is exactly the job ${loop.name} already does on your account, ${loop.cadence.toLowerCase()}, against live spend rather than last month's export. We are not going to sell you a worse version of something you are already paying for.`
+            ? "You've told it channels never run out of room. If that were true, moving money around couldn't possibly help — so rather than invent a number, it says nothing. Drag the slider left to what you actually believe and watch it change."
+            : `That number comes from your assumption, not from our data. And it's exactly what ${loop.name} already does on your account — ${loop.cadence.toLowerCase()}, on live spend instead of last month's spreadsheet. We're not going to sell you a worse version of something you already pay for.`
         }
       />
     </Instrument>

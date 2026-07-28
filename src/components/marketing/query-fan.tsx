@@ -42,8 +42,8 @@ export function QueryFan({ answers }: { answers: EntityAnswers }) {
     <Instrument
       index={2}
       id="fan"
-      name="The Query Fan"
-      reads="Which of the questions an assistant gets asked you are currently a candidate for — and which quietly exclude you."
+      name="The Questions You Lose"
+      reads="The questions people actually ask AI — and which ones throw you out before anyone gets to compare you."
     >
       <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
         <div className="phx-card fx-panel relative flex flex-col justify-center overflow-hidden p-5 md:p-6">
@@ -171,16 +171,16 @@ export function QueryFan({ answers }: { answers: EntityAnswers }) {
             ))}
           </div>
           <p className="mt-2 text-center text-[0.66rem] leading-relaxed text-muted-foreground/60">
-            Illustrative phrasings, not measured search volume. Nothing here claims how often
-            anyone asks these.
+            Example wordings, not measured search data. We&rsquo;re not claiming how often anyone
+            asks these — only which ones you can and can&rsquo;t be picked for.
           </p>
         </div>
 
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-3 gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-4">
-            <Figure value={String(reading.winnable)} caption="You are a candidate" tone="signal" />
-            <Figure value={String(reading.locked)} caption="You are excluded" tone="gold" />
-            <Figure value={String(reading.total)} caption="Questions on the fan" />
+            <Figure value={String(reading.winnable)} caption="You could win these" tone="signal" />
+            <Figure value={String(reading.locked)} caption="You&rsquo;re thrown out" tone="gold" />
+            <Figure value={String(reading.total)} caption="Questions checked" />
           </div>
 
           <ul className="max-h-[26rem] space-y-1 overflow-y-auto pr-1">
@@ -219,7 +219,7 @@ export function QueryFan({ answers }: { answers: EntityAnswers }) {
                     </span>
                     {!r.winnable && (
                       <span className="mt-0.5 block text-[0.7rem] text-gold/80">
-                        excluded — no {r.missing.join(", no ").toLowerCase()}
+                        thrown out — no {r.missing.join(", no ").toLowerCase()}
                       </span>
                     )}
                   </span>
@@ -234,17 +234,17 @@ export function QueryFan({ answers }: { answers: EntityAnswers }) {
         verdict={reading.locked === 0 ? "clear" : "gap"}
         headline={
           reading.winnable === 0
-            ? "You are not a candidate for any of them."
+            ? "Right now you can't win a single one."
             : reading.locked === 0
-              ? "You are a candidate for every question on the fan."
-              : `${reading.locked} of ${reading.total} questions exclude you before ranking.`
+              ? "You could be picked for every one of them."
+              : `${reading.locked} of these ${reading.total} questions throw you out before anyone compares you.`
         }
         body={
           reading.locked === 0
-            ? "Nothing structural is holding you out of these. Whether you win them is then a matter of corroboration — instrument 03."
+            ? "Nothing is blocking you. Whether you actually get picked comes down to whether other websites back you up — that's the next tool."
             : reading.keystone
-              ? `The single biggest lock is ${reading.keystone.label.toLowerCase()}: publishing it alone opens ${reading.keystone.unlocks} of the ${reading.locked} you are shut out of. These filters are applied before ranking, so this is not about placing lower — it is about not being in the set.`
-              : "Each locked question is missing more than one attribute, so no single fix opens one. The Inspector above shows which."
+              ? `The one thing costing you most is ${reading.keystone.label.toLowerCase()}. Publishing just that opens ${reading.keystone.unlocks} of the ${reading.locked} you're shut out of. This isn't about ranking lower — you're not in the running at all.`
+              : "Each one you're losing is missing more than one thing, so there's no single quick fix. The tool above shows exactly what's missing."
         }
         upgradeKey={reading.locked === 0 ? undefined : "answer-engine"}
       />

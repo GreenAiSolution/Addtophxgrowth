@@ -66,8 +66,8 @@ export function CorroborationWeb() {
     <Instrument
       index={3}
       id="web"
-      name="The Corroboration Web"
-      reads="Whether anybody except you says you exist — and whether they agree with each other."
+      name="Does Anyone Back You Up?"
+      reads="Whether other websites confirm your business exists — and whether they all say the same thing."
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
         <div className={cn("phx-card fx-panel flex flex-col justify-center p-5 md:p-6", justSeeded && "fx-sheen")}>
@@ -186,19 +186,19 @@ export function CorroborationWeb() {
               <span className="h-1.5 w-1.5 rounded-full bg-signal" /> agrees with your site
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-gold" /> exists, disagrees
+              <span className="h-1.5 w-1.5 rounded-full bg-gold" /> listed, but wrong details
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-white/20" /> no record
+              <span className="h-1.5 w-1.5 rounded-full bg-white/20" /> not listed at all
             </span>
           </div>
         </div>
 
         <div>
           <p className="text-[0.8rem] leading-relaxed text-muted-foreground">
-            Mark where a record of you exists, then whether it carries the{" "}
-            <span className="text-foreground">same name, address and phone</span> as your site.
-            Ringed sources are the ones a resolver reaches for first.
+            Tick where you&rsquo;re listed, then tick again if that listing has the{" "}
+            <span className="text-foreground">exact same name, address and phone</span> as your
+            website. The four with rings around them are the ones that matter most.
           </p>
 
           <ul className="mt-4 grid gap-1.5 sm:grid-cols-2">
@@ -210,7 +210,7 @@ export function CorroborationWeb() {
                     checked={st.present}
                     onChange={(v) => set(s.key, { present: v })}
                     label={s.name}
-                    sublabel={s.anchor ? "Anchor source" : s.note}
+                    sublabel={s.anchor ? "Matters most" : s.note}
                   />
                   <div className="pl-3">
                     <Toggle
@@ -218,7 +218,7 @@ export function CorroborationWeb() {
                       disabled={!st.present}
                       tone="gold"
                       onChange={(v) => set(s.key, { consistent: v })}
-                      label="…and it matches exactly"
+                      label="…and it matches my site exactly"
                     />
                   </div>
                 </li>
@@ -227,9 +227,9 @@ export function CorroborationWeb() {
           </ul>
 
           <div className="mt-5 grid grid-cols-3 gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-4">
-            <Figure value={String(reading.reach)} caption="Domains with a record" tone="cyan" />
-            <Figure value={String(reading.consistent)} caption="That agree" tone="signal" />
-            <Figure value={String(reading.conflicts)} caption="In conflict" tone="gold" />
+            <Figure value={String(reading.reach)} caption="Sites that list you" tone="cyan" />
+            <Figure value={String(reading.consistent)} caption="That match your site" tone="signal" />
+            <Figure value={String(reading.conflicts)} caption="That say something different" tone="gold" />
           </div>
         </div>
       </div>
@@ -238,21 +238,21 @@ export function CorroborationWeb() {
         verdict={reading.corroborated ? "clear" : "gap"}
         headline={
           reading.conflictingAnchors.length > 0
-            ? `${reading.conflictingAnchors.length} anchor source${reading.conflictingAnchors.length === 1 ? "" : "s"} disagree${reading.conflictingAnchors.length === 1 ? "s" : ""} with your site.`
+            ? `${reading.conflictingAnchors.length} of the big ${reading.conflictingAnchors.length === 1 ? "one has" : "ones have"} your details wrong.`
             : reading.missingAnchors.length > 0
-              ? `${reading.missingAnchors.length} anchor source${reading.missingAnchors.length === 1 ? " has" : "s have"} no record of you.`
+              ? `${reading.missingAnchors.length} of the ${reading.missingAnchors.length === 1 ? "big listings has" : "big listings have"} never heard of you.`
               : reading.conflicts > 0
-                ? `${reading.conflicts} record${reading.conflicts === 1 ? "" : "s"} say something different about you.`
-                : "Every anchor present and agreeing."
+                ? `${reading.conflicts} listing${reading.conflicts === 1 ? "" : "s"} say something different about you.`
+                : "Everything lines up. Nothing to fix."
         }
         body={
           reading.conflictingAnchors.length > 0
-            ? `Conflicting records are worse than missing ones. ${reading.conflictingAnchors.map((s) => s.name).join(", ")} ${reading.conflictingAnchors.length === 1 ? "carries" : "carry"} a version of you that contradicts your own site, and to a resolver two contradictory records of one business are indistinguishable from records of two businesses.`
+            ? `Wrong details are worse than no details. ${reading.conflictingAnchors.map((s) => s.name).join(", ")} ${reading.conflictingAnchors.length === 1 ? "shows" : "show"} a version of you that doesn't match your own website — and to a computer, two versions of one business look exactly like two different businesses.`
             : reading.missingAnchors.length > 0
-              ? `A resolver reads a gap at ${reading.missingAnchors.map((s) => s.name).join(", ")} as doubt rather than as missing data — real businesses of any age are on the maps.`
+              ? `Not being on ${reading.missingAnchors.map((s) => s.name).join(", ")} doesn't read as "we couldn't find them" — it reads as "maybe they aren't real". Every established business is on the maps.`
               : reading.conflicts > 0
-                ? "Not fatal, but each one is a reason for a resolver to lower its confidence in the whole entity."
-                : "Nothing to fix here. Your web is intact — which makes anything the Inspector above flagged a markup problem rather than a citation one."
+                ? "Not fatal on its own, but every mismatch chips away at how much anything trusts your details."
+                : "Nothing to fix here. Everyone agrees about you, so anything flagged earlier is a problem on your own website, not out there."
         }
         upgradeKey={reading.corroborated ? undefined : "citation-authority"}
         onAdd={add}

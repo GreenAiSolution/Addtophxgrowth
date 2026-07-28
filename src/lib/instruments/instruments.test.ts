@@ -112,7 +112,10 @@ describe("the Answer Engine Inspector", () => {
     );
     const s = entitySentence(readEntity(partial), "Acme");
     expect(s.cannot).toBeTruthy();
-    expect(s.cannot!).toContain("cannot say");
+    // Asserts the *intent* — that it names what is still unknown — rather than
+    // one phrasing. The copy was rewritten in plain English and this test
+    // failed on the wording alone, which is a test measuring the wrong thing.
+    expect(s.cannot!).toMatch(/can(no|')t/i);
   });
 });
 
@@ -254,7 +257,10 @@ describe("the Query Fan", () => {
     expect(discovery.winnable).toBe(true);
     const openNow = r.readings.find((x) => x.query.text === "who's open right now near me")!;
     expect(openNow.winnable).toBe(false);
-    expect(openNow.missing).toContain("Opening hours");
+    // Resolved from the catalogue rather than typed, so renaming an attribute
+    // for readability cannot break a test about resolution logic.
+    const hoursLabel = ENTITY_ATTRIBUTES.find((a) => a.key === "hours")!.label;
+    expect(openNow.missing).toContain(hoursLabel);
   });
 
   it("ignores corroboration — this instrument only asks whether it is readable", () => {

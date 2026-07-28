@@ -88,8 +88,8 @@ export function StackComposer() {
     <Instrument
       index={6}
       id="compose"
-      name="The Stack Composer"
-      reads="How the upgrades you picked reinforce each other, and what the honest total is."
+      name="Build Your Package"
+      reads="Pick what you want. It shows which ones work better together, and tells you when a bundle is cheaper."
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
         {/* ---- pick, grouped by the service they bolt onto ---- */}
@@ -155,12 +155,12 @@ export function StackComposer() {
         {/* ---- what it adds up to ---- */}
         <div className="flex flex-col gap-4">
           <div className="phx-card fx-panel min-h-[13rem] p-5 md:p-6">
-            <div className="eyebrow text-[0.58rem] text-muted-foreground">Your stack</div>
+            <div className="eyebrow text-[0.58rem] text-muted-foreground">What you&rsquo;ve picked</div>
 
             {chosen.length === 0 ? (
               <p className="mt-4 text-[0.9rem] leading-relaxed text-muted-foreground">
-                Nothing selected. The instruments above add to this as they find things — or pick
-                by hand on the left.
+                Nothing picked yet. The tools above add things here when they find a problem — or
+                just tick them yourself on the left.
               </p>
             ) : (
               <>
@@ -178,7 +178,7 @@ export function StackComposer() {
                           <span className="block text-[0.88rem]">{u.name}</span>
                           {linked > 0 && (
                             <span className="text-[0.68rem] text-signal">
-                              compounds with {linked} other{linked === 1 ? "" : "s"} in your stack
+                              works better with {linked} other{linked === 1 ? "" : "s"} you picked
                             </span>
                           )}
                           <span className="block text-[0.68rem] text-muted-foreground">
@@ -216,14 +216,15 @@ export function StackComposer() {
           {/* The bundle arithmetic, stated rather than hidden. */}
           {match && (
             <div className="rounded-2xl border border-gold/40 bg-gold/[0.06] p-5">
-              <div className="eyebrow text-[0.58rem] text-gold">That is a bundle</div>
+              <div className="eyebrow text-[0.58rem] text-gold">That&rsquo;s a bundle — you save</div>
               <p className="mt-2 text-[0.92rem] leading-relaxed">
                 Those exact {match.members.length} are <strong>{match.name}</strong> at{" "}
                 <span className="font-mono tabular-nums">{formatCurrency(match.price)}/mo</span> —{" "}
                 <span className="text-signal">
                   {formatCurrency(bundleSaving(match))}/mo less
                 </span>{" "}
-                than the {formatCurrency(bundleListPrice(match))} above. We will quote the bundle.
+                instead of the {formatCurrency(bundleListPrice(match))} above. We&rsquo;ll quote you the
+                bundle price, not the list price.
               </p>
               <p className="mt-2 text-[0.78rem] leading-relaxed text-muted-foreground">
                 {match.rationale}
@@ -233,7 +234,7 @@ export function StackComposer() {
 
           {nearMiss && (
             <div className="rounded-2xl border border-white/[0.09] bg-black/20 p-5">
-              <div className="eyebrow text-[0.58rem] text-muted-foreground">One step away</div>
+              <div className="eyebrow text-[0.58rem] text-muted-foreground">Add one more and it&rsquo;s cheaper</div>
               <p className="mt-2 text-[0.9rem] leading-relaxed">
                 Adding{" "}
                 {bundleMembers(nearMiss)
@@ -252,14 +253,14 @@ export function StackComposer() {
                 }
                 className="pill-ghost mt-3 text-sm"
               >
-                Complete the stack
+                Add them and save
               </button>
             </div>
           )}
 
           <div className="grid grid-cols-3 gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-4">
-            <Figure value={String(chosen.length)} caption="Upgrades chosen" tone="cyan" />
-            <Figure value={String(edges.length)} caption="Reinforcing pairs" tone="signal" />
+            <Figure value={String(chosen.length)} caption="Things picked" tone="cyan" />
+            <Figure value={String(edges.length)} caption="Pairs that boost each other" tone="signal" />
             <Figure
               value={match ? formatCurrency(bundleSaving(match)) : "—"}
               caption="Saved by bundling"

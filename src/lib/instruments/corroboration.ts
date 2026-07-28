@@ -46,18 +46,18 @@ export interface CitationSource {
  * than as missing data.
  */
 export const CITATION_SOURCES: CitationSource[] = [
-  { key: "gbp", name: "Google Business Profile", kind: "map", anchor: true, note: "The spine of local resolution." },
-  { key: "apple", name: "Apple Business Connect", kind: "map", anchor: true, note: "Every iPhone map query resolves here." },
-  { key: "bing", name: "Bing Places", kind: "map", anchor: true, note: "Feeds assistants that do not use Google." },
-  { key: "yelp", name: "Yelp", kind: "directory", anchor: true, note: "Widely ingested as a structured record." },
-  { key: "bbb", name: "Better Business Bureau", kind: "directory", anchor: false, note: "Independent, and carries a trading name." },
-  { key: "chamber", name: "Local chamber of commerce", kind: "directory", anchor: false, note: "A local domain that is not yours." },
-  { key: "trade", name: "Trade body or licence register", kind: "trade", anchor: false, note: "The only source that can corroborate a licence." },
-  { key: "supplier", name: "Manufacturer or supplier locator", kind: "trade", anchor: false, note: "Rarely claimed, and unusually credible." },
-  { key: "linkedin", name: "LinkedIn company page", kind: "social", anchor: false, note: "Corroborates the entity, not the location." },
-  { key: "facebook", name: "Facebook page", kind: "social", anchor: false, note: "Carries hours and phone in a readable form." },
-  { key: "press", name: "Local press or blog mention", kind: "press", anchor: false, note: "Unstructured, but genuinely independent." },
-  { key: "nextdoor", name: "Nextdoor business page", kind: "social", anchor: false, note: "Neighbourhood-level, hard to fake." },
+  { key: "gbp", name: "Google Business Profile", kind: "map", anchor: true, note: "The one everything else checks against." },
+  { key: "apple", name: "Apple Business Connect", kind: "map", anchor: true, note: "Every iPhone map search reads this." },
+  { key: "bing", name: "Bing Places", kind: "map", anchor: true, note: "Feeds the AI tools that don't use Google." },
+  { key: "yelp", name: "Yelp", kind: "directory", anchor: true, note: "Copied and re-used all over the web." },
+  { key: "bbb", name: "Better Business Bureau", kind: "directory", anchor: false, note: "Independent of you, and carries your name." },
+  { key: "chamber", name: "Local chamber of commerce", kind: "directory", anchor: false, note: "A local website that isn't yours." },
+  { key: "trade", name: "Trade body or licence register", kind: "trade", anchor: false, note: "The only place that can confirm your licence." },
+  { key: "supplier", name: "Manufacturer or supplier locator", kind: "trade", anchor: false, note: "Hardly anyone claims theirs, and it counts." },
+  { key: "linkedin", name: "LinkedIn company page", kind: "social", anchor: false, note: "Confirms the company, not the address." },
+  { key: "facebook", name: "Facebook page", kind: "social", anchor: false, note: "Carries your hours and phone in a readable form." },
+  { key: "press", name: "Local press or blog mention", kind: "press", anchor: false, note: "Messy, but genuinely somebody else's word." },
+  { key: "nextdoor", name: "Nextdoor business page", kind: "social", anchor: false, note: "Neighbourhood level, hard to fake." },
 ];
 
 /** Per source: do you have a record there, and does it match your site exactly? */

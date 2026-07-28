@@ -84,25 +84,25 @@ const BAND: Record<Band, { cell: string; on: string; dot: string; name: string }
     cell: "border-violet/15 bg-violet/[0.04] hover:border-violet/40",
     on: "border-violet bg-violet/20",
     dot: "bg-violet",
-    name: "The crew",
+    name: "Your AI staff",
   },
   desk: {
     cell: "border-cyan/15 bg-cyan/[0.04] hover:border-cyan/40",
     on: "border-cyan bg-cyan/20",
     dot: "bg-cyan",
-    name: "The Manifest",
+    name: "Systems running",
   },
   loops: {
     cell: "border-signal/15 bg-signal/[0.04] hover:border-signal/40",
     on: "border-signal bg-signal/20",
     dot: "bg-signal",
-    name: "Standing loops",
+    name: "Always-on automations",
   },
   gap: {
     cell: "border-gold/50 bg-gold/[0.14] shadow-[0_0_14px_-2px_hsl(var(--hud-gold)/0.5)] hover:bg-gold/25",
     on: "border-gold bg-gold/35",
     dot: "bg-gold",
-    name: "Nobody's job",
+    name: "Nobody does this",
   },
 };
 
@@ -113,8 +113,8 @@ export function CoverageMatrix() {
     <Instrument
       index={0}
       id="matrix"
-      name="The Coverage Matrix"
-      reads="Everything already running on your PHX/GROWTH account, and the few things nobody on it is doing."
+      name="What You&rsquo;re Already Paying For"
+      reads="Every person and system already working your account — and the handful of jobs nobody is doing."
     >
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <div className="phx-card fx-panel p-5 md:p-6">
@@ -167,7 +167,7 @@ export function CoverageMatrix() {
             <span className="font-semibold">{COVERED.length} covered.</span>{" "}
             <span className="font-semibold text-gold">{GAPS.length} not.</span>{" "}
             <span className="text-muted-foreground">
-              That ratio is the whole pitch. Tap any square to see whose job it is.
+  Nearly everything is handled. Tap any square to see who handles it.
             </span>
           </p>
         </div>
@@ -202,7 +202,7 @@ export function CoverageMatrix() {
                   </p>
                 ) : (
                   <p className="mt-3 text-[0.78rem] text-signal">
-                    Already running. Nothing on this page touches it.
+                    Already covered. You don&rsquo;t need to buy anything for this.
                   </p>
                 )}
               </>
@@ -218,9 +218,9 @@ export function CoverageMatrix() {
           </div>
 
           <div className="grid grid-cols-3 gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-4">
-            <Figure value={String(OPERATORS.length)} caption="Named operators" tone="magenta" />
-            <Figure value={String(MANIFEST.length + AUTOMATION_LOOPS.length)} caption="Systems and loops" tone="cyan" />
-            <Figure value={String(GAPS.length)} caption="Gaps we sell into" tone="gold" />
+            <Figure value={String(OPERATORS.length)} caption="AI staff on your account" tone="magenta" />
+            <Figure value={String(MANIFEST.length + AUTOMATION_LOOPS.length)} caption="Systems already running" tone="cyan" />
+            <Figure value={String(GAPS.length)} caption="Jobs nobody is doing" tone="gold" />
           </div>
         </div>
       </div>
