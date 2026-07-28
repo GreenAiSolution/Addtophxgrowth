@@ -86,6 +86,7 @@ function structuredData() {
 
 /** The deck index, so a visitor can see the whole machine before using it. */
 const DECK = [
+  { n: "◇", id: "map", name: "The System Map", reads: "The whole thing in one object" },
   { n: "00", id: "matrix", name: "What You're Already Paying For", reads: "Who covers what today" },
   { n: "01", id: "inspector", name: "Can AI Find You?", reads: "What ChatGPT knows about you" },
   { n: "02", id: "fan", name: "The Questions You Lose", reads: "Where you're not even in the running" },
@@ -122,7 +123,7 @@ export default function Home() {
             >
               {BRAND.parent.name} <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
-            <a href="#matrix" className="pill-primary px-4 py-2.5 text-sm sm:px-5">
+            <a href="#map" className="pill-primary px-4 py-2.5 text-sm sm:px-5">
               <span className="sm:hidden">Start</span>
               <span className="hidden sm:inline">Start reading</span>
             </a>
@@ -139,7 +140,7 @@ export default function Home() {
           <p className="inline-flex items-start gap-2.5 rounded-full border border-white/10 px-5 py-2">
             <span className="mt-[0.42rem] h-1.5 w-1.5 shrink-0 rounded-full bg-magenta" />
             <span className="eyebrow text-[0.68rem] text-muted-foreground">
-              One system · {DECK.length} tools · one of them sells you nothing
+              One live map · {DECK.length - 1} tools · one of them sells you nothing
             </span>
           </p>
 
@@ -160,7 +161,7 @@ export default function Home() {
               decided whether to bother typing. */}
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <SeedButton />
-            <a href="#matrix" className="pill-ghost text-sm">
+            <a href="#map" className="pill-ghost text-sm">
               Or use my own numbers <ArrowRight className="h-4 w-4" />
             </a>
           </div>
@@ -229,7 +230,7 @@ export default function Home() {
             {BRAND.name} Growth Intelligence
           </span>
           <span className="hidden text-[0.75rem] text-muted-foreground sm:inline">
-            {DECK.length} modules · one shared brain · everything you type stays in this tab
+            {DECK.length - 1} modules · one shared brain · everything you type stays in this tab
           </span>
           <span className="ml-auto font-mono text-[0.62rem] tracking-[0.2em] text-muted-foreground/50">
             v1 · {BRAND.parent.name}

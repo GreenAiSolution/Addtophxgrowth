@@ -9,6 +9,7 @@ import { CorroborationWeb } from "@/components/marketing/corroboration-web";
 import { ResponseClock } from "@/components/marketing/response-clock";
 import { MarginalDollar } from "@/components/marketing/marginal-dollar";
 import { StackComposer } from "@/components/marketing/stack-composer";
+import { SystemMap } from "@/components/marketing/system-map";
 
 /**
  * The deck, in order.
@@ -50,6 +51,9 @@ export function Deck() {
 function Modules() {
   const { justSeeded } = usePlayground();
   const parts = [
+    // The map opens the deck: the shape of the whole thing before any of the
+    // parts, so every module below has somewhere to sit in the reader's head.
+    <SystemMap key="map" />,
     <CoverageMatrix key="matrix" />,
     <AnswerEngineInspector key="inspector" />,
     <FanFromInspector key="fan" />,
