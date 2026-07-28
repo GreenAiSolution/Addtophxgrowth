@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { BRAND } from "@/lib/brand";
+import { PARENT_SERVICES, FLIGHT_CHECK } from "@/lib/upgrades";
 import { env } from "@/lib/env";
 
 /**
@@ -22,8 +23,22 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+/**
+ * The description every search result and share card shows.
+ *
+ * The service names and the guarantee are interpolated from the catalogue
+ * rather than typed. This paragraph is the single most-syndicated sentence
+ * about the business — it is what Google prints and what Slack renders — and
+ * it was hand-written, so it would have kept naming a service or a guarantee
+ * the site no longer offers long after the page itself had moved on. Copy that
+ * lives outside the page is the copy nobody remembers to update.
+ */
 const DESCRIPTION =
-  "Specialised upgrades that bolt onto your PHX/GROWTH services — Premium AI Ads, AI Employees and Website Creation. Be the business an AI assistant names, own the map pack, answer every call on the first ring, and measure it on data you actually own. Month to month, covered by the 30-Day Flight Check.";
+  `Specialised upgrades that bolt onto your ${BRAND.parent.name} services — ` +
+  `${PARENT_SERVICES.map((s) => s.name).join(", ")}. ` +
+  `Be the business an AI assistant names, own the map pack, answer every call on ` +
+  `the first ring, and measure it on data you actually own. Month to month, ` +
+  `covered by ${FLIGHT_CHECK.label}.`;
 
 /**
  * `metadataBase` is what makes relative OG image paths resolve to absolute URLs.

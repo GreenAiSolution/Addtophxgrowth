@@ -165,6 +165,33 @@ source answered.
 
 ---
 
+## Two price lists, one wall between them
+
+Worth knowing before you touch anything commercial: this repository contains
+two catalogues, and only one of them is the business.
+
+| | What it is | Prices | Who sees it |
+|---|---|---|---|
+| `src/lib/upgrades.ts` | **The business.** Five upgrades and three bundles bolting onto the parent's services. | $1,600–$9,900/mo | Everyone. The page, the emails, the contract, `/api/catalogue`. |
+| `src/lib/catalog.ts` | **Legacy console.** Six plans on two product lines that no longer exist. | $1,297–$7,997/mo | Signed-in users only. |
+
+The console's plan keys are woven through the entitlement, capacity,
+spend-watch and night-shift engines, so retiring it is a migration rather than
+a rename — it is deliberately left alone rather than half-changed.
+
+What is not optional is the wall. `src/lib/legal.ts` imported `catalog.ts`, and
+that one import is how the Terms and MSA — linked from the footer of a page
+selling upgrades — came to describe "two lines of service: AI Automation Agents
+and Ad Operations Management" and quote six monthly fees this business does not
+charge. A prospect who clicked "Terms" was reading a contract for a different
+company, and the Terms contradicted the page's own FAQ about who invoices them.
+
+`consistency.test.ts` now fails the build if any public surface imports
+`catalog.ts`, and asserts that every price quoted in the legal set is a price
+the page actually offers.
+
+---
+
 ## Architecture notes
 
 - **The public catalogue** (`src/lib/upgrades.ts`) — the three PHX/GROWTH

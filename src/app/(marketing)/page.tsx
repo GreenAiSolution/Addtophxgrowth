@@ -283,7 +283,11 @@ export default function Home() {
               `From ${formatCurrency(from)}/mo`,
               "Month to month",
               "Founding rate locks in",
-              "30-Day Flight Check",
+              // Not typed. The guarantee is quoted in four places — this strip,
+              // the guarantee section, the receipt email and the contract — and
+              // a guarantee that reads "30-Day" here and something else there is
+              // the one inconsistency a buyer will actually litigate.
+              FLIGHT_CHECK.label.replace(/^The /, ""),
             ].map((item, i, all) => (
               <span key={item} className="flex items-center gap-5">
                 <span className="eyebrow text-[0.62rem] text-muted-foreground/70">{item}</span>

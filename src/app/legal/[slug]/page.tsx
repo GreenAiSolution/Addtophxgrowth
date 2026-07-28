@@ -54,10 +54,18 @@ export default function LegalPage({ params }: { params: { slug: string } }) {
           ))}
         </nav>
 
+        {/* Section numbers are generated, never typed into the heading. They
+            were hand-numbered, and inserting a clause meant renumbering every
+            one below it by hand — a cross-reference in the MSA pointed at a
+            section that had shifted underneath it. Counting is the renderer's
+            job. */}
         <div className="mt-10 space-y-9">
-          {doc.sections.map((section) => (
+          {doc.sections.map((section, n) => (
             <section key={section.heading}>
-              <h2 className="font-heading text-lg font-bold">{section.heading}</h2>
+              <h2 className="font-heading text-lg font-bold">
+                <span className="mr-2 text-muted-foreground">{n + 1}.</span>
+                {section.heading}
+              </h2>
               <div className="mt-2 space-y-3">
                 {section.body.map((p, i) => (
                   <p key={i} className="text-sm leading-relaxed text-muted-foreground">

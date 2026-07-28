@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { BRAND } from "@/lib/brand";
+import { THESIS } from "@/lib/upgrades";
 
 /**
  * The card that renders when somebody pastes a link into Slack, iMessage, or a
@@ -63,31 +64,39 @@ export default function OpengraphImage() {
           </div>
         </div>
 
+        {/* The headline is split out of THESIS.headline, not retyped. This
+            card is the first thing anyone sees of the site — in a Slack unfurl,
+            a text message, a search result — and it was the one surface that
+            would have gone on announcing a headline the page had already
+            changed, because nobody looks at an image they cannot read in the
+            repo. Two clauses, coloured separately; anything beyond two falls
+            into the second line rather than being dropped. */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div
-            style={{
-              display: "flex",
-              fontSize: 76,
-              fontWeight: 700,
-              color: "#fafafa",
-              lineHeight: 1.05,
-              letterSpacing: -2,
-            }}
-          >
-            Every upgrade.
-          </div>
-          <div
-            style={{
-              display: "flex",
-              fontSize: 76,
-              fontWeight: 700,
-              color: "#a78bfa",
-              lineHeight: 1.05,
-              letterSpacing: -2,
-            }}
-          >
-            One flight plan.
-          </div>
+          {(() => {
+            const parts = THESIS.headline.split(/(?<=\.)\s+/);
+            const lead = parts[0] ?? THESIS.headline;
+            const rest = parts.slice(1).join(" ");
+            return [
+              { text: lead, color: "#fafafa" },
+              { text: rest, color: "#a78bfa" },
+            ]
+              .filter((l) => l.text.length > 0)
+              .map((l) => (
+                <div
+                  key={l.text}
+                  style={{
+                    display: "flex",
+                    fontSize: 76,
+                    fontWeight: 700,
+                    color: l.color,
+                    lineHeight: 1.05,
+                    letterSpacing: -2,
+                  }}
+                >
+                  {l.text}
+                </div>
+              ));
+          })()}
         </div>
 
         <div
@@ -100,7 +109,7 @@ export default function OpengraphImage() {
             textTransform: "uppercase",
           }}
         >
-          <span>Upgrades for PHX/GROWTH clients</span>
+          <span>{BRAND.tagline}</span>
           <div style={{ display: "flex", width: 8, height: 8, background: "#22d3ee", transform: "rotate(45deg)", marginTop: 8 }} />
           <span>Bolts onto what you already fly</span>
           <div style={{ display: "flex", width: 8, height: 8, background: "#e879f9", transform: "rotate(45deg)", marginTop: 8 }} />

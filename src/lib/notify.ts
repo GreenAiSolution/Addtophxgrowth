@@ -24,6 +24,7 @@ import { BRAND } from "@/lib/brand";
 import { env } from "@/lib/env";
 import { postWebhook } from "@/lib/webhooks";
 import { renderEmailHtml } from "@/lib/email-shell";
+import { FLIGHT_CHECK } from "@/lib/upgrades";
 
 export type NotificationKind =
   | "ENQUIRY_RECEIPT"
@@ -219,8 +220,11 @@ export function renderNotification(
           ],
           detail: payload.detail,
           cta: { label: `See the upgrades again`, href: link("/") },
+          // The guarantee's name is interpolated, not typed. This footnote is
+          // read by the prospect at the exact moment they are deciding whether
+          // to trust us, sitting beside a contract that quotes the same clause.
           footnote:
-            "Nothing has been charged, and nothing on your PHX/GROWTH account changes until you agree the scope. Every upgrade is month to month and covered by the 30-Day Flight Check.",
+            `Nothing has been charged, and nothing on your ${BRAND.parent.name} account changes until you agree the scope. Every upgrade is month to month and covered by ${FLIGHT_CHECK.label}.`,
         }),
       };
 

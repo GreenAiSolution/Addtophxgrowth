@@ -155,7 +155,7 @@ export function Enquiry({ preselect = [] }: { preselect?: string[] }) {
         <h3 className="text-2xl font-bold tracking-tight">Cleared for pre-flight.</h3>
         <p className="text-sm leading-relaxed text-muted-foreground">
           You&apos;ll hear back today with the exact scope and the exact number in writing.
-          Nothing has been charged, and nothing on your account changes until you say so.
+          Nothing has been charged, and nothing on your PHX/GROWTH account changes until you say so.
         </p>
       </div>
     );

@@ -298,7 +298,7 @@ function BundleEnquiry({ bundle, onClose }: { bundle: Bundle; onClose: () => voi
                 )}
               </button>
               <p className="text-center text-[0.65rem] text-muted-foreground">
-                An enquiry, not a payment. Nothing is charged and nothing on your account changes.
+                An enquiry, not a payment. Nothing is charged and nothing on your PHX/GROWTH account changes.
               </p>
             </form>
           </>

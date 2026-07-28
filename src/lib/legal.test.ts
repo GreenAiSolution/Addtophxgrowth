@@ -6,7 +6,7 @@ import {
   SUB_PROCESSORS,
   LEGAL_LAST_UPDATED,
 } from "@/lib/legal";
-import { PLANS } from "@/lib/catalog";
+import { UPGRADES, BUNDLES, FLIGHT_CHECK, bundleMembers } from "@/lib/upgrades";
 import { formatCurrency } from "@/lib/utils";
 
 describe("the legal set", () => {
@@ -57,31 +57,54 @@ describe("the legal set", () => {
 });
 
 describe("fee schedule", () => {
-  it("quotes every plan we actually sell", () => {
+  // These three used to assert the schedule matched `PLANS` — the console's
+  // plan ladder — which is precisely how the contract came to quote six monthly
+  // fees the site does not charge. The assertions are rewritten to the intent
+  // they were always reaching for ("the fee schedule matches what we sell"),
+  // not deleted, and now read the catalogue the page renders from.
+  it("quotes every upgrade and bundle we actually sell", () => {
     const schedule = feeSchedule();
-    expect(schedule).toHaveLength(PLANS.length);
-    for (const plan of PLANS) {
-      expect(schedule.some((line) => line.startsWith(plan.name)), plan.key).toBe(true);
+    expect(schedule).toHaveLength(UPGRADES.length + BUNDLES.length);
+    for (const item of [...UPGRADES, ...BUNDLES]) {
+      expect(schedule.some((line) => line.startsWith(item.name)), item.key).toBe(true);
     }
   });
 
-  it("quotes the same prices as the pricing page", () => {
-    // The load-bearing one: a fee schedule that drifts from the catalog is the
-    // worst kind of stale content on a site that takes money, and it is exactly
-    // the sort of thing nobody notices until a client points at it.
+  it("quotes the same prices the page shows", () => {
+    // The load-bearing one: a fee schedule that drifts from the catalogue is
+    // the worst kind of stale content on a site that takes money, and it is
+    // exactly the sort of thing nobody notices until a client points at it.
     const schedule = feeSchedule().join("\n");
-    for (const plan of PLANS) {
-      expect(schedule, plan.key).toContain(formatCurrency(plan.priceMonthly));
-      if (plan.setupFee) {
-        expect(schedule, `${plan.key} build fee`).toContain(formatCurrency(plan.setupFee));
-      }
+    for (const u of UPGRADES) {
+      expect(schedule, u.key).toContain(formatCurrency(u.price));
+    }
+    for (const b of BUNDLES) {
+      expect(schedule, b.key).toContain(formatCurrency(b.price));
     }
   });
 
-  it("only mentions a build fee for plans that have one", () => {
-    for (const line of feeSchedule()) {
-      const plan = PLANS.find((p) => line.startsWith(p.name))!;
-      expect(line.includes("build fee"), plan.key).toBe(Boolean(plan.setupFee));
+  it("says 'per month' only for the things that recur", () => {
+    // A one-time build described as monthly, or the reverse, is a billing
+    // dispute waiting in the contract itself.
+    for (const u of UPGRADES) {
+      const line = feeSchedule().find((l) => l.startsWith(u.name))!;
+      expect(line.includes("per month"), u.key).toBe(u.billing === "monthly");
+      expect(line.includes("billed once"), u.key).toBe(u.billing === "one_time");
+    }
+    for (const b of BUNDLES) {
+      // Bundles are monthly by definition and priced as one line.
+      expect(feeSchedule().find((l) => l.startsWith(b.name))!, b.key).toContain("per month");
+    }
+  });
+
+  it("names the members of every bundle it prices", () => {
+    // Somebody signing a contract for "The Deluxe Deck" has to be able to read
+    // what is in it without going back to the website.
+    for (const b of BUNDLES) {
+      const line = feeSchedule().find((l) => l.startsWith(b.name))!;
+      for (const m of bundleMembers(b)) {
+        expect(line, `${b.key} omits ${m.name}`).toContain(m.name);
+      }
     }
   });
 });
@@ -144,8 +167,18 @@ describe("the clauses that protect the business", () => {
     expect(flat(msa)).toContain("do not withhold");
   });
 
-  it("explains when the build fee is and isn't refundable", () => {
-    expect(flat(terms)).toContain("non-refundable once that work has begun");
-    expect(flat(terms)).toContain("refund it in full");
+  it("states that an enquiry costs nothing and commits to nothing", () => {
+    // Replaces a build-fee refund clause for a fee this business no longer
+    // charges. The equivalent promise now is the one the page makes at the
+    // point of conversion — and a contract that failed to back it would be the
+    // costliest contradiction on the site.
+    const t = flat(terms);
+    expect(t).toContain("costs nothing and commits you to nothing");
+    expect(t).toContain("no payment method is collected");
+    expect(t).toContain("only when you have agreed a written scope");
+  });
+
+  it("carries the parent's guarantee verbatim", () => {
+    expect(flat(terms)).toContain(FLIGHT_CHECK.body.toLowerCase());
   });
 });
