@@ -55,6 +55,13 @@ export async function GET() {
         database: db.state,
         ...(db.fix ? { fix: db.fix } : {}),
       },
+      /**
+       * The retrieval layer. Separate from `gate` because it fails
+       * differently: a healthy index with no embedding key is a working
+       * system quietly giving worse answers, and one combined number would
+       * hide exactly that case.
+       */
+      retrieval: db.retrieval,
       // What the site believes its own address is — the value that goes into
       // the sitemap, the canonical tag and every share preview.
       siteUrl: env.siteUrl,

@@ -18,6 +18,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { provider, EMBEDDING_DIM } from "@/lib/embeddings";
 
 export type DbState = "ready" | "schema-missing" | "unreachable" | "not-configured";
 
@@ -27,14 +28,47 @@ export interface DbHealth {
   gateReady: boolean;
   /** What to do about it, in plain English. Absent when there is nothing to do. */
   fix?: string;
+  /**
+   * The retrieval layer, reported separately because it fails differently.
+   *
+   * `ready` here means the Embedding table answered. `semantic` means an
+   * embedding key is configured — and the two are independent: a perfectly
+   * healthy index with no key still only does keyword search, which is a
+   * working system giving materially worse answers. Reporting one number for
+   * both would hide exactly the case worth knowing about.
+   */
+  retrieval: {
+    ready: boolean;
+    semantic: boolean;
+    model: string;
+    dimensions: number;
+    indexed: number | null;
+    fix?: string;
+  };
+}
+
+/** The embedding half, which is knowable without touching the database. */
+function retrievalConfig() {
+  const p = provider();
+  return {
+    semantic: p.semantic,
+    model: p.model,
+    dimensions: EMBEDDING_DIM,
+    fix: p.semantic
+      ? undefined
+      : "Set VOYAGE_API_KEY for semantic recall. Anthropic has no embeddings API, so this uses Voyage. Without it search still works, by keyword only.",
+  };
 }
 
 export async function checkDb(): Promise<DbHealth> {
+  const cfg = retrievalConfig();
+
   if (!process.env.DATABASE_URL) {
     return {
       state: "not-configured",
       gateReady: false,
       fix: "Set DATABASE_URL. The public site and the enquiry form work without it; the console and the gate do not.",
+      retrieval: { ready: false, indexed: null, ...cfg },
     };
   }
 
@@ -43,7 +77,22 @@ export async function checkDb(): Promise<DbHealth> {
     // proves the credential, not the schema — and the schema is the thing that
     // has actually been missing.
     await prisma.pendingAction.count();
-    return { state: "ready", gateReady: true };
+    // Counted separately: the gate's table can exist while the embedding
+    // table does not, and vice versa. One probe reporting for both would
+    // make a half-installed schema look whole.
+    let indexed: number | null = null;
+    let retrievalReady = false;
+    try {
+      indexed = await prisma.embedding.count();
+      retrievalReady = true;
+    } catch {
+      retrievalReady = false;
+    }
+    return {
+      state: "ready",
+      gateReady: true,
+      retrieval: { ready: retrievalReady, indexed, ...cfg },
+    };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
 
@@ -59,6 +108,7 @@ export async function checkDb(): Promise<DbHealth> {
         state: "schema-missing",
         gateReady: false,
         fix: "The database is reachable but has no PendingAction table. Redeploy — the build runs `db-sync` — or run `pnpm prisma:push` by hand.",
+        retrieval: { ready: false, indexed: null, ...cfg },
       };
     }
 
@@ -66,6 +116,7 @@ export async function checkDb(): Promise<DbHealth> {
       state: "unreachable",
       gateReady: false,
       fix: "The database did not answer. Check DATABASE_URL and that the host allows connections from Vercel.",
+      retrieval: { ready: false, indexed: null, ...cfg },
     };
   }
 }

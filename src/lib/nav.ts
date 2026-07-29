@@ -26,6 +26,7 @@ export const CLIENT_NAV: NavItem[] = [
   { href: "/app/leads", label: "Leads", icon: Target },
   { href: "/app/gate", label: "The Queue", icon: ShieldCheck },
   { href: "/app/agents", label: "Agent Workspace", icon: Bot },
+  { href: "/app/recall", label: "Recall", icon: Brain },
   { href: "/app/memory", label: "System Memory", icon: Brain },
   { href: "/app/ads", label: "Ad Ops", icon: BarChart3 },
   { href: "/app/requests", label: "Requests", icon: Inbox },

@@ -54,6 +54,30 @@ const res = spawnSync(
 
 if (res.status === 0) {
   console.log("[db-sync] Schema is up to date.");
+
+  /*
+    Indexes Prisma cannot express.
+
+    `Unsupported("vector(1024)")` creates the column and stops. There is no way
+    to declare an HNSW index in the schema language, so without this step
+    similarity search silently degrades to a sequential scan over every
+    embedding a client owns — correct answers, quietly getting slower, which is
+    the worst shape of performance bug because nothing ever errors.
+
+    Separate from the push and non-fatal for the same reason the push is: a
+    missing index is a slow console, not a broken website.
+  */
+  const sql = spawnSync(
+    "npx",
+    ["prisma", "db", "execute", "--file", "prisma/sql/retrieval.sql", "--schema", "prisma/schema.prisma"],
+    { stdio: "inherit", env: process.env },
+  );
+  console.log(
+    sql.status === 0
+      ? "[db-sync] Retrieval indexes are in place."
+      : "[db-sync] WARNING: retrieval indexes could not be applied. Search will work and be slow.",
+  );
+
   process.exit(0);
 }
 

@@ -4,12 +4,16 @@
 // multi-tenant scoping (see src/lib/tenancy.ts).
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  // pgvector, declared so `db push` installs it rather than failing on a
+  // column type the database has never heard of.
+  extensions = [vector]
 }
 
 enum Role {
@@ -255,6 +259,7 @@ model ClientProfile {
   memoryEntries    MemoryEntry[]
   adAlerts         AdAlert[]
   entitlements     ClientEntitlement[]
+  embeddings       Embedding[]
   pendingActions   PendingAction[]
 
   createdAt DateTime @default(now())
@@ -782,4 +787,62 @@ model PendingAction {
   @@index([clientId, createdAt])
   @@index([state, releaseAt])
   @@index([state, expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Retrieval — what the system remembers, and can find again
+// ---------------------------------------------------------------------------
+
+/// One embedded chunk of something a client owns.
+///
+/// WHY IT LIVES IN POSTGRES AND NOT A VECTOR SERVICE
+///   Because the interesting queries are not "find similar text". They are
+///   "find leads that read like this one, that belong to this client, that
+///   actually closed, and tell me what they were worth" — which is a join. A
+///   separate vector service turns that into a fan-out, a fetch by id, and a
+///   filter in application code, and it puts the embedding in a system that
+///   can drift out of step with the row it describes. Here the embedding is
+///   written in the same transaction as the thing it embeds, backed up with
+///   it, and deleted with it by the same cascade.
+///
+///   It also means one tenancy model. `clientId` is on the row and every query
+///   filters on it, exactly like every other table in this schema — rather
+///   than a namespace convention in another product that nobody's tests can
+///   see.
+///
+/// `sourceType` + `sourceId` point back at the row this came from. Nothing
+/// here is the source of truth; it is an index over rows that are.
+model Embedding {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// LEAD | MEMORY | CONVERSATION | DOCUMENT
+  sourceType String
+  sourceId   String
+  /// Which chunk of that source, 0-based. Short sources have exactly one.
+  chunkIndex Int    @default(0)
+
+  /// The text that was embedded, kept so a result can be shown and so a model
+  /// change can re-embed without going back to the source.
+  content String @db.Text
+  /// Anything worth filtering or displaying without a join.
+  meta    Json?
+
+  /// Which model produced the vector. A mixed-model index returns nonsense
+  /// distances, so every query filters on this and a re-embed writes a new one.
+  model String
+  /// pgvector. Dimension is pinned in lib/embeddings.ts and asserted there.
+  embedding Unsupported("vector(1024)")?
+
+  /// Postgres full-text, maintained alongside the vector so hybrid search does
+  /// not need a second store either.
+  tsv Unsupported("tsvector")?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, sourceType, sourceId, chunkIndex, model])
+  @@index([clientId, sourceType])
+  @@index([clientId, model])
 }
