@@ -5,6 +5,7 @@ import {
   projectAll,
   sortedByDepth,
   hitTest,
+  HIT_SLACK,
   neighbours,
   atlasCounts,
   atlasExtent,
@@ -215,6 +216,120 @@ describe("fitting the object to its panel", () => {
           expect(p.sy, `${p.node.key} y`).toBeLessThan(h + 10);
         }
       }
+    }
+  });
+});
+
+describe("the scene stays legible as the catalogue grows", () => {
+  /**
+   * The map is built from the catalogue, which means its density is decided by
+   * a file nobody edits with the map in mind. Two automation builds were added
+   * to AI Employees and the fan silently collapsed — the arc allocated to a
+   * service was a constant divided by its upgrade count, so four upgrades got
+   * the same total width as one, and two of them landed close enough on screen
+   * that `hitTest` returned whichever was nearer rather than whichever was
+   * pointed at.
+   *
+   * Nothing failed. The map rendered, every node projected, every edge
+   * resolved, and the picture was simply wrong in a way only a person looking
+   * at it would notice. So this is the check that looks.
+   */
+  const atlas = buildAtlas();
+
+  it("keeps every upgrade clickable in the view a visitor actually lands on", () => {
+    /*
+      WHAT THIS CAN AND CANNOT PROMISE
+        Not "no two nodes ever overlap". That is unachievable and it was worth
+        finding out the hard way: an earlier version of this test swept the
+        whole sphere of camera angles, and every layout that could be written
+        failed it — including several that looked perfect. Rotate any 3D scene
+        far enough and some pair of points will line up with the camera. That
+        is what a 3D scene *is*, and `hitTest` already resolves it correctly by
+        depth, which is its own test below.
+
+        What is a real defect is the *resting* view being crowded — the frame
+        every visitor sees before touching anything. That is where the fan
+        collapse showed up: two upgrades twenty-four pixels apart at 1440 on
+        first paint, with no drag involved.
+
+      The bar is derived from `hitTest` rather than picked by eye. A first
+      attempt used a flat 22px on an 1100x700 canvas and passed on the very
+      layout that had just shipped the bug — a guessed threshold, checked at a
+      size nobody renders, agreeing with the defect.
+    */
+    const RESTING = { yaw: 0.7, pitch: -0.34 }; // matches system-map.tsx
+    for (const [w, h] of [
+      [1400, 620],
+      [1100, 700],
+      [720, 520],
+      [390, 460],
+    ]) {
+      const zoom = fitZoom(atlas, w!, h!);
+      // The resting angle and a small neighbourhood of it, so the check is not
+      // balanced on one exact float.
+      for (const dy of [-0.25, -0.1, 0, 0.1, 0.25]) {
+        const pts = projectAll(
+          atlas,
+          { yaw: RESTING.yaw + dy, pitch: RESTING.pitch, distance: 640, zoom },
+          w!,
+          h!,
+        );
+        const ups = [...pts.values()].filter((p) => p.node.kind === "upgrade");
+        for (let i = 0; i < ups.length; i++) {
+          for (let j = i + 1; j < ups.length; j++) {
+            const a = ups[i]!;
+            const b = ups[j]!;
+            const d = Math.hypot(a.sx - b.sx, a.sy - b.sy);
+            const need = HIT_SLACK * Math.max(0.5, a.scale, b.scale);
+            expect(
+              d,
+              `${a.node.key}/${b.node.key} ${d.toFixed(1)}px apart, need ${need.toFixed(1)} ` +
+                `at ${w}x${h} yaw ${(RESTING.yaw + dy).toFixed(2)}`,
+            ).toBeGreaterThan(need);
+          }
+        }
+      }
+    }
+  });
+
+  it("gives a service's upgrades room in proportion to how many it has", () => {
+    // The actual defect: a busy service being allocated the same arc as a
+    // quiet one. Measured on the model rather than on screen, so it holds at
+    // every camera angle at once.
+    const bySector = new Map<string, number[]>();
+    for (const u of UPGRADES) {
+      const n = atlas.nodes.find((x) => x.key === u.key)!;
+      const list = bySector.get(u.attachesTo) ?? [];
+      list.push(Math.atan2(n.z, n.x));
+      bySector.set(u.attachesTo, list);
+    }
+    for (const [service, angles] of bySector) {
+      if (angles.length < 2) continue;
+      const sorted = [...angles].sort((a, b) => a - b);
+      for (let i = 1; i < sorted.length; i++) {
+        expect(
+          sorted[i]! - sorted[i - 1]!,
+          `${service} packs its upgrades too tightly`,
+        ).toBeGreaterThan(0.2);
+      }
+    }
+  });
+
+  it("still keeps the fans inside their own sectors", () => {
+    // Room for a busy service must not be taken from its neighbour — an
+    // upgrade drifting into the next sector would attach it, visually, to the
+    // wrong parent service, which is the one thing this picture must not do.
+    const sector = (Math.PI * 2) / PARENT_SERVICES.length;
+    for (const u of UPGRADES) {
+      const n = atlas.nodes.find((x) => x.key === u.key)!;
+      const parent = atlas.nodes.find((x) => x.key === u.attachesTo)!;
+      let delta = Math.atan2(n.z, n.x) - Math.atan2(parent.z, parent.x);
+      while (delta > Math.PI) delta -= Math.PI * 2;
+      while (delta < -Math.PI) delta += Math.PI * 2;
+      expect(
+        Math.abs(delta),
+        `${u.key} has drifted out of ${u.attachesTo}'s sector`,
+      ).toBeLessThan(sector / 2);
     }
   });
 });

@@ -388,30 +388,145 @@ export const RESULTS_WORK: string[] = [
   "Every concept is tested on synthetic buyers before it spends",
 ];
 
-export const AUTOMATION_LOOPS: { name: string; cadence: string; detail: string }[] = [
+/**
+ * How the parent frames the whole automation page. Their words.
+ *
+ * This matters more than it looks. "Inspectable node by node… never a black
+ * box" is a published standard, and it is the standard anything sold here has
+ * to meet — an upgrade that quietly runs a closed loop would be a worse
+ * product than the thing it attaches to, sold by the same company.
+ */
+export const AUTOMATION_SPINE = {
+  eyebrow: "The Automation Spine",
+  headline: "The loops that run while you sleep.",
+  body:
+    "Every decision PHXGrowth makes rides a real, auditable workflow — inspectable node by node for as long as we fly together, never a black box. These are the brains on the wing.",
+} as const;
+
+/**
+ * The four loops — and, crucially, the node chain each one publishes.
+ *
+ * THE NODES ARE THE POINT
+ *   The parent does not merely say "we optimise budget". It prints the
+ *   workflow: Every 15m → Pull Meta Ads → Pull Google Ads → Pull TikTok Ads →
+ *   Join + Shopify Profit → Marginal ROAS Model → Approval Gate → Apply
+ *   Budgets → Log to Slack. Nine named steps, in order, on a public page.
+ *
+ *   Every one of those nodes is work already being done. Before these were in
+ *   the repo the additive check was reading a one-line summary of each loop and
+ *   passing anything the summary happened not to mention — the same failure
+ *   mode that let an offer lab through when the Manifest item was terse and the
+ *   detail lived in the revenue levers. `upgrades.test.ts` reads the chains now.
+ */
+export const AUTOMATION_LOOPS: {
+  name: string;
+  cadence: string;
+  detail: string;
+  /** The published workflow, in order, verbatim. */
+  nodes: string[];
+}[] = [
   {
     name: "Autonomous Budget Allocation",
     cadence: "Every 15 min",
     detail:
       "Pull spend and real profit across every channel, rank by marginal return, and move budget to the leaders before the platforms notice.",
+    nodes: [
+      "Every 15m",
+      "Pull Meta Ads",
+      "Pull Google Ads",
+      "Pull TikTok Ads",
+      "Join + Shopify Profit",
+      "Marginal ROAS Model",
+      "Approval Gate",
+      "Apply Budgets",
+      "Log to Slack",
+    ],
   },
   {
-    name: "Creative Genome",
+    // Their heading is "Creative Genome Refresh". The repo carried "Creative
+    // Genome" — the name of the underlying model rather than the loop — which
+    // is the kind of near-miss that makes a check look like it ran.
+    name: "Creative Genome Refresh",
     cadence: "On fatigue signal",
     detail:
-      "Query the genome, compose a brief, render variants in the Creative Forge, and ship them to the ad set.",
+      "The moment an ad shows fatigue: recombine its winning genes, render fresh variants in the Creative Forge, and ship them to the ad set.",
+    nodes: [
+      "Fatigue Detected",
+      "Query Genome",
+      "Compose Brief",
+      "Forge Render",
+      "Wait for Render",
+      "Publish Variants",
+    ],
   },
   {
     name: "Compliance Guardrail",
     cadence: "Pre-flight, every asset",
     detail:
       "Every asset clears pre-flight against the platform policy model before it goes live — approved, rewritten safer, or blocked.",
+    nodes: [
+      "Asset Submitted",
+      "Policy Model",
+      "Risk Branch",
+      "Auto-Rewrite",
+      "Approve to Queue",
+      "Flag for Human",
+    ],
   },
   {
     name: "Zero-to-Live Launch",
     cadence: "On new client URL",
     detail:
       "From one product URL: research, personas, strategy, first creative, tracking, and a live campaign — hands-off, wheels up.",
+    nodes: [
+      "Product URL In",
+      "Scrape + Research",
+      "Build Personas",
+      "Draft Strategy",
+      "Forge Creative",
+      "Wire Tracking",
+      "Launch Campaign",
+      "Notify Client",
+    ],
+  },
+];
+
+/**
+ * "One URL to live ads, in under 60 minutes." The parent's own clock.
+ *
+ * Held here because it is the sharpest thing either property claims about
+ * speed, and it is therefore the bar an upgrade must not casually restate. If
+ * anything sold on this site ever promises a fast launch, it is promising
+ * something the parent already does in under an hour.
+ */
+export const LAUNCH_TIMELINE: { at: string; title: string; detail: string }[] = [
+  {
+    at: "T-0",
+    title: "You paste one product URL",
+    detail: "That's the entire brief. No kickoff call, no intake form, no sprint planning.",
+  },
+  {
+    at: "T+8m",
+    title: "Research + personas",
+    detail: "It scrapes the market, reads your competitors, and builds synthetic buyer personas.",
+  },
+  {
+    at: "T+21m",
+    title: "Strategy + launch set",
+    detail:
+      "Drafts the channel + budget plan across Meta, Google & TikTok, then stages the launch ad set — every concept pre-tested on synthetic buyers before a dollar moves.",
+  },
+  {
+    at: "T+44m",
+    title: "Tracking wired honest",
+    detail:
+      "Pixels and CAPI in place, Shopify margin plugged in as ground truth so every decision steers by real profit.",
+  },
+  {
+    at: "T+58m",
+    title: "Campaign live",
+    detail:
+      "It goes live and pings your Slack war room: “It's flying.” Optimization starts today, not next month.",
   },
 ];
 
@@ -426,6 +541,14 @@ export const FLAGSHIP = {
   tagline: "Your business, running itself.",
   badge: "Flagship \u00b7 Private build",
   access: "By application",
+  /**
+   * Their scoping terms, verbatim. Load-bearing for this whole site: it is the
+   * sentence that says the flagship is neither productised nor always
+   * available, which is precisely the gap a fixed-price, fixed-scope
+   * automation build sits in.
+   */
+  scoping:
+    "Scoped and quoted in writing after a private consult. We take a limited number of builds each quarter \u2014 every one is engineered, not configured.",
   summary:
     "We engineer the loops above — and the ones your business is missing — into one bespoke system: lead intake, follow-up, fulfillment, reporting and ad optimization, working around the clock without you. Engineered to your stack, never templated.",
   includes: [
@@ -483,6 +606,29 @@ export interface Upgrade {
   billing: Billing;
   /** The single hardest thing this fixes — the card's kicker. */
   fixes: string;
+  /**
+   * True for the automation builds — upgrades that ship a running loop rather
+   * than a service performed for you.
+   *
+   * The distinction is real and worth marking. The Motion Unit sends a crew to
+   * film; the Job Runner installs a workflow that keeps running after everyone
+   * has gone home. Both are upgrades, but only the second one has to answer for
+   * what happens at 3am, which is why the builds carry the parent's published
+   * standard — inspectable node by node, with a gate on anything that moves
+   * money — and the others do not need to.
+   */
+  build?: boolean;
+  /**
+   * Builds only, and required for them: what you can see and stop.
+   *
+   * A dedicated field rather than a line in `delivers`, because the first
+   * version of this rule read the delivers prose for words like "visible" and
+   * "read-out" — and a monthly report is not the same claim as being able to
+   * look inside a running loop. The check passed on copy that happened to
+   * contain the right word while saying the wrong thing, which is the exact
+   * shape of a test that is not testing anything.
+   */
+  oversight?: string;
   /** One per service: the one most clients take first. */
   leading?: boolean;
   /** The apex upgrade — gets the gold treatment, exactly one on the page. */
@@ -517,10 +663,74 @@ export const UPGRADES: Upgrade[] = [
     billing: "monthly",
     fixes: "A brief queue with nothing filmed",
     leading: true,
-    apex: true,
   },
 
   // ---- On AI Employees ----
+  //
+  // THE AUTOMATION BUILDS
+  //   The parent's Automation Spine publishes four loops, and every node in
+  //   all four sits inside the ad account: pull Meta/Google/TikTok, join
+  //   Shopify profit, model marginal ROAS, forge creative, clear policy, wire
+  //   tracking, launch the campaign. That is the whole machine, and it is
+  //   excellent, and it stops at the moment a lead becomes a job.
+  //
+  //   Everything after that moment is nobody's standing job. Closer works a
+  //   lead until it is "booked or dead" and then hands over to nothing. Echo
+  //   asks for a review once the work is done. Between those two points sits
+  //   the entire operating business — quoting, scheduling, doing, invoicing,
+  //   getting paid, and getting the customer back — and it is run on
+  //   somebody's memory.
+  //
+  //   The flagship can absolutely engineer that; it says so. But it is
+  //   bespoke, by application, and explicitly rationed — "a limited number of
+  //   builds each quarter — every one is engineered, not configured". These
+  //   two are the productised route for an owner who is not commissioning a
+  //   private build, and they run to the same published standard: inspectable
+  //   node by node, never a black box.
+  {
+    key: "job-runner",
+    name: "The Job Runner",
+    attachesTo: "ai-employees",
+    promise: "Closer gets you the yes. This is the operator that takes it from there to paid.",
+    demandCase:
+      "The crew is built to win work and the spine is built to buy attention, and both stop at the same place: somebody said yes. What happens next is a person with a notebook. Quotes go out late, jobs slip, nobody rings to say the van is running behind, and the invoice sits unraised for a fortnight because the week got busy. None of that shows up in an ad report, which is exactly why it survives — the money leaks somewhere nobody is measuring. Demand is moving here fastest because the work is unglamorous, entirely rule-shaped, and until recently needed a salaried human to hold it.",
+    delivers: [
+      "Quotes out the same day, priced off your own rate card and sent for signature",
+      "Jobs put on the schedule and assigned, and the person told who is coming and when",
+      "Status messages on the day itself — running late, on site, done",
+      "Invoices raised the minute a job closes, then chased until they clear",
+      "Every step inspectable, with a hold-for-you gate on anything that moves money",
+    ],
+    price: 490000,
+    billing: "monthly",
+    fixes: "Won work that stalls after the handshake",
+    build: true,
+    oversight:
+      "Every step is inspectable node by node, the same as the loops it runs beside. Anything that moves money — a quote going out, an invoice being raised, a chase being sent — waits at a gate until you release it, and every release is recorded against your name.",
+    leading: true,
+    apex: true,
+  },
+  {
+    key: "comeback",
+    name: "The Comeback",
+    attachesTo: "ai-employees",
+    promise: "Echo asks them for a review. This one asks them back.",
+    demandCase:
+      "Reputation work ends at the happy moment and paid acquisition starts again from a stranger, so the cheapest name a business owns — somebody who has already paid it once — gets contacted by nobody. For any trade with a service interval, a warranty window or a season, the trigger for the next job is a date that already exists in the records and nobody reads. Acquisition costs keep climbing while that date sits there, which is why the businesses compounding fastest are the ones treating their own history as a channel rather than an archive.",
+    delivers: [
+      "Every past job dated, so the next one falls due without anybody remembering",
+      "Reminders timed to the season or interval the work is genuinely needed in",
+      "Dormant names re-approached on a schedule, not when somebody has a slow week",
+      "A monthly read-out of who was due, who replied, and who came back",
+      "Every message inspectable before it sends, and the whole run visible after",
+    ],
+    price: 240000,
+    billing: "monthly",
+    fixes: "Customers who only ever buy once",
+    build: true,
+    oversight:
+      "Nothing reaches a past customer without being visible to you first. You can read the queue before it sends, pull anybody out of it, and see afterwards exactly who was contacted, when, and what came back.",
+  },
   {
     key: "voice-employee",
     name: "The Voice Employee",
@@ -537,7 +747,6 @@ export const UPGRADES: Upgrade[] = [
     price: 190000,
     billing: "monthly",
     fixes: "The phone nobody answers",
-    leading: true,
   },
   {
     key: "tuning-lab",
@@ -601,6 +810,11 @@ export function serviceByKey(key: ServiceKey): ParentService | undefined {
 
 export function upgradesFor(service: ServiceKey): Upgrade[] {
   return UPGRADES.filter((u) => u.attachesTo === service);
+}
+
+/** The upgrades that ship a running loop rather than a service performed for you. */
+export function automationBuilds(): Upgrade[] {
+  return UPGRADES.filter((u) => u.build);
 }
 
 export function upgradeByKey(key: string): Upgrade | undefined {
@@ -669,13 +883,30 @@ export const BUNDLES: Bundle[] = [
     price: 290000,
   },
   {
+    key: "operations-stack",
+    name: "The Operations Stack",
+    members: ["voice-employee", "job-runner", "comeback"],
+    promise: "Answer it, run it, get them back — the whole life of a customer, automated.",
+    rationale:
+      "These three are one loop cut into thirds, and each is worth more with the others either side of it. A phone answered around the clock produces work nobody is scheduled to run; a job run cleanly to paid produces a satisfied name nobody asks back; a re-approach lands on somebody whose last job went badly if nothing ran it properly. Taken singly each closes a gap and opens the next one. Taken together the ring closes, and the same advert buys a customer instead of a job.",
+    price: 790000,
+  },
+  {
     key: "deluxe-deck",
     name: "The Deluxe Deck",
-    members: ["motion-unit", "voice-employee", "tuning-lab", "answer-engine", "citation-authority"],
+    members: [
+      "motion-unit",
+      "voice-employee",
+      "job-runner",
+      "comeback",
+      "tuning-lab",
+      "answer-engine",
+      "citation-authority",
+    ],
     promise: "Every gap on the board, closed at once — and nowhere else to buy it.",
     rationale:
-      "The whole point of the coverage map is that only five things are left. This is all five, run as one engagement with one point of contact, at a price the main site has no shelf for. It is the largest ticket either property carries and the only one that leaves nothing uncovered.",
-    price: 990000,
+      "The whole point of the coverage map is that a fixed, knowable number of things are left over once the flight plan is flying. This is all of them, run as one engagement with one point of contact, at a price the main site has no shelf for. It is the largest ticket either property carries and the only one that leaves nothing uncovered.",
+    price: 1590000,
     apex: true,
   },
 ];

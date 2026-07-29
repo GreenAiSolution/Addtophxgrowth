@@ -26,7 +26,7 @@ import { pulse } from "@/components/marketing/pulse";
  * DIRECTION
  *   A price list cannot show you that the thing you are buying is a shell
  *   around something you already own. This can, in one look: a bright core you
- *   already pay for, three services orbiting it, five upgrades hanging off
+ *   already pay for, three services orbiting it, every upgrade hanging off
  *   those, gold arcs where upgrades compound, and the seven tools overhead
  *   with beams pointing down at whatever each one reads.
  *

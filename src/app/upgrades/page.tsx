@@ -12,6 +12,10 @@ import {
   FLIGHT_CHECK,
   HOUSE_STRIP,
   THESIS,
+  AUTOMATION_SPINE,
+  AUTOMATION_LOOPS,
+  FLAGSHIP,
+  automationBuilds,
   bundleMembers,
   bundleListPrice,
   bundleSaving,
@@ -283,6 +287,99 @@ export default function UpgradesPage() {
         </div>
       </section>
 
+      {/* ── The automation spine ───────────────────────────────────────── */}
+      {/*
+        The parent does not merely claim automation — it prints the workflow,
+        node by named node, on a public page. That is the most persuasive thing
+        either property has, and it belongs on the price list rather than being
+        left on a page a visitor may not have read.
+
+        It is also the argument for the two builds. Every node in all four of
+        these loops sits inside the ad account, and the chains end where a lead
+        becomes a job. What this section does is show four loops that run, and
+        then the place the last one stops.
+      */}
+      <section id="spine" className="scroll-mt-24 border-t border-white/[0.06] py-14 md:py-16">
+        <div className="container">
+          <p className="eyebrow text-[0.62rem] text-signal">{AUTOMATION_SPINE.eyebrow}</p>
+          <h2 className="mt-4 max-w-2xl text-[1.75rem] font-bold leading-tight tracking-tight md:text-4xl">
+            {AUTOMATION_SPINE.headline}
+          </h2>
+          <p className="mt-3 max-w-2xl text-[0.95rem] leading-relaxed text-muted-foreground">
+            {AUTOMATION_SPINE.body}
+          </p>
+
+          <div className="mt-9 grid gap-4 lg:grid-cols-2">
+            {AUTOMATION_LOOPS.map((loop) => (
+              <div
+                key={loop.name}
+                className="rounded-2xl border border-white/[0.07] bg-black/20 p-5"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                  <h3 className="font-bold tracking-tight">{loop.name}</h3>
+                  <span className="chip border-signal/30 bg-signal/[0.08] text-signal">
+                    {loop.cadence}
+                  </span>
+                </div>
+                <p className="mt-2.5 text-[0.84rem] leading-relaxed text-muted-foreground">
+                  {loop.detail}
+                </p>
+                <ol className="mt-4 flex flex-wrap items-center gap-x-1 gap-y-1.5 border-t border-white/[0.06] pt-4">
+                  {loop.nodes.map((n, i) => (
+                    <li key={n} className="flex items-center gap-1">
+                      <span className="rounded border border-white/10 bg-white/[0.03] px-1.5 py-0.5 font-mono text-[0.62rem] text-muted-foreground">
+                        {n}
+                      </span>
+                      {i < loop.nodes.length - 1 && (
+                        <span aria-hidden className="text-muted-foreground/30">
+                          &rarr;
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+
+          {/* Where the spine stops, and what this site sells for it. */}
+          <div className="mt-6 rounded-2xl border border-gold/30 bg-gold/[0.04] p-5 md:p-7">
+            <p className="eyebrow text-[0.6rem] text-gold">And then it stops</p>
+            <h3 className="mt-3 max-w-2xl text-xl font-bold leading-snug tracking-tight md:text-2xl">
+              Every node above sits inside the ad account. The last one ends the moment
+              somebody says yes.
+            </h3>
+            <p className="mt-3 max-w-2xl text-[0.9rem] leading-relaxed text-muted-foreground">
+              After that comes the actual business — quoting it, scheduling it, doing it,
+              invoicing it, getting paid, and getting that customer back — and it runs on
+              somebody&rsquo;s memory. {FLAGSHIP.name} can engineer all of it, and says so, but
+              it is a private build: {FLAGSHIP.scoping.charAt(0).toLowerCase() + FLAGSHIP.scoping.slice(1)}{" "}
+              These {automationBuilds().length} are the productised route, built to the same
+              standard as the loops above.
+            </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {automationBuilds().map((u) => (
+                <a
+                  key={u.key}
+                  href={`#${u.key}`}
+                  className="flex items-baseline justify-between gap-3 rounded-xl border border-gold/25 bg-black/25 px-4 py-3.5 transition-colors hover:border-gold/50"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-semibold">{u.name}</span>
+                    <span className="mt-0.5 block text-[0.76rem] text-muted-foreground">
+                      {u.fixes}
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-mono text-[0.78rem] tabular-nums text-gold">
+                    {priceLine(u.price, u.billing)}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── The upgrades ───────────────────────────────────────────────── */}
       <section id="upgrades" className="scroll-mt-24 border-t border-white/[0.06] py-14 md:py-16">
         <div className="container">
@@ -338,6 +435,25 @@ export default function UpgradesPage() {
                         <span className="eyebrow text-[0.56rem] text-gold">Fixes</span>{" "}
                         <span className="ml-1.5 text-foreground/80">{u.fixes}</span>
                       </p>
+
+                      {/*
+                        Builds only. A loop that keeps running after everyone has
+                        gone home is a different promise from a crew that turns
+                        up and films something, and the difference a client cares
+                        about is what they can see and what they can stop. The
+                        parent publishes that standard; this is it, stated per
+                        build rather than assumed.
+                      */}
+                      {u.oversight && (
+                        <div className="mt-5 rounded-xl border border-signal/25 bg-signal/[0.04] p-4">
+                          <div className="eyebrow text-[0.56rem] text-signal">
+                            What you can see and stop
+                          </div>
+                          <p className="mt-2 text-[0.82rem] leading-relaxed text-muted-foreground">
+                            {u.oversight}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col">

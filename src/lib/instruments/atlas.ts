@@ -140,6 +140,16 @@ const TOOL_HEIGHT = -135;
 const TOOL_RING = 190;
 
 /**
+ * How much of a service's sector its upgrades may occupy, and the widest arc
+ * any single one is allowed to sit at from its parent's spoke.
+ *
+ * Together these are what stop the fan from either overlapping the neighbouring
+ * service or throwing a lone upgrade out to the sector boundary.
+ */
+const SECTOR_USE = 0.74;
+const STEP_MAX = 0.62;
+
+/**
  * Build the scene.
  *
  * Upgrades are placed in the sector belonging to their parent service and
@@ -180,15 +190,47 @@ export function buildAtlas(): Atlas {
 
     const mine = UPGRADES.filter((u) => u.attachesTo === service.key);
     mine.forEach((u, j) => {
-      // Fan the upgrades inside their parent's sector.
-      const spread = ((j - (mine.length - 1) / 2) / Math.max(1, mine.length)) * 1.05;
-      const a = angle + spread;
+      /*
+        Fan the upgrades inside their parent's sector.
+
+        The first version divided a fixed total spread by the number of
+        upgrades, which meant the arc stayed the same width however many were
+        in it — so a service carrying one upgrade got the whole sector and a
+        service carrying four got the same arc cut into four. It looked correct
+        with five upgrades spread 1/2/2 and collapsed the moment AI Employees
+        went to four: two nodes landed about twenty screen pixels apart, close
+        enough that hit-testing picked whichever was nearer rather than
+        whichever was meant.
+
+        So the step is a per-upgrade arc, not a slice of a constant. It gets as
+        wide as SECTOR_USE allows and no wider than STEP_MAX, which keeps a
+        lone upgrade sitting on its parent's spoke instead of being flung out
+        to the sector edge.
+      */
+      const sector = (Math.PI * 2) / PARENT_SERVICES.length;
+      const step = Math.min(STEP_MAX, (sector * SECTOR_USE) / Math.max(1, mine.length));
+      const a = angle + (j - (mine.length - 1) / 2) * step;
       nodes.push({
         key: u.key,
         label: u.name,
         kind: "upgrade",
         x: Math.cos(a) * RING_UPGRADE,
-        y: Math.sin(i * 2.1) * 26 + Math.cos(j * 1.7) * 34,
+        /*
+          A ramp, so every sibling sits at its own height.
+
+          This started as a cos-jitter, then as a strict up/down alternation —
+          and the alternation was worse than it looked, because it only ever
+          separates *neighbours*. The first and third upgrade in a sector both
+          came out even and landed at exactly the same height, so when the disc
+          was dragged edge-on and the horizontal spread collapsed under the
+          perspective divide, the two of them projected eleven pixels apart:
+          inside the click radius, and indistinguishable to the eye.
+
+          A monotonic ramp has no such collision. Every upgrade in a sector is
+          at a different altitude, which is the one separation the camera
+          cannot take away from any angle a visitor can drag to.
+        */
+        y: Math.sin(i * 2.1) * 26 + (j - (mine.length - 1) / 2) * 34,
         z: Math.sin(a) * RING_UPGRADE,
         hue: SERVICE_HUE[service.key] ?? 190,
         price: u.price,
@@ -315,11 +357,21 @@ export function sortedByDepth(points: Map<string, Projected>): Projected[] {
 }
 
 /** Which node is under the pointer, if any. Nearest wins on a tie. */
+/**
+ * The click radius, in screen pixels at unit scale.
+ *
+ * Exported because the layout has to be checked against it. Two nodes closer
+ * together than this are not two targets — they are one target that reports a
+ * different answer depending on depth, and the visitor cannot tell which they
+ * are about to get.
+ */
+export const HIT_SLACK = 20;
+
 export function hitTest(
   points: Map<string, Projected>,
   px: number,
   py: number,
-  slack = 20,
+  slack = HIT_SLACK,
 ): AtlasNode | null {
   let best: Projected | null = null;
   for (const p of points.values()) {

@@ -7,6 +7,8 @@ import {
   MANIFEST,
   REVENUE_LEVERS,
   AUTOMATION_LOOPS,
+  AUTOMATION_SPINE,
+  LAUNCH_TIMELINE,
   FLAGSHIP,
   RESULTS_WORK,
   HOUSE_STRIP,
@@ -21,6 +23,7 @@ import {
   bundleSaving,
   serviceByKey,
   upgradesFor,
+  automationBuilds,
   upgradeByKey,
   entryPrice,
   THESIS,
@@ -193,8 +196,37 @@ describe("rule four: nothing the Manifest already promises", () => {
     for (const l of AUTOMATION_LOOPS) {
       expect(l.detail.length, l.name).toBeGreaterThan(60);
       expect(l.cadence.length, l.name).toBeGreaterThan(3);
+      // The node chain, not just the summary. A loop held here without its
+      // published steps is a check reading a description of the work instead
+      // of the work.
+      expect(l.nodes.length, `${l.name} has no published node chain`).toBeGreaterThanOrEqual(6);
+      for (const n of l.nodes) expect(n.length, `${l.name}: "${n}"`).toBeGreaterThan(2);
     }
     expect(FLAGSHIP.includes.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("holds the spine's own framing, because it is a standard we inherit", () => {
+    // "Inspectable node by node… never a black box" is published. Anything
+    // sold here runs to that standard or it is a worse product than the thing
+    // it bolts onto, sold by the same company.
+    expect(AUTOMATION_SPINE.body).toContain("node by node");
+    expect(AUTOMATION_SPINE.body).toContain("never a black box");
+  });
+
+  it("holds the flagship's scoping terms", () => {
+    // This sentence is what makes a productised automation build honest: the
+    // flagship is bespoke, by application, and rationed. If it ever stops
+    // being any of those, the builds sold here need re-arguing.
+    expect(FLAGSHIP.scoping).toContain("limited number of builds each quarter");
+    expect(FLAGSHIP.scoping).toContain("engineered, not configured");
+  });
+
+  it("holds the parent's launch clock end to end", () => {
+    expect(LAUNCH_TIMELINE.length).toBeGreaterThanOrEqual(5);
+    expect(LAUNCH_TIMELINE[0]!.at).toBe("T-0");
+    // The claim is "under 60 minutes" — the last mark has to still be inside it.
+    const last = Number(LAUNCH_TIMELINE[LAUNCH_TIMELINE.length - 1]!.at.match(/\d+/)![0]);
+    expect(last).toBeLessThan(60);
   });
 
   it("keeps upgrade names clear of the flagship's own vocabulary", () => {
@@ -263,6 +295,27 @@ describe("rule four: nothing the Manifest already promises", () => {
         l.bullets.map((b) => ({ label: `${l.code} lever`, text: b })),
       ),
       ...AUTOMATION_LOOPS.map((l) => ({ label: `loop "${l.name}"`, text: `${l.name} ${l.detail}` })),
+      // The published node chains, each as ONE item rather than one per node.
+      //
+      // A loop's one-line summary is a description; its node list is the actual
+      // work, step by named step, and they are not the same scope. "Autonomous
+      // Budget Allocation" says nothing in its summary about pulling Shopify
+      // profit or gating on approval — its chain names both.
+      //
+      // Per-node items were the first attempt and were silently vacuous: a node
+      // is two or three words, so after the length filter most carry zero or
+      // one checkable word, and an item holding one word can never exceed a
+      // two-word threshold. It would have read as eight more checks passing
+      // while testing nothing. Joined, each chain carries five to ten
+      // distinctive words and a three-word overlap fails, which is a real bar.
+      ...AUTOMATION_LOOPS.map((l) => ({
+        label: `loop "${l.name}" node chain`,
+        text: l.nodes.join(" "),
+      })),
+      ...LAUNCH_TIMELINE.map((t) => ({
+        label: `launch clock ${t.at} "${t.title}"`,
+        text: `${t.title} ${t.detail}`,
+      })),
       ...FLAGSHIP.includes.map((b) => ({ label: `${FLAGSHIP.name} engagement`, text: b })),
       ...RESULTS_WORK.map((w) => ({ label: "Results-page work", text: w })),
       ...HOME_CLAIMS.map((c) => ({ label: "Homepage claim", text: c })),
@@ -279,6 +332,74 @@ describe("rule four: nothing the Manifest already promises", () => {
         ).toBeLessThanOrEqual(2);
       }
     }
+  });
+});
+
+describe("the automation builds", () => {
+  /**
+   * A build is an upgrade that keeps running after everyone has gone home,
+   * which makes it a different kind of promise from one where a crew turns up
+   * and films something. The parent has already published the standard such a
+   * thing is held to — "inspectable node by node… never a black box" — and it
+   * would be a strange thing to sell a loop, next to that page, that nobody
+   * can look inside.
+   */
+  const builds = () => UPGRADES.filter((u) => u.build);
+
+  it("marks the ones that ship a running loop", () => {
+    expect(builds().length).toBeGreaterThanOrEqual(2);
+    expect(automationBuilds().map((u) => u.key)).toEqual(builds().map((u) => u.key));
+  });
+
+  it("states what you can see and stop, on every one", () => {
+    // The load-bearing rule for this whole product line. A build that cannot
+    // be looked inside is worse than the loops it sits beside, sold by the
+    // same company, and a client would be right to notice.
+    //
+    // This reads a dedicated field rather than sniffing the delivers prose for
+    // words like "visible" or "read-out". The prose version passed on The
+    // Comeback purely because it promised a monthly report — which is not the
+    // same claim as being able to open a running loop and halt it. A check
+    // that a reassuring word appears somewhere is not a check.
+    for (const u of builds()) {
+      expect(u.oversight, `${u.key} ships a loop and never says what you can see`).toBeDefined();
+      expect(u.oversight!.length, u.key).toBeGreaterThan(120);
+    }
+  });
+
+  it("gives no oversight promise to anything that is not a build", () => {
+    // The field means "this loop runs unattended and here is your handle on
+    // it". On an upgrade where a human turns up and does the work, it would be
+    // reassurance about a risk that does not exist.
+    for (const u of UPGRADES.filter((x) => !x.build)) {
+      expect(u.oversight, `${u.key} is not a build but claims oversight`).toBeUndefined();
+    }
+  });
+
+  it("attaches them to the crew service, not the ad desk", () => {
+    // Every node in all four published loops sits inside the ad account. A
+    // build bolted onto Premium AI Ads would be claiming territory the
+    // Manifest already covers twelve ways.
+    for (const u of builds()) expect(u.attachesTo, u.key).toBe("ai-employees");
+  });
+
+  it("keeps them out of the flagship's lane", () => {
+    // The flagship engineers exactly this, so the only honest space for a
+    // productised version is the one its own scoping sentence leaves open:
+    // bespoke, by application, and rationed per quarter.
+    expect(FLAGSHIP.access).toBe("By application");
+    expect(FLAGSHIP.scoping).toMatch(/limited number/);
+    for (const u of builds()) {
+      expect(u.billing, `${u.key} must be a standing price, not a quote`).toBe("monthly");
+    }
+  });
+
+  it("sells them together as one loop", () => {
+    // Answer it, run it, get them back. Each one alone closes a gap and opens
+    // the next, so a bundle carrying all of them has to exist or the argument
+    // in their copy is one the page never lets anybody act on.
+    const bundle = BUNDLES.find((b) => builds().every((u) => b.members.includes(u.key)));
+    expect(bundle, "no bundle carries every automation build").toBeDefined();
   });
 });
 

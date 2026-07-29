@@ -42,6 +42,16 @@ interface Cell {
   label: string;
   band: Band;
   detail: string;
+  /**
+   * Loops only — the workflow PHX/GROWTH publishes for that loop, step by step.
+   *
+   * Worth showing rather than summarising. "Always-on automation" is what every
+   * agency on earth says; nine named steps in order is the thing nobody says
+   * unless it is true, and the parent prints them on a public page. It is also
+   * the standard the builds sold here are held to, so a visitor should be able
+   * to see what that standard looks like.
+   */
+  nodes?: string[];
   /** Gaps only. */
   price?: number;
   attachedTo?: string;
@@ -65,6 +75,7 @@ const CELLS: Cell[] = [
     label: l.name,
     band: "loops" as const,
     detail: `${l.cadence} — ${l.detail}`,
+    nodes: l.nodes,
   })),
   ...UPGRADES.map((u) => ({
     key: `gap-${u.key}`,
@@ -196,6 +207,27 @@ export function CoverageMatrix({ index }: { index: number }) {
                 <p className="mt-2 text-[0.88rem] leading-relaxed text-muted-foreground">
                   {selected.detail}
                 </p>
+                {selected.nodes && (
+                  <div className="mt-3.5 border-t border-white/[0.07] pt-3.5">
+                    <div className="eyebrow text-[0.54rem] text-muted-foreground/70">
+                      Every step, in order
+                    </div>
+                    <ol className="mt-2 flex flex-wrap items-center gap-x-1 gap-y-1.5">
+                      {selected.nodes.map((n, i) => (
+                        <li key={n} className="flex items-center gap-1">
+                          <span className="rounded border border-signal/25 bg-signal/[0.07] px-1.5 py-0.5 font-mono text-[0.62rem] text-signal/90">
+                            {n}
+                          </span>
+                          {i < selected.nodes!.length - 1 && (
+                            <span aria-hidden className="text-muted-foreground/30">
+                              →
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
                 {selected.band === "gap" ? (
                   <p className="mt-3 font-mono text-[0.78rem] tabular-nums text-gold">
                     {formatCurrency(selected.price!)}/mo · on {selected.attachedTo}
