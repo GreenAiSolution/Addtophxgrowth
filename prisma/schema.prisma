@@ -100,6 +100,25 @@ enum AdAlertSeverity {
   INFO
 }
 
+/// How an automation's proposal is held before it can act.
+enum GateHold {
+  /// Never fires without a named human releasing it. Anything that moves money.
+  MANUAL
+  /// Visible before it goes; auto-releases when the review window closes.
+  TIMED
+}
+
+enum GateState {
+  HELD
+  RELEASED
+  EXECUTED
+  /// A human pulled it out of the queue.
+  WITHDRAWN
+  /// Nobody released it in time. Never fires.
+  EXPIRED
+  FAILED
+}
+
 enum AdAlertStatus {
   OPEN
   ACKNOWLEDGED
@@ -236,6 +255,7 @@ model ClientProfile {
   memoryEntries    MemoryEntry[]
   adAlerts         AdAlert[]
   entitlements     ClientEntitlement[]
+  pendingActions   PendingAction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -689,4 +709,77 @@ model WebhookConfig {
   createdAt DateTime @default(now())
 
   @@index([clientId])
+}
+
+// ---------------------------------------------------------------------------
+// The gate — nothing an automation proposes acts without passing through here
+// ---------------------------------------------------------------------------
+
+/// One action an automation wants to take on a client's behalf.
+///
+/// The upgrade catalogue publishes a promise for every automation build: that
+/// anything moving money waits until a named human releases it, and that
+/// nothing reaches a customer without being visible first. This table is that
+/// promise. An automation does not send, invoice or charge — it proposes, and
+/// the proposal sits here until it is released, pulled, or expires unfired.
+///
+/// `dedupeKey` is what makes an agent safe to re-run. A loop that wakes twice
+/// on the same due job must not queue the same invoice twice, and the unique
+/// constraint means it cannot, whatever the caller believes.
+model PendingAction {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// Which build proposed it — job-runner, comeback.
+  build String
+  /// Action kind key. Resolves through ACTION_KINDS in lib/gate.ts.
+  kind  String
+
+  hold  GateHold
+  state GateState @default(HELD)
+
+  /// Denormalised from the kind, so the queue can be filtered and audited
+  /// without resolving every row through the registry.
+  movesMoney Boolean @default(false)
+
+  /// One line, so the queue is skimmable without opening anything.
+  summary String
+  /// Who or what this affects — a customer name, a job reference.
+  subject String?
+  /// The whole proposal, inspectable field by field.
+  payload Json
+
+  /// TIMED only: when it auto-releases if nobody pulls it first.
+  releaseAt DateTime?
+  /// Hard stop. Never fires after this, released or not.
+  expiresAt DateTime
+
+  releasedAt       DateTime?
+  /// Recorded against a name — the published promise says "against your name".
+  releasedBy       String?
+  releasedByUserId String?
+  /// True when the review window closed rather than a person clicking.
+  autoReleased     Boolean   @default(false)
+
+  withdrawnAt     DateTime?
+  withdrawnBy     String?
+  withdrawnReason String?   @db.Text
+
+  executedAt DateTime?
+  /// What actually happened, kept for the after-the-fact record.
+  result     Json?
+  error      String?   @db.Text
+
+  /// Idempotency. A re-running agent must not double-propose.
+  dedupeKey String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, dedupeKey])
+  @@index([clientId, state])
+  @@index([clientId, createdAt])
+  @@index([state, releaseAt])
+  @@index([state, expiresAt])
 }

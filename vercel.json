@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/night-shift",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/gate",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
