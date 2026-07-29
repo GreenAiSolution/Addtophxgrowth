@@ -90,6 +90,8 @@ async function upsertClient(opts: {
   verticalKey?: string;
   agentsPlan?: string;
   adOpsPlan?: string;
+  /** Switch on The Comeback re-approach loop for this tenant. */
+  comebackEnabled?: boolean;
   adAccounts: {
     platform: string;
     name: string;
@@ -115,6 +117,7 @@ async function upsertClient(opts: {
       goals: opts.goals,
       voiceTone: opts.voiceTone,
       verticalKey: opts.verticalKey ?? null,
+      comebackEnabled: opts.comebackEnabled ?? false,
       onboardedAt: new Date(),
       intakeCompletedAt: new Date(),
     },
@@ -127,6 +130,7 @@ async function upsertClient(opts: {
       goals: opts.goals,
       voiceTone: opts.voiceTone,
       verticalKey: opts.verticalKey ?? null,
+      comebackEnabled: opts.comebackEnabled ?? false,
       intakeToken: randomBytes(24).toString("base64url"),
       onboardedAt: new Date(),
       intakeCompletedAt: new Date(),
@@ -414,6 +418,74 @@ async function seedNightShiftDemo(clientId: string) {
 }
 
 /**
+ * Give demo client #3 a handful of real past customers — won jobs with a
+ * contactable lead behind each — then run the actual Comeback pass against them,
+ * so /app/gate opens with genuine re-approaches waiting rather than an empty
+ * queue. As with the memory and Spend Watch demos, the proposals are produced by
+ * production code (lib/comeback.ts → the gate), so the demo can't drift from what
+ * the system would really queue. Guarded on the won-customer count so re-seeding
+ * doesn't stack duplicate history.
+ */
+async function seedComebackDemo(clientId: string) {
+  const already = await prisma.dealOutcome.count({
+    where: { clientId, outcome: "WON", leadId: { not: null } },
+  });
+  if (already > 0) return;
+
+  const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000);
+
+  // roofing's interval is 365 days. One customer sits inside the reminder
+  // window (annual inspection due), two are long dormant (win-back), and one is
+  // too recent to contact — so the pass has something to include and something
+  // to correctly leave alone.
+  const pastJobs: { name: string; company: string; daysSince: number; value: number; phone: string }[] = [
+    { name: "Glen Marsh", company: "Marsh Residence", daysSince: 358, value: 1_540_000, phone: "+1 602 555 0143" },
+    { name: "Yara Nakamura", company: "Nakamura Property", daysSince: 690, value: 1_210_000, phone: "+1 602 555 0188" },
+    { name: "Ed Boone", company: "Boone Ranch", daysSince: 830, value: 2_060_000, phone: "+1 602 555 0207" },
+    { name: "Tessa Fields", company: "Fields Residence", daysSince: 45, value: 980_000, phone: "+1 602 555 0251" },
+  ];
+
+  for (const j of pastJobs) {
+    const lead = await prisma.lead.create({
+      data: {
+        clientId,
+        source: "google-ads",
+        name: j.name,
+        company: j.company,
+        email: `${j.name.split(" ")[0].toLowerCase()}@example.com`,
+        phone: j.phone,
+        message: "Full roof replacement, insurance claim.",
+        status: "WON",
+        score: 88,
+        tier: "HOT",
+        scoredAt: daysAgo(j.daysSince + 3),
+        createdAt: daysAgo(j.daysSince + 5),
+      },
+    });
+    await prisma.dealOutcome.create({
+      data: {
+        clientId,
+        leadId: lead.id,
+        outcome: "WON",
+        valueCents: j.value,
+        scoreAtQualification: 88,
+        tierAtQualification: "HOT",
+        source: "google-ads",
+        createdAt: daysAgo(j.daysSince),
+      },
+    });
+  }
+
+  // Run the real loop. It proposes through the gate exactly as the hourly cron
+  // would, so the queue fills with production output, not hand-written rows.
+  const { runComeback } = await import("../src/lib/comeback");
+  const result = await runComeback(clientId);
+  console.log(
+    `   · Comeback considered ${result.considered ?? 0} past customers, queued ${result.queued ?? 0}`,
+  );
+}
+
+/**
  * Degrade one of demo client #1's accounts over the last week and then run the
  * real Spend Watch against it, so /app/ads has genuine alerts on a fresh
  * install. As with the memory demo, the alerts are produced by production code
@@ -556,9 +628,11 @@ async function main() {
     voiceTone: "Straight-talking, no pressure, like a neighbour who happens to know roofs.",
     verticalKey: "roofing",
     agentsPlan: "command",
+    comebackEnabled: true,
     adAccounts: [{ platform: "GOOGLE", name: "Ironclad — Google Ads" }],
   });
   await seedNightShiftDemo(c3.id);
+  await seedComebackDemo(c3.id);
 
   console.log("✓ Seed complete.");
 }

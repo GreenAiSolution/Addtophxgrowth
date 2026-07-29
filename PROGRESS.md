@@ -570,7 +570,89 @@ better ad costs the same to run and can return several times more).
 
 ---
 
+## Phase 16 — The Comeback: the first automation build that runs ✅
+
+The gate (`lib/gate.ts`) shipped first, on purpose, holding action kinds for two
+automation builds — The Job Runner and The Comeback — with the executors
+deliberately empty: "Nothing is registered yet, because neither loop is built."
+This phase builds the first loop. The Comeback is the one the catalogue sells as
+"Echo asks them for a review. This one asks them back" — the re-approach that
+turns a past customer back into a booked job, and the outreach half of the
+platform's promise.
+
+### The loop (`src/lib/comeback.ts`)
+- **Past customers are won `DealOutcome` rows** with a contactable lead behind
+  them. `latestJobPerCustomer` collapses repeat buyers to their most recent job,
+  so a customer who bought three times is one comeback timed off their last
+  visit, not three overlapping ones.
+- **The cadence is the vertical's, overridable by the client.** `intervalFor`
+  reads `serviceIntervalDays` off the pack (roofing 365, HVAC/dental 180, med spa
+  90, remodeling 730) unless `ClientProfile.comebackIntervalDays` says otherwise,
+  and floors any override at 30 days so a fat-fingered number can't turn the loop
+  into a weekly nag.
+- **`classify` decides reminder vs win-back vs nothing.** A reminder fires in the
+  window around the due date; past 1.5× the interval with no return, the softer
+  reminder gives way to a win-back. The gap between them is a deliberate
+  cool-off. Reminders key off a single interval from the *latest* job, so a
+  customer who rebooks gets a fresh reminder next cycle and one who never does
+  slides into win-back instead of hearing "you're due" forever.
+- **`composeMessage` writes the copy — pure, and in the client's name, never
+  ours.** There is no model call anywhere in the file: a message sent in someone
+  else's business's name has to read identically whether or not the Anthropic API
+  is up, and the client reads the exact words in the queue before they send. A
+  test asserts no trace of the platform leaks into a customer-facing send.
+- **It proposes; it never sends.** `runComeback` walks the due customers and
+  `propose()`s each through the gate. Idempotent by construction — the gate's
+  unique `(clientId, dedupeKey)` and a stable per-cycle key mean the hourly cron
+  and its retries re-queue nothing.
+
+### Delivery, through the client's own channel
+- The two executors (`comeback.reminder`, `comeback.reactivate`) deliver a
+  *released* action through the client's **own CRM webhook** — their channel,
+  their sender — because a re-approach to their customer must arrive from their
+  business. It falls back to the agency automation hook, and if neither is wired
+  it throws, so the gate records a plain FAILED rather than a silent success:
+  the same rule the gate already lived by.
+- Registered from the sweep cron (`registerComebackExecutors`), never at import,
+  so importing the module for its pure helpers — or in a test — doesn't quietly
+  wire live delivery into the gate's global registry. `gate.test.ts`'s "no
+  executor wired" assertions still hold.
+
+### Wiring
+- The **hourly cron** now runs a Comeback pass alongside the night shift and
+  Spend Watch — it only *queues* into the gate. The **five-minute gate cron**
+  releases and delivers. `isDue` gates the hourly tick to roughly one pass a day
+  on `comebackLastRunAt`, the same shape as the Spend Watch's sweep gate.
+- **Schema:** `ClientProfile` gains `comebackEnabled` (off by default — it is a
+  paid build, switched on when bought, not a tier feature), `comebackIntervalDays`
+  and `comebackLastRunAt`. `VerticalPack` gains `serviceIntervalDays`.
+- **Seed:** demo client #3 (Ironclad Roofing) gets four real past customers — one
+  due for a reminder, two dormant, one too recent to touch — and the seed runs
+  the actual `runComeback`, so `/app/gate` opens with genuine proposals produced
+  by production code rather than hand-written rows.
+- 46 tests (`comeback.test.ts`, plus the interval assertion in
+  `verticals.test.ts`).
+
+### The surface, and what's deferred
+- The queue at `/app/gate` is the screen these builds were always pointed at:
+  every proposal is inspectable field by field, holds for a review window, and
+  can be pulled — and afterwards shows who was contacted, when, and what
+  happened. The catalogue's "monthly read-out of who was due, who replied, and
+  who came back" is served for *due* and *contacted*; **replied/came-back needs
+  an inbound channel that doesn't exist yet** and is the honest next step here.
+- The Job Runner's executors are still unbuilt; its action kinds sit in the gate
+  registry waiting, exactly as The Comeback's did.
+
+---
+
 ## Verified this session
+- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
+  pages) · `pnpm test` ✅ (529 tests, 23 files) — after building The Comeback.
+- The Comeback is proposal-only in the hourly cron and delivery-only in the gate
+  sweep; both crons are bearer-authenticated and refuse when `CRON_SECRET` is
+  unset, so the loop can't be driven by anyone who finds the URL.
+
+### Earlier session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
   pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (260 tests, 11 files).
 - Landing page, both new plan pages and `/cockpit` rendered against a production

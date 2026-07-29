@@ -243,6 +243,17 @@ model ClientProfile {
   /// even when a sweep finds nothing and so writes no alert rows.
   spendWatchLastRunAt DateTime?
 
+  /// The Comeback (lib/comeback.ts): the re-approach loop that turns a past
+  /// customer back into a booked job. Off by default — it is a paid automation
+  /// build, switched on when a client buys it, not a tier feature.
+  comebackEnabled     Boolean   @default(false)
+  /// Per-client override of the vertical's default service interval, in days.
+  /// Null falls back to the pack's `serviceIntervalDays`, then to a year.
+  comebackIntervalDays Int?
+  /// Last completed Comeback pass. Gates the hourly cron to one run a day, the
+  /// same way `spendWatchLastRunAt` does for the sweep.
+  comebackLastRunAt   DateTime?
+
   stripeCustomerId String? @unique
 
   subscriptions    Subscription[]

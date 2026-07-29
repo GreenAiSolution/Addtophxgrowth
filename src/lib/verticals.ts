@@ -41,6 +41,14 @@ export interface VerticalPack {
   objections: string[];
   /** Starting assumption for the ROI framing, in cents. Client edits it. */
   typicalJobValueCents: number;
+  /**
+   * How long, in days, before a past customer of this trade is due again — the
+   * cadence The Comeback (lib/comeback.ts) times its re-approach against. Like
+   * `typicalJobValueCents`, this is a conservative starting point the client
+   * edits, not a researched benchmark: roofing runs long, seasonal trades run
+   * short, and a per-client override on ClientProfile always wins.
+   */
+  serviceIntervalDays: number;
   /** Pre-filled bodies for the three ASSET modules, keyed by module key. */
   assetBodies: Record<string, string>;
   /** Better starter prompts for playbooks this trade uses differently. */
@@ -68,6 +76,9 @@ export const VERTICAL_PACKS: VerticalPack[] = [
       "I want to wait until after storm season",
     ],
     typicalJobValueCents: 1_400_000,
+    // A roof rarely needs replacing twice, so the re-approach is the annual
+    // inspection — the moment to catch damage before it becomes a claim.
+    serviceIntervalDays: 365,
     assetBodies: {
       "asset-voice-profile":
         "Pre-filled for roofing. Edit anything that isn't you — this is a starting point, not a rule.\n\n" +
@@ -120,6 +131,8 @@ export const VERTICAL_PACKS: VerticalPack[] = [
       "Can it wait until next season?",
     ],
     typicalJobValueCents: 900_000,
+    // Two tune-ups a year — cooling before summer, heating before winter.
+    serviceIntervalDays: 180,
     assetBodies: {
       "asset-voice-profile":
         "Pre-filled for HVAC. Edit anything that isn't you.\n\n" +
@@ -172,6 +185,8 @@ export const VERTICAL_PACKS: VerticalPack[] = [
       "I need to check my schedule",
     ],
     typicalJobValueCents: 180_000,
+    // Treatment cycles run quarterly — the rebook is the whole business model.
+    serviceIntervalDays: 90,
     assetBodies: {
       "asset-voice-profile":
         "Pre-filled for aesthetics. Edit anything that isn't you.\n\n" +
@@ -223,6 +238,8 @@ export const VERTICAL_PACKS: VerticalPack[] = [
       "I've had a bad experience before",
     ],
     typicalJobValueCents: 320_000,
+    // The six-month recall — the appointment the whole practice is built around.
+    serviceIntervalDays: 180,
     assetBodies: {
       "asset-voice-profile":
         "Pre-filled for dental. Edit anything that isn't you.\n\n" +
@@ -273,6 +290,8 @@ export const VERTICAL_PACKS: VerticalPack[] = [
       "I don't want to go to court",
     ],
     typicalJobValueCents: 750_000,
+    // An annual review — estate, contracts, filings that quietly go stale.
+    serviceIntervalDays: 365,
     assetBodies: {
       "asset-voice-profile":
         "Pre-filled for legal. Edit anything that isn't you.\n\n" +
@@ -324,6 +343,9 @@ export const VERTICAL_PACKS: VerticalPack[] = [
       "Can you break out the pricing?",
     ],
     typicalJobValueCents: 6_500_000,
+    // A big remodel is a once-every-few-years event; the re-approach is the
+    // next room, timed long so it never reads as pestering.
+    serviceIntervalDays: 730,
     assetBodies: {
       "asset-voice-profile":
         "Pre-filled for remodeling. Edit anything that isn't you.\n\n" +

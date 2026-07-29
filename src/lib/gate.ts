@@ -314,12 +314,13 @@ export function describeWait(action: GateAction, now: Date): string {
 
 /**
  * An executor actually performs a released action — sends the SMS, raises the
- * invoice. Registered by the build that owns the kind.
+ * invoice. Registered by the build that owns the kind: The Comeback wires its
+ * two (lib/comeback.ts, via registerComebackExecutors in the sweep cron); The
+ * Job Runner's are still to come.
  *
- * Nothing is registered yet, because neither loop is built. That is deliberate
- * and it is why `runReleased` records FAILED with a plain reason rather than
- * quietly reporting success: an action nobody can perform must never look like
- * one that was performed.
+ * A kind with no executor registered records FAILED with a plain reason rather
+ * than quietly reporting success: an action nobody can perform must never look
+ * like one that was performed.
  */
 export type Executor = (payload: unknown) => Promise<Record<string, unknown>>;
 
