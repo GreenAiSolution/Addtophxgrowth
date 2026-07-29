@@ -2,10 +2,10 @@
   "name": "phx-growth-plus",
   "version": "0.1.0",
   "private": true,
-  "description": "PHX Growth Plus — the deluxe creative and automation tier of PHX Growth.",
+  "description": "PHX Growth Plus \u2014 the deluxe creative and automation tier of PHX Growth.",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && node scripts/db-sync.mjs && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -15,7 +15,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "stripe:setup": "tsx scripts/setup-stripe.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:sync": "node scripts/db-sync.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

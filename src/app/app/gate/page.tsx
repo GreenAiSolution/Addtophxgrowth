@@ -61,22 +61,43 @@ export default async function GatePage({
   const { client, actor } = await requireClient();
   const filter = FILTERS.find((f) => f.key === searchParams.filter) ?? FILTERS[0]!;
 
-  const actions = await prisma.pendingAction.findMany({
-    where: {
-      clientId: client.id,
-      state: { in: filter.states },
-      ...("money" in filter && filter.money ? { movesMoney: true } : {}),
-    },
-    orderBy: [{ state: "asc" }, { createdAt: "desc" }],
-    take: 100,
-  });
+  /*
+    Every read is guarded, and the failure is shown rather than thrown.
 
-  const waiting = await prisma.pendingAction.count({
-    where: { clientId: client.id, state: "HELD" },
-  });
-  const waitingMoney = await prisma.pendingAction.count({
-    where: { clientId: client.id, state: "HELD", movesMoney: true },
-  });
+    The table did not exist in production when this shipped — the repo had
+    never had `db push` run against it — and an unguarded query here would
+    have rendered the framework's error page. "Something went wrong" on the
+    screen whose entire job is to prove a client can see what an automation is
+    about to do is close to the worst possible failure, because it looks
+    exactly like the automation hiding something.
+  */
+  let actions: Awaited<ReturnType<typeof prisma.pendingAction.findMany>> = [];
+  let waiting = 0;
+  let waitingMoney = 0;
+  let dbError: string | null = null;
+
+  try {
+    [actions, waiting, waitingMoney] = await Promise.all([
+      prisma.pendingAction.findMany({
+        where: {
+          clientId: client.id,
+          state: { in: filter.states },
+          ...("money" in filter && filter.money ? { movesMoney: true } : {}),
+        },
+        orderBy: [{ state: "asc" }, { createdAt: "desc" }],
+        take: 100,
+      }),
+      prisma.pendingAction.count({ where: { clientId: client.id, state: "HELD" } }),
+      prisma.pendingAction.count({
+        where: { clientId: client.id, state: "HELD", movesMoney: true },
+      }),
+    ]);
+  } catch {
+    dbError =
+      "The queue cannot reach its storage, so nothing can be shown or released right now. " +
+      "No automation is running either — the same failure stops the sweep, so nothing has " +
+      "gone out unreviewed. Check /api/health for which half is wrong.";
+  }
 
   /**
    * Server actions rather than a client component. The release path should be
@@ -160,7 +181,15 @@ export default async function GatePage({
         ))}
       </div>
 
-      {actions.length === 0 ? (
+      {dbError ? (
+        <Card className="border-magenta/40 p-8">
+          <CardTitle className="flex items-center gap-2">
+            <CircleAlert className="h-4 w-4 text-magenta" />
+            The queue is unavailable
+          </CardTitle>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">{dbError}</p>
+        </Card>
+      ) : actions.length === 0 ? (
         <Card className="p-8">
           <CardTitle>Nothing queued</CardTitle>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">

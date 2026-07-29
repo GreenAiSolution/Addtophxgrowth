@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { deliveryChannels, canDeliver, env } from "@/lib/env";
 import { UPGRADES } from "@/lib/upgrades";
+import { checkDb } from "@/lib/db-health";
 
 /**
  * Is the site actually working?
@@ -25,6 +26,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const channels = deliveryChannels();
   const healthy = canDeliver();
+  const db = await checkDb();
 
   return NextResponse.json(
     {
@@ -37,6 +39,22 @@ export async function GET() {
         ...(c.live ? { configuredAs: c.via } : { fix: c.hint }),
       })),
       catalogue: { upgrades: UPGRADES.length },
+      /**
+       * Whether the gate can actually hold anything.
+       *
+       * A live probe against its own table, not a guess from env vars — a
+       * DATABASE_URL pointing at a database nobody ever pushed to looks fine
+       * from the outside and holds no invoices at all.
+       *
+       * Deliberately does not change the HTTP status. The public pages and the
+       * enquiry form touch no database, so a missing schema is not a reason to
+       * report the site down; `enquiriesReachAHuman` still owns the 503.
+       */
+      gate: {
+        ready: db.gateReady,
+        database: db.state,
+        ...(db.fix ? { fix: db.fix } : {}),
+      },
       // What the site believes its own address is — the value that goes into
       // the sitemap, the canonical tag and every share preview.
       siteUrl: env.siteUrl,

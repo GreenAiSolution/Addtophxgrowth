@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { sweep, SWEEP_INTERVAL_MINUTES } from "@/lib/gate";
+import { checkDb } from "@/lib/db-health";
 
 /**
  * The gate sweep. Every five minutes (see vercel.json).
@@ -60,6 +61,20 @@ export async function GET(req: Request) {
   } catch (e) {
     // Surfaced rather than swallowed: a sweep that stops running is a queue
     // that silently stops sending, which looks exactly like a quiet week.
-    return json({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
+    //
+    // The schema being absent is called out by name because it is the failure
+    // that actually happened — this repo had never had `db push` run against
+    // production — and "relation does not exist" in a cron log at five-minute
+    // intervals is a worse diagnostic than a sentence saying what to do.
+    const db = await checkDb();
+    return json(
+      {
+        ok: false,
+        error: e instanceof Error ? e.message : String(e),
+        database: db.state,
+        ...(db.fix ? { fix: db.fix } : {}),
+      },
+      503,
+    );
   }
 }
