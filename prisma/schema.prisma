@@ -243,6 +243,14 @@ model ClientProfile {
   /// even when a sweep finds nothing and so writes no alert rows.
   spendWatchLastRunAt DateTime?
 
+  /// The Comeback: the outbound loop that re-approaches past customers when the
+  /// next job falls due. Off by default — it only runs for tenants who have the
+  /// build, and it reads a customer history that has to be connected first.
+  comebackEnabled   Boolean   @default(false)
+  /// Last completed Comeback pass. Gates the daily proposal run, the same way
+  /// spendWatchLastRunAt gates the sweep.
+  comebackLastRunAt DateTime?
+
   stripeCustomerId String? @unique
 
   subscriptions    Subscription[]
@@ -261,6 +269,7 @@ model ClientProfile {
   entitlements     ClientEntitlement[]
   embeddings       Embedding[]
   pendingActions   PendingAction[]
+  serviceRecords   ServiceRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -787,6 +796,59 @@ model PendingAction {
   @@index([clientId, createdAt])
   @@index([state, releaseAt])
   @@index([state, expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// The Comeback — the outbound loop that treats past customers as a channel
+// ---------------------------------------------------------------------------
+
+/// One past job for one customer. The source data for The Comeback.
+///
+/// The catalogue's promise is "every past job dated, so the next one falls due
+/// without anybody remembering". `completedAt` is that date, and it is the only
+/// hard requirement — the loop measures the next-due date from it. Everything
+/// else is optional because a CRM export rarely has all of it.
+///
+/// This is deliberately NOT the DealOutcome table. A DealOutcome is a closed
+/// lead the system already knew about, snapshotted for calibration; a
+/// ServiceRecord is a customer's service history, which may predate the platform
+/// entirely and usually arrives as a bulk import from the client's old CRM.
+model ServiceRecord {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  customerName String
+  email        String?
+  phone        String?
+  /// What was done last time — "Full roof replacement", "AC tune-up".
+  service      String?
+  /// When that job completed. The date the next one is measured from.
+  completedAt  DateTime
+  valueCents   Int      @default(0)
+  /// Service interval in days. Null = fall back to the trade default in
+  /// lib/comeback.ts, so a client who doesn't know their cadence still gets one.
+  intervalDays Int?
+  source       String   @default("MANUAL") // MANUAL | CSV | CRM
+  notes        String?  @db.Text
+
+  /// Set when a Comeback action for this record is actually executed (sent), so
+  /// the loop never re-approaches somebody it contacted last week. Distinct from
+  /// the proposal being queued — a held proposal has not reached anyone yet.
+  lastContactedAt DateTime?
+  /// The customer asked not to be contacted, or churned for cause. Excluded from
+  /// every pass, unconditionally — this is the one flag the loop must never
+  /// override, however overdue they look.
+  doNotContact    Boolean  @default(false)
+  /// Set when a re-approach brought them back, so the read-out can close the
+  /// loop honestly instead of counting a win it can't see.
+  returnedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId, completedAt])
+  @@index([clientId, doNotContact])
 }
 
 // ---------------------------------------------------------------------------

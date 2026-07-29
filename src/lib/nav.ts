@@ -12,6 +12,7 @@ import {
   Target,
   Activity,
   ShieldCheck,
+  RotateCcw,
 } from "lucide-react";
 
 export interface NavItem {
@@ -24,6 +25,7 @@ export const CLIENT_NAV: NavItem[] = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard },
   { href: "/app/brief", label: "Morning Brief", icon: Moon },
   { href: "/app/leads", label: "Leads", icon: Target },
+  { href: "/app/comeback", label: "The Comeback", icon: RotateCcw },
   { href: "/app/gate", label: "The Queue", icon: ShieldCheck },
   { href: "/app/agents", label: "Agent Workspace", icon: Bot },
   { href: "/app/recall", label: "Recall", icon: Brain },

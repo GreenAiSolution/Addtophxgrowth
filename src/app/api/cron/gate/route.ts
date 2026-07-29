@@ -2,6 +2,10 @@ import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { sweep, SWEEP_INTERVAL_MINUTES } from "@/lib/gate";
 import { checkDb } from "@/lib/db-health";
+// Imported for its side effect: registering the Comeback executors so a released
+// comeback action has something to perform. Without this, the sweep would find
+// no executor and record a failure instead of delivering.
+import "@/lib/comeback";
 
 /**
  * The gate sweep. Every five minutes (see vercel.json).

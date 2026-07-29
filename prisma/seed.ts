@@ -90,6 +90,7 @@ async function upsertClient(opts: {
   verticalKey?: string;
   agentsPlan?: string;
   adOpsPlan?: string;
+  comebackEnabled?: boolean;
   adAccounts: {
     platform: string;
     name: string;
@@ -115,6 +116,7 @@ async function upsertClient(opts: {
       goals: opts.goals,
       voiceTone: opts.voiceTone,
       verticalKey: opts.verticalKey ?? null,
+      comebackEnabled: opts.comebackEnabled ?? false,
       onboardedAt: new Date(),
       intakeCompletedAt: new Date(),
     },
@@ -127,6 +129,7 @@ async function upsertClient(opts: {
       goals: opts.goals,
       voiceTone: opts.voiceTone,
       verticalKey: opts.verticalKey ?? null,
+      comebackEnabled: opts.comebackEnabled ?? false,
       intakeToken: randomBytes(24).toString("base64url"),
       onboardedAt: new Date(),
       intakeCompletedAt: new Date(),
@@ -414,6 +417,79 @@ async function seedNightShiftDemo(clientId: string) {
 }
 
 /**
+ * Give demo client #3 a customer history and then run the REAL Comeback loop
+ * against it, so /app/comeback and /app/gate have genuine, drafted actions on a
+ * fresh install. As with the memory and Spend Watch demos, the queued messages
+ * are produced by production code — `runComeback` — not hand-written, so they
+ * can't drift from what the loop would actually do. With no ANTHROPIC_API_KEY in
+ * the seed environment the drafts fall back to the template, exactly as they
+ * would in production during a model outage.
+ */
+async function seedComebackDemo(clientId: string) {
+  const already = await prisma.serviceRecord.count({ where: { clientId } });
+  if (already > 0) return;
+
+  const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000);
+  const interval = 365; // roofing runs on an annual inspection cadence
+
+  const records: {
+    customerName: string;
+    service: string;
+    completed: number;
+    phone: string;
+    doNotContact?: boolean;
+    returned?: number;
+    contacted?: number;
+  }[] = [
+    { customerName: "Marcy Bell", service: "Full roof replacement", completed: 358, phone: "(602) 555-0142" },
+    { customerName: "Tomas Vega", service: "Storm-damage re-roof", completed: 350, phone: "(602) 555-0169" },
+    { customerName: "The Whitakers", service: "Roof inspection & repair", completed: 620, phone: "(480) 555-0110" },
+    { customerName: "Osei Residence", service: "Gutter & flashing replacement", completed: 800, phone: "(602) 555-0188" },
+    { customerName: "Priya Raman", service: "New roof install", completed: 60, phone: "(480) 555-0133" },
+    { customerName: "Hal Brennan", service: "Emergency leak repair", completed: 900, phone: "(602) 555-0175", doNotContact: true },
+    { customerName: "Dee Fletcher", service: "Full roof replacement", completed: 700, phone: "(480) 555-0121", returned: 20 },
+    { customerName: "Cole Whitman", service: "Roof inspection", completed: 900, phone: "(602) 555-0104", contacted: 20 },
+  ];
+
+  for (const r of records) {
+    await prisma.serviceRecord.create({
+      data: {
+        clientId,
+        customerName: r.customerName,
+        service: r.service,
+        completedAt: daysAgo(r.completed),
+        intervalDays: interval,
+        phone: r.phone,
+        email: `${r.customerName.split(" ")[0].toLowerCase()}@example.com`,
+        valueCents: 1_400_000,
+        source: "CRM",
+        doNotContact: r.doNotContact ?? false,
+        returnedAt: r.returned ? daysAgo(r.returned) : null,
+        lastContactedAt: r.contacted ? daysAgo(r.contacted) : null,
+      },
+    });
+  }
+
+  // A connected delivery channel, so a released message has somewhere to go.
+  // requestb.in-style catch hook — inert, but a real, enabled destination.
+  await prisma.webhookConfig.upsert({
+    where: { id: `${clientId}-crm` },
+    update: {},
+    create: {
+      id: `${clientId}-crm`,
+      clientId,
+      label: "Ironclad CRM (demo)",
+      url: "https://example.com/comeback-inbox",
+      enabled: true,
+    },
+  });
+
+  const { runComeback } = await import("../src/lib/comeback");
+  const result = await runComeback(clientId);
+  console.log(`   · comeback: ${result.proposed ?? 0} messages queued from ${records.length} past customers`);
+}
+
+/**
  * Degrade one of demo client #1's accounts over the last week and then run the
  * real Spend Watch against it, so /app/ads has genuine alerts on a fresh
  * install. As with the memory demo, the alerts are produced by production code
@@ -556,9 +632,11 @@ async function main() {
     voiceTone: "Straight-talking, no pressure, like a neighbour who happens to know roofs.",
     verticalKey: "roofing",
     agentsPlan: "command",
+    comebackEnabled: true,
     adAccounts: [{ platform: "GOOGLE", name: "Ironclad — Google Ads" }],
   });
   await seedNightShiftDemo(c3.id);
+  await seedComebackDemo(c3.id);
 
   console.log("✓ Seed complete.");
 }

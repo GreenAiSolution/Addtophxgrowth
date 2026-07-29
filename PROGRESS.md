@@ -570,14 +570,90 @@ better ad costs the same to run and can return several times more).
 
 ---
 
+## Phase 16 — The Comeback: the outreach loop, built ✅
+
+The gate shipped with two builds declared and neither loop written — the file
+even says so: the action kinds and the queue were built "before either loop
+exists". This is the first of those loops made real. The Comeback is the
+outbound side of the business: it treats a client's own customer history as a
+channel, works out when each past job's next one falls due, drafts the message,
+and holds it in the gate for release. Nothing it produces sends on its own.
+
+### The engine (`src/lib/comeback.ts`)
+- The same pure/impure split as `night-shift.ts` and `gate.ts`. Everything that
+  decides *who to contact and when* is pure and tested — `assessRecord`,
+  `selectDue`, `intervalFor`, `nextDueAt`, `cycleOf`, `dedupeKeyFor`,
+  `isComebackDue`, `summarise`, `fallbackMessage`. Only `runComeback`, the
+  executor, and the roster touch the database or the model.
+- **The list is the product; the prose is a bonus** — carried over from the
+  night shift deliberately. `assessRecord` picks who is due with arithmetic, not
+  a model. The model only writes the wording, and if it is unavailable the loop
+  falls back to a plain, per-kind template and *still queues the action*. A model
+  outage costs a nicer sentence, never a customer who was due.
+- Two verdicts map to the two action kinds the gate already declared: a
+  **reminder** in a lead window before the next job falls due, and a
+  **re-approach** once a customer is well past the interval (1.5×). The reminder
+  window ends exactly where the dormant threshold begins, so there is no gap and
+  no overlap — a property a test pins by sweeping a record day by day across its
+  whole life.
+- **The three people it must never contact**, each with its own test:
+  do-not-contact (unconditional, however overdue), already-came-back, and anyone
+  inside the 90-day cooldown after a real send. The cooldown clock only starts on
+  an *executed* delivery, not on a queued proposal — a held message hasn't
+  reached anyone yet.
+- Service intervals are a real per-trade table (`DEFAULT_INTERVAL_DAYS`) — a
+  dental recall is not a roof replacement — with a conservative fallback, all
+  overridable per record.
+- Idempotent by construction. `dedupeKeyFor(record, kind, cycle)` is stable
+  within an interval cycle and changes across cycles, so a re-running loop (Vercel
+  retries) never double-queues, and a lapsing customer is re-approached at most
+  once per cycle rather than every night.
+
+### Behind the gate, honestly
+- The executor is registered for both kinds and does the same thing: deliver the
+  approved message through the client's **own connected CRM/automation webhook**
+  — the same handoff the rest of the platform uses for external actions. There is
+  no built-in SMS/email-to-customer channel, and pretending there were would be
+  the exact failure the gate exists to prevent. No webhook connected = a loud,
+  honest FAILED on the action, never a silent "sent".
+- Registered at module load, and the gate cron route and the queue page both
+  import the module for that side effect, so a released comeback action has
+  something to perform and the queue reports it as wired rather than as an
+  unbuilt loop.
+
+### Wiring, UI, schema
+- The hourly cron now drives a third pass alongside the night shift and Spend
+  Watch, rostered off `comebackEnabled` + an active AI Agents plan, gated to one
+  pass a day by `comebackLastRunAt`.
+- **`/app/comeback`** is the read-out the catalogue promises: who is on file, due
+  now, lapsed, contacted, and came back — computed by the same pure `summarise`
+  the engine uses, so the page can't disagree with the loop. Non-qualifying
+  tenants get an upgrade panel; qualifying ones get a manual "log a past job"
+  form (the production feed is a CRM sync) and the full history, sorted most
+  urgent first. Every read guarded, its failure shown not thrown.
+- New `ServiceRecord` model + `ClientProfile.comebackEnabled` /
+  `comebackLastRunAt`. Nav entry added.
+- Seed: demo client #3 (Command / roofing) gets eight past customers spanning
+  every state and then **runs the real `runComeback`** — so a fresh install has
+  genuine drafted actions in the queue, produced by production code rather than
+  hand-written, falling back to the template because the seed has no model key.
+- 28 tests, including a consistency block that fails if the gate ever stops
+  declaring the two comeback kinds, if either stops being a timed non-money hold,
+  or if the `comeback` upgrade stops being a real sold build.
+
+---
+
 ## Verified this session
-- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
-  pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (260 tests, 11 files).
-- Landing page, both new plan pages and `/cockpit` rendered against a production
-  server and read back — and `/cockpit` screenshotted at desktop and mobile
-  widths, which is how the sticky-rail defect above was found.
+- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (41 routes;
+  `/app/comeback` builds) · `pnpm test` ✅ (528 tests, 23 files — 28 new for the
+  Comeback).
+- The whole feature was built to the codebase's own standard: a pure engine with
+  its decisions tested without a database, a model-optional path proven by the
+  fallback template, and a demo generated by the real loop.
 - Not yet run against a live DB / Stripe / Anthropic (no credentials in this
-  environment) — those are the 🟡 items above.
+  environment) — those remain the 🟡 items above. The Comeback specifically wants
+  a live DB (`pnpm prisma:push && pnpm db:seed`) to see the seeded queue, and a
+  connected `WebhookConfig` per tenant before any released message can deliver.
 
 ## Suggested next steps
 1. Provision Neon/Vercel Postgres, set `DATABASE_URL`, `pnpm prisma:push && pnpm db:seed`.

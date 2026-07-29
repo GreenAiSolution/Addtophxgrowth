@@ -2,16 +2,19 @@ import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { nightShiftRoster, runNightShift } from "@/lib/night-shift";
 import { spendWatchRoster, runSpendWatch } from "@/lib/spend-watch";
+import { comebackRoster, runComeback } from "@/lib/comeback";
 
 /**
- * Hourly cron (see vercel.json). Drives both unattended passes:
+ * Hourly cron (see vercel.json). Drives the unattended passes:
  *   - the night shift, which scores leads and writes the morning brief
  *   - the Spend Watch, which sweeps ad accounts and raises alerts
+ *   - the Comeback, which queues messages to past customers who are due
  *
- * Both roster off their own product line, so a client on one line only, or on
- * both, is handled without special-casing. `isDue` / `isSweepDue` are what turn
- * 24 hourly ticks into one run per client per day, at the hour that client
- * chose.
+ * Each rosters off its own build/line, so a client on one only, or on all, is
+ * handled without special-casing. `isDue` / `isSweepDue` / `isComebackDue` are
+ * what turn 24 hourly ticks into one run per client per day. The Comeback only
+ * proposes — nothing it queues sends until the gate sweep releases it — so it
+ * is safe to sit alongside the passes that write directly.
  *
  * Runs sequentially on purpose: this is a background job with no user waiting,
  * and a burst of parallel model calls is a good way to get rate limited.
@@ -45,7 +48,11 @@ function authorized(req: Request): boolean {
 export async function GET(req: Request) {
   if (!authorized(req)) return json({ error: "Unauthorized" }, 401);
 
-  const [agentRoster, adOpsRoster] = await Promise.all([nightShiftRoster(), spendWatchRoster()]);
+  const [agentRoster, adOpsRoster, comebackClients] = await Promise.all([
+    nightShiftRoster(),
+    spendWatchRoster(),
+    comebackRoster(),
+  ]);
 
   const briefs = [];
   for (const clientId of agentRoster) {
@@ -68,15 +75,28 @@ export async function GET(req: Request) {
     }
   }
 
+  const comebacks = [];
+  for (const clientId of comebackClients) {
+    try {
+      comebacks.push(await runComeback(clientId));
+    } catch (err) {
+      console.error(`[cron/night-shift] comeback for ${clientId} threw:`, err);
+      comebacks.push({ clientId, status: "FAILED" as const, reason: (err as Error).message });
+    }
+  }
+
   const produced = briefs.filter((r) => r.status === "COMPLETE").length;
   const swept = sweeps.filter((r) => r.status === "COMPLETE").length;
+  const queued = comebacks.reduce((n, r) => n + (r.status === "COMPLETE" ? (r.proposed ?? 0) : 0), 0);
   console.info(
-    `[cron/night-shift] ${produced}/${agentRoster.length} briefs, ${swept}/${adOpsRoster.length} sweeps`,
+    `[cron/night-shift] ${produced}/${agentRoster.length} briefs, ${swept}/${adOpsRoster.length} sweeps, ` +
+      `${queued} comeback actions across ${comebackClients.length} clients`,
   );
 
   return json({
     ok: true,
     nightShift: { checked: agentRoster.length, produced, results: briefs },
     spendWatch: { checked: adOpsRoster.length, swept, results: sweeps },
+    comeback: { checked: comebackClients.length, queued, results: comebacks },
   });
 }
