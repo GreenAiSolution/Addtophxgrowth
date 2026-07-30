@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { sweep, SWEEP_INTERVAL_MINUTES } from "@/lib/gate";
 import { checkDb } from "@/lib/db-health";
+import { registerVoiceExecutors } from "@/lib/voice-store";
 
 /**
  * The gate sweep. Every five minutes (see vercel.json).
@@ -19,6 +20,11 @@ import { checkDb } from "@/lib/db-health";
  * No model call anywhere in this path. The gate has to behave identically on a
  * day the Anthropic API is down, because "the model was unavailable" is not a
  * reason a client's invoice should go out unreviewed, or fail to.
+ *
+ * Executors are registered here, at the top of the only path that runs them.
+ * A registry populated by an import side-effect somewhere else is a registry
+ * that is empty in exactly one environment, and the symptom would be a released
+ * estimate recorded as FAILED — indistinguishable from a mail server outage.
  */
 
 export const runtime = "nodejs";
@@ -48,6 +54,8 @@ function authorized(req: Request): boolean {
 
 export async function GET(req: Request) {
   if (!authorized(req)) return json({ error: "Unauthorized" }, 401);
+
+  registerVoiceExecutors();
 
   const startedAt = new Date();
   try {

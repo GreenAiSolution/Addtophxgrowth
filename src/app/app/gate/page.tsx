@@ -13,6 +13,7 @@ import {
   withdraw,
   type GateAction,
 } from "@/lib/gate";
+import { registerVoiceExecutors } from "@/lib/voice-store";
 import { cn } from "@/lib/utils";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +60,12 @@ export default async function GatePage({
   searchParams: { filter?: string };
 }) {
   const { client, actor } = await requireClient();
+
+  // The same registration the sweep does. Without it this screen would warn
+  // that a releasable action has nothing to perform it, while the cron that
+  // performs it works fine — a warning that is wrong is worse than none.
+  registerVoiceExecutors();
+
   const filter = FILTERS.find((f) => f.key === searchParams.filter) ?? FILTERS[0]!;
 
   /*

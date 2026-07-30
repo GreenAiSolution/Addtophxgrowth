@@ -59,7 +59,7 @@ export type GateState =
   | "FAILED";
 
 /** Which build proposed an action. */
-export type BuildKey = "job-runner" | "comeback";
+export type BuildKey = "job-runner" | "comeback" | "voice-employee";
 
 export interface ActionKind {
   key: string;
@@ -158,6 +158,56 @@ export const ACTION_KINDS: ActionKind[] = [
     minimumHold: "TIMED",
     reviewWindowMinutes: 720,
     expiresAfterHours: 168,
+  },
+
+  // ---- The Voice Employee: the operator that picks up the phone ----
+  //
+  // WHERE THE LINE IS, AND WHY IT IS THERE
+  //   A voice operator cannot put every act behind a review window, because
+  //   half of what it does happens inside a conversation a customer is having
+  //   right now. Holding a spoken sentence for thirty minutes is not oversight,
+  //   it is a dropped call, and a missed-call text-back that the catalogue
+  //   promises "within seconds" cannot wait for a sweep that runs every five
+  //   minutes.
+  //
+  //   So the line is not "big things are gated, small things are not" — that
+  //   line moves the first time something is inconvenient. It is this: while a
+  //   customer is talking to us, the operator answers, and everything it says
+  //   is transcribed and gradeable afterwards. The moment an act reaches
+  //   *outside* that conversation — ringing somebody who is not on the phone
+  //   with us, or committing a price in writing — it queues here like anything
+  //   else. The three kinds below are exactly those acts.
+  {
+    key: "call.callback",
+    build: "voice-employee",
+    label: "Ring a missed caller back",
+    movesMoney: false,
+    minimumHold: "TIMED",
+    // Short, because the value of a callback decays in minutes — the caller is
+    // ringing the next number on the list. Long enough that an owner watching
+    // the deck can still pull one.
+    reviewWindowMinutes: 5,
+    expiresAfterHours: 6,
+  },
+  {
+    key: "call.outbound",
+    build: "voice-employee",
+    label: "Ring a customer",
+    movesMoney: false,
+    minimumHold: "TIMED",
+    reviewWindowMinutes: 30,
+    expiresAfterHours: 48,
+  },
+  {
+    key: "estimate.send",
+    build: "voice-employee",
+    label: "Send a written estimate",
+    // The number said on the phone is an estimate with a disclaimer attached.
+    // The document is the number the customer holds them to, so it is the same
+    // act as a quote and gets the same hold.
+    movesMoney: true,
+    minimumHold: "MANUAL",
+    expiresAfterHours: 72,
   },
 ];
 

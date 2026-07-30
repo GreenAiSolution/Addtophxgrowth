@@ -129,6 +129,42 @@ enum AdAlertStatus {
   RESOLVED
 }
 
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+/// Where a finished call ended up. Mirrors CallOutcome in lib/voice.ts, which
+/// derives it from the call's state — the column is the record, not the rule.
+enum VoiceCallOutcome {
+  BOOKED
+  QUOTED
+  QUALIFIED
+  HANDED_OFF
+  MESSAGE_TAKEN
+  OUT_OF_AREA
+  NOT_A_FIT
+  OPTED_OUT
+  ABANDONED
+  FAILED
+}
+
+enum EstimateStatus {
+  /// Priced, and spoken on the call. Not yet a document anybody has.
+  DRAFT
+  /// Queued at the gate, waiting for a named human to release it.
+  QUEUED
+  SENT
+  ACCEPTED
+  DECLINED
+}
+
+enum TuneStatus {
+  PENDING
+  APPLIED
+  REJECTED
+}
+
 // ---------------------------------------------------------------------------
 // Auth.js (NextAuth) core models
 // ---------------------------------------------------------------------------
@@ -261,6 +297,12 @@ model ClientProfile {
   entitlements     ClientEntitlement[]
   embeddings       Embedding[]
   pendingActions   PendingAction[]
+  playbooks        VoicePlaybook[]
+  priceBooks       VoicePriceBook[]
+  calls            VoiceCall[]
+  estimates        VoiceEstimate[]
+  tuneProposals    TuneProposal[]
+  doNotCall        DoNotCallEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -845,4 +887,237 @@ model Embedding {
   @@unique([clientId, sourceType, sourceId, chunkIndex, model])
   @@index([clientId, sourceType])
   @@index([clientId, model])
+}
+
+// ---------------------------------------------------------------------------
+// The Voice Employee — the operator that answers the phone, and its training
+// ---------------------------------------------------------------------------
+
+/// One version of a client's call playbook.
+///
+/// VERSIONED, NEVER UPDATED IN PLACE
+///   The Tuning Lab's promise is a written record of what changed and what it
+///   moved, and that is impossible against a row that gets overwritten. Every
+///   approved retune writes a new version and flips `active`; every call records
+///   the version it ran under. That is what makes "month two is measurably
+///   better than month one" a claim anybody can check rather than a feeling.
+///
+/// The playbook itself is JSON, validated by `playbookSchema` in lib/voice.ts
+/// rather than by columns. Its shape changes as the Lab learns what a trade
+/// needs to say, and a migration per field would mean the shape stops changing.
+model VoicePlaybook {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  version Int
+  active  Boolean @default(false)
+
+  /// Validated by playbookSchema. Never read raw.
+  payload Json
+
+  /// Why this version exists. Written by the Lab or typed by the owner.
+  note      String? @db.Text
+  createdBy String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([clientId, version])
+  @@index([clientId, active])
+}
+
+/// One version of a client's price book — the only place a spoken number can
+/// come from. Versioned for the same reason as the playbook: a price that
+/// changed silently makes every earlier estimate unexplainable.
+model VoicePriceBook {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  version Int
+  active  Boolean @default(false)
+
+  /// Validated by priceBookSchema in lib/estimates.ts.
+  payload Json
+
+  note      String? @db.Text
+  createdBy String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([clientId, version])
+  @@index([clientId, active])
+}
+
+/// One call, inbound or outbound.
+///
+/// `turns` is stored redacted. `redactSpoken` runs before the write, not on the
+/// way out to a screen, because a card number that reaches this table has
+/// already been backed up, embedded for retrieval and mailed in a brief.
+model VoiceCall {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// The telephony provider's id. Unique so a retried webhook cannot fork a
+  /// call into two records.
+  providerCallId String? @unique
+  provider       String?
+
+  direction CallDirection
+  /// One of CALL_PURPOSES in lib/voice.ts.
+  purpose   String
+
+  fromNumber String?
+  toNumber   String?
+
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  durationSec Int?
+
+  outcome VoiceCallOutcome?
+
+  /// Slots the call filled. Keyed by qualifier slot.
+  captured Json?
+  /// Turn[] — role, text, at. Redacted.
+  turns    Json?
+
+  /// Which playbook was in force. Makes a grade attributable to a version.
+  playbookVersion  Int?
+  priceBookVersion Int?
+
+  handoffReason String? @db.Text
+  recordingUrl  String?
+
+  /// Cents, when this call quoted. Graded against the spoken cap.
+  quotedTotalCents Int?
+
+  // --- The Tuning Lab's read of this call.
+  gradeScore    Int?
+  gradeClean    Boolean?
+  gradeHeadline String?  @db.Text
+  /// Finding[] from lib/training.ts.
+  gradeFindings Json?
+  gradedAt      DateTime?
+
+  /// Work the caller asked for that the price book could not price.
+  unpricedItems        String[] @default([])
+  /// Questions that forced a handover, as the caller asked them.
+  unansweredQuestions  String[] @default([])
+
+  /// What the deal did, once it is known. Set from the CRM or by hand — this is
+  /// what "graded against what the deal actually did" reads.
+  dealOutcome    DealOutcomeKind?
+  dealValueCents Int?
+
+  estimates VoiceEstimate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId, startedAt])
+  @@index([clientId, outcome])
+  @@index([clientId, gradedAt])
+}
+
+/// A priced job. The spoken version lives in `spoken`; the document does not
+/// leave without a PendingAction releasing it.
+model VoiceEstimate {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  callId String?
+  call   VoiceCall? @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  customerName    String?
+  customerPhone   String?
+  customerAddress String?
+  jobDescription  String? @db.Text
+
+  /// The full breakdown — quotePayload() in lib/estimates.ts.
+  payload Json
+
+  totalCents Int
+  lowCents   Int
+  highCents  Int
+  /// HIGH | MEDIUM | LOW, with the sentence that explains it.
+  confidence String
+  /// Exactly what was said out loud, kept verbatim. If a customer says "you
+  /// told me eleven hundred", this is the answer.
+  spoken     String? @db.Text
+
+  status EstimateStatus @default(DRAFT)
+
+  /// The gate row holding the document. Null until it is proposed.
+  pendingActionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId, status])
+  @@index([clientId, createdAt])
+}
+
+/// A change the Tuning Lab wants to make, waiting on the owner.
+///
+/// Same posture as the gate: the system notices, recommends, and does not act.
+/// `key` is unique per client so a proposal the owner rejected last month is not
+/// offered again the moment the same three calls come round.
+model TuneProposal {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// Stable identity of this suggestion. From proposeRetunes().
+  key    String
+  /// playbook | pricebook
+  target String
+
+  title String
+  why   String @db.Text
+
+  /// VoiceCall ids this came from.
+  evidence String[] @default([])
+
+  /// A Patch from lib/training.ts. Applied by applyPatch, never by hand.
+  patch Json
+
+  status TuneStatus @default(PENDING)
+
+  /// Owner-supplied text for patches that need it — an answer to teach, a rate.
+  filledValue String? @db.Text
+
+  decidedBy String?
+  decidedAt DateTime?
+  /// The playbook or price book version this produced.
+  resultVersion Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, key])
+  @@index([clientId, status])
+}
+
+/// Numbers that must never be dialled again.
+///
+/// A row here beats consent, a campaign, a schedule and anything an agent
+/// believes. `canCallNow` checks it first for that reason.
+model DoNotCallEntry {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  phone  String
+  /// Where it came from — a call, an SMS reply, the owner.
+  source String?
+  reason String? @db.Text
+  /// The call it was said on, for the record.
+  callId String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([clientId, phone])
+  @@index([clientId, createdAt])
 }

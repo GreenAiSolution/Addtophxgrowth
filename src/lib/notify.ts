@@ -35,7 +35,9 @@ export type NotificationKind =
   | "ALERT_CRITICAL"
   | "COCKPIT_CONFIGURED"
   | "RESERVATION"
-  | "MARKETING_LEAD";
+  | "MARKETING_LEAD"
+  | "ESTIMATE_RELEASED"
+  | "CALL_HANDOFF";
 
 export interface NotificationPayload {
   businessName: string;
@@ -129,6 +131,36 @@ export function renderNotification(
           "",
           payload.detail ?? "",
           bullets ? `\n${bullets}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
+    case "ESTIMATE_RELEASED":
+      return {
+        subject: `Estimate released — ${payload.title}`,
+        text: [
+          `A written estimate for ${payload.businessName} was released by a person and is on its way out.`,
+          "",
+          payload.detail ?? "",
+          bullets ? `\n${bullets}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
+    case "CALL_HANDOFF":
+      // Subject leads with the word a phone notification has room for. Somebody
+      // is waiting on a line, or has just been told they will be rung back.
+      return {
+        subject: `Call needs a person — ${payload.title}`,
+        text: [
+          `The phone operator handed a call over on ${payload.businessName}.`,
+          "",
+          payload.detail ?? "",
+          bullets ? `\n${bullets}` : "",
+          "",
+          "Ring them back before they ring somebody else.",
         ]
           .filter(Boolean)
           .join("\n") + sign,

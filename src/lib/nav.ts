@@ -12,6 +12,8 @@ import {
   Target,
   Activity,
   ShieldCheck,
+  PhoneCall,
+  FlaskConical,
 } from "lucide-react";
 
 export interface NavItem {
@@ -25,6 +27,8 @@ export const CLIENT_NAV: NavItem[] = [
   { href: "/app/brief", label: "Morning Brief", icon: Moon },
   { href: "/app/leads", label: "Leads", icon: Target },
   { href: "/app/gate", label: "The Queue", icon: ShieldCheck },
+  { href: "/app/voice", label: "Voice Employee", icon: PhoneCall },
+  { href: "/app/tuning", label: "Tuning Lab", icon: FlaskConical },
   { href: "/app/agents", label: "Agent Workspace", icon: Bot },
   { href: "/app/recall", label: "Recall", icon: Brain },
   { href: "/app/memory", label: "System Memory", icon: Brain },

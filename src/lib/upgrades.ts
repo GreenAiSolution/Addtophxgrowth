@@ -747,6 +747,12 @@ export const UPGRADES: Upgrade[] = [
     price: 190000,
     billing: "monthly",
     fixes: "The phone nobody answers",
+    // It answers the phone at 3am with nobody watching, which is the whole
+    // definition of a build. It was not marked as one while it was still copy;
+    // it is one now that it runs.
+    build: true,
+    oversight:
+      "Every call is transcribed, graded and readable on the flight deck, and the operator's rules are yours to edit — what it must ask, what it may quote, when it fetches a person. It answers callers on its own, but it cannot ring anybody who is not already talking to us, and it cannot put a price in writing, without that action waiting in your queue first.",
   },
   {
     key: "tuning-lab",
