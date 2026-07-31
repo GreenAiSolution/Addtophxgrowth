@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { deliveryChannels, canDeliver, env } from "@/lib/env";
 import { UPGRADES } from "@/lib/upgrades";
 import { checkDb } from "@/lib/db-health";
+import { smsChannel } from "@/lib/sms";
+import { PROVIDERS } from "@/lib/telephony";
 
 /**
  * Is the site actually working?
@@ -39,6 +41,21 @@ export async function GET() {
         ...(c.live ? { configuredAs: c.via } : { fix: c.hint }),
       })),
       catalogue: { upgrades: UPGRADES.length },
+      /**
+       * Can the phone actually be answered?
+       *
+       * Three separate questions, because they fail independently and an owner
+       * ringing to ask "why didn't it pick up" needs to know which one. A model
+       * key with no provider pointed at the endpoint looks identical from the
+       * outside to a provider pointed at an endpoint with no model key.
+       */
+      voice: {
+        modelKeyed: Boolean(env.optional("ANTHROPIC_API_KEY")),
+        textBack: smsChannel().live,
+        ...(smsChannel().live ? {} : { textBackFix: smsChannel().hint }),
+        adapters: PROVIDERS.map((p) => ({ provider: p.key, verified: p.verified })),
+        note: "A provider must POST to /api/voice/{clientId}/turn with that tenant's token. Nothing is answered until one does.",
+      },
       /**
        * Whether the gate can actually hold anything.
        *

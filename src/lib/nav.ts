@@ -28,6 +28,7 @@ export const CLIENT_NAV: NavItem[] = [
   { href: "/app/leads", label: "Leads", icon: Target },
   { href: "/app/gate", label: "The Queue", icon: ShieldCheck },
   { href: "/app/voice", label: "Voice Employee", icon: PhoneCall },
+  { href: "/app/estimates", label: "Estimates", icon: FileText },
   { href: "/app/tuning", label: "Tuning Lab", icon: FlaskConical },
   { href: "/app/agents", label: "Agent Workspace", icon: Bot },
   { href: "/app/recall", label: "Recall", icon: Brain },

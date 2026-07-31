@@ -14,6 +14,7 @@ import { activePlaybook, activePriceBook, savePlaybook, savePriceBook } from "@/
 import { playbookSchema, type Playbook } from "@/lib/voice";
 import { priceBookSchema, UNIT_LABELS, type PriceBook } from "@/lib/estimates";
 import { DRILLS } from "@/lib/training";
+import { PROVIDERS } from "@/lib/telephony";
 import { runDrills } from "@/lib/drill-runner";
 import {
   centsToDollars,
@@ -234,10 +235,30 @@ export default async function VoicePage({
           </p>
           <code className="mt-1.5 block break-all font-mono text-[0.72rem]">{endpoint}</code>
           <p className="mt-2 text-[0.72rem] text-muted-foreground">
-            POST each turn with your call id and what the caller said; the reply is what to speak.
-            Authenticate with the <code className="font-mono">x-voice-token</code> header — the same
-            token as your lead endpoint, on your Leads screen. No provider is connected yet, so
-            nothing is being answered until you point one at this.
+            Authenticate with the <code className="font-mono">x-voice-token</code> header, or{" "}
+            <code className="font-mono">?token=</code> on the URL where a provider cannot set
+            headers. Nothing is answered until a provider is pointed at this.
+          </p>
+          <ul className="mt-3 space-y-1.5">
+            {PROVIDERS.map((p) => (
+              <li key={p.key} className="flex flex-wrap items-baseline gap-2 text-[0.72rem]">
+                <Badge
+                  variant="muted"
+                  className={cn(
+                    "text-[0.6rem]",
+                    p.verified ? "border-signal/40 text-signal" : "border-gold/40 text-gold",
+                  )}
+                >
+                  {p.verified ? "verified" : "check the mapping"}
+                </Badge>
+                <span className="font-medium">{p.label}</span>
+                <span className="text-muted-foreground">{p.hint}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[0.7rem] text-muted-foreground">
+            &ldquo;Check the mapping&rdquo; means that provider moves its webhook shape often enough
+            that we will not claim ours is current. Verify against their docs before you go live.
           </p>
         </div>
       </Card>

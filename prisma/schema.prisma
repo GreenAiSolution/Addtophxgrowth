@@ -992,6 +992,11 @@ model VoiceCall {
   /// Cents, when this call quoted. Graded against the spoken cap.
   quotedTotalCents Int?
 
+  /// The missed-call text-back. Set once, so a retried webhook cannot send a
+  /// second one to somebody who already got it.
+  textBackSentAt DateTime?
+  textBackStatus String?
+
   // --- The Tuning Lab's read of this call.
   gradeScore    Int?
   gradeClean    Boolean?

@@ -701,6 +701,53 @@ Drill results are labelled "stand-in phrasing" on screen for the same reason.
 
 ---
 
+## Phase 17 — The wire: a phone provider can now actually reach it ✅
+
+The Voice Employee was finished and unreachable. A provider posts a payload
+shape nobody had written an adapter for, and expects a reply in a dialect the
+route did not speak. This closes that, and the missed-call text-back the
+catalogue promises "within seconds".
+
+- **`telephony.ts`** — adapters for Twilio, Vapi, Retell and a generic JSON
+  shape. Twilio's TwiML is implemented in full (`Say`, `Gather`, `Dial`,
+  `Hangup`) because it is a published, stable contract; the AI-voice platforms
+  move their webhook shapes, so those adapters map only the common fields and
+  are marked `verified: false` — stated on `/app/voice` rather than letting a
+  silent mismatch look like a working integration.
+- **XML escaping is load-bearing.** A caller from "Ben & Sons Roofing" read back
+  inside a `<Say>` produces malformed TwiML, and Twilio's response to malformed
+  TwiML is an error message played at the customer. Every interpolated value is
+  escaped and a test proves it.
+- **Order inside the reply is a decision**: speak, then act. A `<Dial>` ahead of
+  the `<Say>` transfers the caller before they are told what is happening.
+- **`sms.ts` + the text-back.** Twilio REST directly — one fetch, no SDK, no
+  dependency to keep in step. The message names the business in the first four
+  words, says why they are getting a text, asks one thumb-answerable question,
+  and carries "Reply STOP". Sent once per call, and never to somebody who
+  actually spoke to the operator.
+- **`/api/sms/[clientId]`** makes "Reply STOP" true: an opt-out suppresses the
+  number immediately, no queue, no model. Everything else reaches a human,
+  because a text-back that gets an answer nobody reads is worse than none.
+- **`/app/estimates`** — what was priced, the breakdown, and the exact sentence
+  the caller heard. The button says "Put it in the queue", because it proposes
+  rather than sends.
+- Health now reports the three things that fail independently: model key,
+  text-back transport, and which adapters are verified.
+
+**Verified against Postgres and real Twilio-shaped payloads**: valid TwiML on
+connect, on handover and on hang-up, with escaping correct; 401 on a bad token;
+an abandoned call recording its text-back attempt as `skipped` with no
+credentials rather than silently; a STOP reply suppressing the number.
+
+`pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ · `pnpm test` ✅ **690 tests,
+28 files (27 new)**.
+
+**Still open, and not claimed anywhere on the site:** outbound campaign screen,
+calendar booking on the call, admin visibility of voice failures, and seeded
+demo voice data.
+
+---
+
 ## Verified this session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
   pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (260 tests, 11 files).
