@@ -58,8 +58,19 @@ export type GateState =
   | "EXPIRED"
   | "FAILED";
 
-/** Which build proposed an action. */
-export type BuildKey = "job-runner" | "comeback";
+/**
+ * Which build proposed an action. Always an upgrade key, and always one the
+ * catalogue marks as a build — a test reads `UPGRADES` and fails anything else,
+ * because a queue entry belonging to a product nobody sells is an action no
+ * client ever agreed to.
+ *
+ * The crew in `employees.ts` therefore does not get build keys of its own. Each
+ * employee proposes under the upgrade whose promise it is answering for: the
+ * switchboard rings out under The Voice Employee, the booker schedules under
+ * The Job Runner. That is not bookkeeping — it is what stops the crew becoming
+ * a fourth product that was never priced.
+ */
+export type BuildKey = "job-runner" | "comeback" | "voice-employee";
 
 export interface ActionKind {
   key: string;
@@ -158,6 +169,55 @@ export const ACTION_KINDS: ActionKind[] = [
     minimumHold: "TIMED",
     reviewWindowMinutes: 720,
     expiresAfterHours: 168,
+  },
+
+  // ---- The crew: business-initiated contact only ----
+  //
+  // WHAT IS NOT HERE, AND WHY
+  //   Answering a ringing phone. Texting back a caller who just rang out.
+  //   Confirming a slot the customer picked themselves. None of those are in
+  //   this registry and none of them ever should be — see the `Trigger` type in
+  //   `employees.ts`. They are responses to somebody who is at that moment
+  //   trying to become a customer, and the shortest window this queue can
+  //   honour is `SWEEP_INTERVAL_MINUTES`. A missed-call text-back held for five
+  //   minutes is not supervised, it is late, and late is the entire defect the
+  //   crew was built to fix.
+  //
+  //   What lands here is the other half: contact the business decides to make
+  //   with somebody who was not contacting it.
+  {
+    key: "call.outbound",
+    build: "voice-employee",
+    label: "Ring a lead who went quiet",
+    movesMoney: false,
+    minimumHold: "TIMED",
+    // Long enough to pull one back after reading the list, short enough that a
+    // lead that went cold this morning is still rung today.
+    reviewWindowMinutes: 15,
+    expiresAfterHours: 24,
+  },
+  {
+    key: "booking.remind",
+    build: "job-runner",
+    label: "Remind a customer of their appointment",
+    movesMoney: false,
+    minimumHold: "TIMED",
+    reviewWindowMinutes: 60,
+    // A reminder that lapses is a missed nudge. A reminder that fires two days
+    // stale tells somebody about an appointment they have already attended,
+    // which is worse, so this expires well inside the window it is useful in.
+    expiresAfterHours: 48,
+  },
+  {
+    key: "booking.reschedule",
+    build: "job-runner",
+    label: "Move a booked appointment",
+    // Does not move money, but it moves somebody's day. Same window as putting
+    // a job on the schedule, for the same reason.
+    movesMoney: false,
+    minimumHold: "TIMED",
+    reviewWindowMinutes: 30,
+    expiresAfterHours: 24,
   },
 ];
 

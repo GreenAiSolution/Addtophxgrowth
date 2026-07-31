@@ -742,11 +742,21 @@ export const UPGRADES: Upgrade[] = [
       "Inbound calls answered 24/7 in your business's voice, first ring",
       "Qualification, quoting rules and calendar booking handled on the call",
       "Missed-call text-back within seconds, handed straight to Closer",
+      "Callbacks placed to enquirers who went quiet, each one held for your release before it dials",
       "Full transcript and recording on the flight deck before you wake up",
     ],
     price: 190000,
     billing: "monthly",
     fixes: "The phone nobody answers",
+    // Marked a build the moment it started dialling out. Answering a phone is
+    // a service performed on demand; deciding by itself who to ring this
+    // morning is a loop that runs after everyone has gone home, and the
+    // catalogue holds those to a published standard. Adding the outbound line
+    // above without this field would have been the quiet version of the same
+    // change — a loop sold with no handle on it.
+    build: true,
+    oversight:
+      "Every call is inspectable after it happens — the recording, the transcript, and what it did next, all on the flight deck. Nothing is dialled out on your behalf until you release it: the callback list waits where you can read it, anybody can be pulled out of it, and a name that is never released is never rung. Answering a phone that is ringing needs no permission and never waits.",
   },
   {
     key: "tuning-lab",
