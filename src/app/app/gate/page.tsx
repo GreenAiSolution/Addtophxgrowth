@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 // Side-effect import: registers the Comeback executors so the queue reports
 // comeback actions as wired ("needs you") rather than as an unwired loop.
-import "@/lib/comeback";
+import "@/lib/outreach/comeback";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

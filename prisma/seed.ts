@@ -484,7 +484,7 @@ async function seedComebackDemo(clientId: string) {
     },
   });
 
-  const { runComeback } = await import("../src/lib/comeback");
+  const { runComeback } = await import("../src/lib/outreach/comeback");
   const result = await runComeback(clientId);
   console.log(`   · comeback: ${result.proposed ?? 0} messages queued from ${records.length} past customers`);
 }

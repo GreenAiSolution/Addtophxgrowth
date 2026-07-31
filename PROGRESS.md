@@ -579,7 +579,7 @@ outbound side of the business: it treats a client's own customer history as a
 channel, works out when each past job's next one falls due, drafts the message,
 and holds it in the gate for release. Nothing it produces sends on its own.
 
-### The engine (`src/lib/comeback.ts`)
+### The engine (`src/lib/outreach/comeback.ts`)
 - The same pure/impure split as `night-shift.ts` and `gate.ts`. Everything that
   decides *who to contact and when* is pure and tested — `assessRecord`,
   `selectDue`, `intervalFor`, `nextDueAt`, `cycleOf`, `dedupeKeyFor`,

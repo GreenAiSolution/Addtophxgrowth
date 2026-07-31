@@ -17,7 +17,7 @@ import {
   MAX_PER_RUN,
   type RecordLike,
   type DraftContext,
-} from "@/lib/comeback";
+} from "@/lib/outreach/comeback";
 import { ACTION_KINDS, kindByKey } from "@/lib/gate";
 import { upgradeByKey } from "@/lib/upgrades";
 

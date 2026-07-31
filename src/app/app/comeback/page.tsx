@@ -10,7 +10,7 @@ import {
   intervalFor,
   defaultIntervalDays,
   type RecordLike,
-} from "@/lib/comeback";
+} from "@/lib/outreach/comeback";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

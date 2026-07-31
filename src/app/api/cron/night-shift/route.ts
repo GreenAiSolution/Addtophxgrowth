@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { nightShiftRoster, runNightShift } from "@/lib/night-shift";
 import { spendWatchRoster, runSpendWatch } from "@/lib/spend-watch";
-import { comebackRoster, runComeback } from "@/lib/comeback";
+import { comebackRoster, runComeback } from "@/lib/outreach/comeback";
 
 /**
  * Hourly cron (see vercel.json). Drives the unattended passes:
