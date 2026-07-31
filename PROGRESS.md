@@ -570,6 +570,149 @@ better ad costs the same to run and can return several times more).
 
 ---
 
+---
+
+## Phase 16 — Three AI employees, and the ring they close ✅
+
+The site sold two things it had never built. **The Voice Employee** ($1,900/mo)
+promised "inbound calls answered 24/7, first ring" and "missed-call text-back
+within seconds". **The Job Runner** ($4,900/mo) promised "quotes out the same
+day, priced off your own rate card" and jobs "put on the schedule". Nothing in
+this repository answered a telephone, priced a job, or put a customer in a
+diary.
+
+That is the phase-11 defect again — sold and had no effect — and it is the
+worst kind, because the invoice goes out either way.
+
+Three employees, each closing one place a would-be customer is lost, in order:
+
+| | Employee | The leak |
+|---|---|---|
+| **Patch** | Voice Operator | The phone rings and nobody picks up |
+| **Gauge** | Estimator | The price takes three days to arrive |
+| **Dispatch** | Booking Dispatcher | Nobody ever puts the yes in the diary |
+
+Each hands to the next and the third hands back to the first — tomorrow's diary
+is what Patch rings out about tonight. `crewRing()` walks it and a test asserts
+it closes, because any one of them alone just moves the leak one step
+downstream.
+
+### The crew (`src/lib/employees.ts`)
+- Pure. No database, no vendor, no model call. Built before any of the three
+  loops existed, for the reason `gate.ts` gives at the top of itself.
+- Every employee names the upgrade whose promise it answers for, checked at
+  import — an employee delivering something nobody sells is a feature with an
+  invoice attached.
+- **The load-bearing new idea is who started it, not how urgent it feels.**
+  Applied naively the gate would make the crew worse than useless: the shortest
+  window the sweep can honour is five minutes, and a missed-call text-back held
+  for five minutes is not supervised, it is late. `needsRelease` splits on
+  initiation. Answering somebody who is at that moment trying to give you money
+  never enters the queue; contact the business decides to make always does.
+- Two things fell out of guardrails that already existed rather than being
+  planned. `gate.ts` asserts every action kind belongs to an upgrade the
+  catalogue marks as a build, which rejected the crew having build keys of its
+  own — so each employee proposes under the upgrade it answers for, which is
+  what stops the crew becoming a fourth product nobody priced. And adding
+  outbound calls made The Voice Employee a loop that runs after everyone has
+  gone home, so it now carries `build: true` and the oversight promise the
+  catalogue demands of one.
+- The estimator reuses `quote.send` rather than minting `estimate.send`. Two
+  kinds meaning the same thing is two minimum holds that can drift, and the
+  looser one is the one nobody notices.
+
+### Patch — the phone (`telephony.ts`, `switchboard.ts`, `/app/calls`)
+- **The plan decides what must be established; the model decides how it is
+  asked.** `CALL_PLAN` is five facts and `nextStep` is a pure state machine over
+  them, so an Anthropic outage costs the phrasing and never the qualification.
+  A switchboard that goes silent when an API does is worse than the voicemail
+  it replaced, because the customer waited through the ringing first.
+- The callback number is question two because it is the one fact that makes
+  every other fact recoverable. The test pins that property, not the order.
+- `shouldTextBack` returns a reason on every refusal — already sent, stale past
+  the fifteen-minute window, a clock skewed into the future, an outbound call,
+  an answered call, a withheld number, the business's own number calling
+  itself. "No text was sent" is something a client rings up about.
+- The write claims the row before delivery is attempted and releases the claim
+  if delivery fails. An unsent text is recoverable; a doubled one is not.
+- **Missed calls are recorded on purpose.** A switchboard that only logs its
+  successes cannot be audited, and the number the client actually wants — how
+  many people tried to reach them — is the one such a table cannot produce.
+- No vendor anywhere past the top of the route. The webhook never returns 500,
+  because a non-2xx means the carrier drops the caller.
+- 35 tests.
+
+### Gauge — the price (`estimating.ts`, `estimates.ts`, `/app/estimates`)
+- **An unpriced line is never worth zero.** The obvious implementation
+  contributes 0 for a code it cannot find, producing a plausible,
+  well-formatted, confidently-wrong price commitment that undercharges — and
+  nobody notices, because a total that is too low looks exactly like a total. A
+  test pins the symptom directly: an estimate with a missing line and one
+  without produce the identical subtotal, so what distinguishes them has to be
+  the refusal rather than the arithmetic.
+- `priceEstimate` is pure and is the only arithmetic in the product.
+- Lines are stored as the priced **snapshot**, never as pointers at rate card
+  rows. Rate cards get edited; an estimate must mean what it meant the day it
+  was sent.
+- `canSend` runs before the gate, never instead of it. One asks "is this a real
+  number at all", the other "has a named human agreed". The executor re-checks
+  on the way out, because the release was agreed against the number a human read.
+- Minimums, proportional discount allocation, no negative totals, no NaN or
+  Infinity into a price panel, whole cents whose parts add up to the whole.
+- 32 tests.
+
+### Dispatch — the diary (`booking.ts`, `bookings.ts`, `/app/bookings`, `/book/[slug]`)
+- **No offset column.** "Eight until five" means eight until five in their town
+  in January and in July; a stored offset gets that right for half the year and
+  the failure is invisible in Phoenix, which has no DST — exactly where it would
+  ship from unnoticed. Works in an IANA zone through `Intl`, with the standard
+  two-pass correction. Tests round-trip a wall clock across both DST boundaries
+  in Los Angeles and generate slots across March 8th.
+- Four rules that all have to hold: inside stated hours, not overlapping
+  anything already in the diary **including jobs entered by hand**, past the
+  notice window, inside the horizon. `withinHours` checks the end as well as
+  the start — a two-hour job at half four on a five o'clock finish is an hour of
+  unpaid overtime.
+- **The double-booking race is settled by the database, not by checking
+  harder.** `slotKey` is non-null exactly while a booking holds its time, with a
+  unique index on it. Postgres does not treat two NULLs as equal, so the
+  constraint stops a genuine collision while still letting a cancelled slot be
+  re-booked — a plain unique on `startsAt` would do the first and break the
+  second.
+- Reminders land the evening before, not the morning of, and the executor
+  re-reads the booking so one released after a cancellation does not go out.
+- 37 tests.
+
+### The scoreboard (`src/lib/scoreboard.ts`, `/app/employees`)
+Nothing on the public site may quote a figure, and that is right for strangers.
+A client two months in is owed a number — the difference being that theirs is
+not a claim about our product but a count of rows in their own account.
+
+- **Every figure is the client's own data counted.** Nothing modelled,
+  extrapolated, benchmarked, or multiplied by an assumed close rate.
+- The hard part is "would have been missed", which is a counterfactual. There
+  is exactly one case where it is not a guess: a call that arrived outside the
+  hours the business itself states it works had nobody there. Calls answered
+  *during* working hours are excluded even though some would genuinely have been
+  missed — undercounting in our own disfavour is the only bias allowed.
+- Money comes only from `DealOutcome` rows the client logged. With none logged
+  `attribution` returns **null, not zero** — zero reads as "it earned nothing",
+  null reads as "you haven't told us", and those are very different sentences to
+  put in front of somebody deciding whether to keep paying.
+- Every headline carries its own `basis` on the face of it, not in a tooltip.
+- `stillLeaking` names what is still going wrong. A scoreboard that only counts
+  wins is marketing.
+- 26 tests.
+
+### Schema
+- New: `EmployeeCall`, `RateCardItem`, `Estimate`, `AvailabilityRule`,
+  `Booking` + six enums.
+- `ClientProfile` gains the voice columns (`voiceEnabled` defaults **false** —
+  answering somebody's phone is not a thing to switch on for them because a
+  column defaulted to true), `taxRatePercent`, `estimateValidDays`, `timeZone`,
+  `bookingSlug` and the booking defaults.
+
+
 ## Verified this session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
   pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (260 tests, 11 files).
