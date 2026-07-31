@@ -254,6 +254,22 @@ model ClientProfile {
   /// same way `spendWatchLastRunAt` does for the sweep.
   comebackLastRunAt   DateTime?
 
+  /// The Estimator (lib/estimate.ts): the bot that turns a job into a priced
+  /// quote and sends it through the gate for the owner to release. Off by
+  /// default — a paid Job Runner capability, not a tier feature.
+  estimatorEnabled  Boolean @default(false)
+  /// Sales-tax rate applied to an estimate, as a percentage (e.g. 8.6 = 8.6%).
+  taxRatePct        Float   @default(0)
+  /// Deposit taken up front, as a percentage of the estimate total.
+  depositPct        Float   @default(0)
+  /// Floor for a whole job, in cents. A quote below this is bumped with a
+  /// transparent "minimum job charge" line rather than silently.
+  minJobCents       Int?
+  /// Flat trip/travel charge added to every estimate that has line items, cents.
+  travelFeeCents    Int     @default(0)
+  /// How long a sent estimate is honoured before it lapses.
+  estimateValidDays Int     @default(30)
+
   stripeCustomerId String? @unique
 
   subscriptions    Subscription[]
@@ -272,6 +288,8 @@ model ClientProfile {
   entitlements     ClientEntitlement[]
   embeddings       Embedding[]
   pendingActions   PendingAction[]
+  rateCard         RateCardItem[]
+  estimates        Estimate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -594,7 +612,8 @@ model Lead {
   nextAction String?    @db.Text
   scoredAt   DateTime?
 
-  outcomes DealOutcome[]
+  outcomes  DealOutcome[]
+  estimates Estimate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -798,6 +817,87 @@ model PendingAction {
   @@index([clientId, createdAt])
   @@index([state, releaseAt])
   @@index([state, expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// The Estimator — a job becomes a priced quote, sent only after the gate
+// ---------------------------------------------------------------------------
+
+/// One priceable service on a client's rate card. The Estimator prices a job
+/// by resolving a job's line requests against these rows — so the numbers a
+/// customer is quoted are the owner's own published prices, never a model's
+/// guess.
+model RateCardItem {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// Stable slug the Estimator maps a job onto, e.g. "roof-replacement-tile".
+  key         String
+  name        String
+  description String? @db.Text
+  /// job | sqft | square | hour | linear_ft | unit — display + math unit.
+  unit        String  @default("job")
+  unitPriceCents Int
+  /// Floor for a single line, in cents. A line never prices below this.
+  minPriceCents  Int     @default(0)
+  active         Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, key])
+  @@index([clientId])
+}
+
+enum EstimateStatus {
+  DRAFT
+  QUEUED
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+/// A priced estimate. Produced by a pure function (lib/estimate.ts), persisted
+/// here, and proposed to the gate as a `quote.send` action — which moves money,
+/// so it is held for a named human to release before it ever reaches a
+/// customer. `pendingActionId` links the estimate to that gate row.
+model Estimate {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  leadId   String?
+  lead     Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  customerName  String?
+  customerEmail String?
+  customerPhone String?
+
+  status   EstimateStatus @default(DRAFT)
+  currency String         @default("USD")
+
+  /// [{ key, name, unit, qty, unitPriceCents, amountCents }]
+  lineItems      Json
+  subtotalCents  Int
+  travelFeeCents Int  @default(0)
+  taxCents       Int  @default(0)
+  totalCents     Int
+  depositCents   Int  @default(0)
+  validUntil     DateTime?
+  notes          String?   @db.Text
+
+  /// The gate action this estimate is waiting behind, once queued.
+  pendingActionId String?
+  /// Idempotency: re-quoting the same job updates rather than duplicates.
+  dedupeKey       String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, dedupeKey])
+  @@index([clientId, status])
+  @@index([clientId, createdAt])
 }
 
 // ---------------------------------------------------------------------------

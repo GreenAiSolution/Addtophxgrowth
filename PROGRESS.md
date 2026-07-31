@@ -645,7 +645,61 @@ platform's promise.
 
 ---
 
+## Phase 17 — The Estimator: the first Job Runner capability ✅
+
+"Set estimates" is the first real job of The Job Runner, and the gate already
+had the action kind waiting for it: `quote.send` moves money and is held MANUAL,
+so a named human releases every quote before it reaches a customer. This builds
+the loop that fills that queue.
+
+### The engine (`src/lib/estimate.ts`)
+- **A model may read a job; it may never price one.** `priceEstimate` is pure
+  arithmetic over the client's rate card — unit price × quantity, a per-line
+  floor, a trip charge and a transparent minimum-job bump, then tax and deposit
+  — so a quoted number is the owner's own published price, defensible and
+  identical whether or not Anthropic is up. Same money-is-math split as
+  spend-watch.ts and gate.ts.
+- `estimateFromDescription` is the **Estimator bot**: the model maps free text (a
+  call summary, a form message) to rate-card keys and quantities *only* — a
+  mistake there is caught at the gate — then the pure engine prices it. Metered
+  like any run; an unknown key becomes a surfaced warning, never a guessed price.
+- `createEstimate` prices, persists an `Estimate`, and proposes `quote.send` to
+  the gate. It never sends — the owner releases from `/app/gate`. Idempotent per
+  (client, job) so re-quoting updates rather than duplicates.
+- The `quote.send` **executor** (`registerEstimateExecutors`, wired into the
+  sweep cron) delivers a *released* quote through the client's own CRM channel
+  and marks the estimate SENT — and throws (recording a plain FAILED) when no
+  channel is wired, exactly like The Comeback. The Job Runner's first executor.
+- 19 tests on the pure engine (the money path gets the most rigor).
+
+### Surface & data
+- **`/api/estimate`** — Zod-validated, tenant-scoped. Takes structured
+  `requests` *or* a free-text `description`, returns the priced total and queues
+  it at the gate. Deliberately the shape a **Vapi voice agent's "price this job"
+  tool** will call in the voice phase — build the seam once.
+- **Schema:** `RateCardItem` (per-client priceable services), `Estimate`
+  (+`EstimateStatus`), and estimator settings on `ClientProfile`
+  (`estimatorEnabled`, `taxRatePct`, `depositPct`, `minJobCents`,
+  `travelFeeCents`, `estimateValidDays`).
+- **Seed:** demo #3 (Ironclad Roofing) gets a six-line rate card and one real
+  quote (22-square tile re-roof + inspection) produced by `createEstimate`, so
+  `/app/gate` opens with a genuine `quote.send` waiting — production output, not
+  a hand-typed row.
+
+### Next (voice, chosen: Vapi)
+- Inbound/outbound calling is a separate build against **Vapi**: the provider
+  handles telephony + speech; our app exposes the "brain" and tools (qualify,
+  `/api/estimate`, book). Live calls need a Vapi account + key — not runnable
+  from this repo alone. `/api/estimate` is already the estimate tool it will call.
+
+---
+
 ## Verified this session
+- `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (37 static pages,
+  `/api/estimate` live) · `pnpm test` ✅ (548 tests, 24 files) — after building
+  The Estimator.
+
+### Earlier this session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
   pages) · `pnpm test` ✅ (529 tests, 23 files) — after building The Comeback.
 - The Comeback is proposal-only in the hourly cron and delivery-only in the gate

@@ -92,6 +92,12 @@ async function upsertClient(opts: {
   adOpsPlan?: string;
   /** Switch on The Comeback re-approach loop for this tenant. */
   comebackEnabled?: boolean;
+  /** Switch on the Estimator, with its pricing settings. */
+  estimatorEnabled?: boolean;
+  taxRatePct?: number;
+  depositPct?: number;
+  travelFeeCents?: number;
+  minJobCents?: number;
   adAccounts: {
     platform: string;
     name: string;
@@ -118,6 +124,11 @@ async function upsertClient(opts: {
       voiceTone: opts.voiceTone,
       verticalKey: opts.verticalKey ?? null,
       comebackEnabled: opts.comebackEnabled ?? false,
+      estimatorEnabled: opts.estimatorEnabled ?? false,
+      taxRatePct: opts.taxRatePct ?? 0,
+      depositPct: opts.depositPct ?? 0,
+      travelFeeCents: opts.travelFeeCents ?? 0,
+      minJobCents: opts.minJobCents ?? null,
       onboardedAt: new Date(),
       intakeCompletedAt: new Date(),
     },
@@ -131,6 +142,11 @@ async function upsertClient(opts: {
       voiceTone: opts.voiceTone,
       verticalKey: opts.verticalKey ?? null,
       comebackEnabled: opts.comebackEnabled ?? false,
+      estimatorEnabled: opts.estimatorEnabled ?? false,
+      taxRatePct: opts.taxRatePct ?? 0,
+      depositPct: opts.depositPct ?? 0,
+      travelFeeCents: opts.travelFeeCents ?? 0,
+      minJobCents: opts.minJobCents ?? null,
       intakeToken: randomBytes(24).toString("base64url"),
       onboardedAt: new Date(),
       intakeCompletedAt: new Date(),
@@ -486,6 +502,60 @@ async function seedComebackDemo(clientId: string) {
 }
 
 /**
+ * Give demo client #3 a real rate card and produce one live estimate through the
+ * actual Estimator code path, so /app/gate opens with a real quote.send waiting
+ * behind the gate — produced by production pricing, not hand-typed. Guarded on
+ * the rate-card count so re-seeding doesn't duplicate.
+ */
+async function seedEstimatorDemo(clientId: string) {
+  const already = await prisma.rateCardItem.count({ where: { clientId } });
+  if (already > 0) return;
+
+  const items: { key: string; name: string; unit: string; unitPriceCents: number; minPriceCents?: number }[] = [
+    { key: "roof-replacement-tile", name: "Tile roof replacement", unit: "square", unitPriceCents: 65_000 },
+    { key: "roof-replacement-shingle", name: "Shingle roof replacement", unit: "square", unitPriceCents: 42_000 },
+    { key: "roof-inspection", name: "Roof inspection & report", unit: "job", unitPriceCents: 0, minPriceCents: 15_000 },
+    { key: "leak-repair", name: "Leak repair", unit: "job", unitPriceCents: 65_000 },
+    { key: "roof-coating", name: "Elastomeric roof coating", unit: "sqft", unitPriceCents: 120 },
+    { key: "gutter-replacement", name: "Gutter replacement", unit: "linear_ft", unitPriceCents: 1_800 },
+  ];
+
+  for (const it of items) {
+    await prisma.rateCardItem.create({
+      data: {
+        clientId,
+        key: it.key,
+        name: it.name,
+        unit: it.unit,
+        unitPriceCents: it.unitPriceCents,
+        minPriceCents: it.minPriceCents ?? 0,
+      },
+    });
+  }
+
+  // One real quote through the production path: a 22-square tile re-roof with an
+  // inspection, for a walk-in. It prices, then lands at the gate as quote.send.
+  const { createEstimate } = await import("../src/lib/estimate");
+  const result = await createEstimate({
+    clientId,
+    customerName: "Priya Shah",
+    customerEmail: "priya.shah@example.com",
+    customerPhone: "+1 602 555 0311",
+    requests: [
+      { key: "roof-replacement-tile", qty: 22 },
+      { key: "roof-inspection", qty: 1 },
+    ],
+    notes: "Two-story tile home, north Scottsdale. Insurance claim in progress.",
+    dedupeKey: "estimate:seed-priya-shah",
+  });
+  if (result.ok) {
+    console.log(`   · Estimator priced a quote of $${(result.priced.totalCents / 100).toFixed(2)} → gate quote.send`);
+  } else {
+    console.log(`   · Estimator demo skipped: ${result.reason}`);
+  }
+}
+
+/**
  * Degrade one of demo client #1's accounts over the last week and then run the
  * real Spend Watch against it, so /app/ads has genuine alerts on a fresh
  * install. As with the memory demo, the alerts are produced by production code
@@ -629,10 +699,16 @@ async function main() {
     verticalKey: "roofing",
     agentsPlan: "command",
     comebackEnabled: true,
+    estimatorEnabled: true,
+    taxRatePct: 8.6,
+    depositPct: 25,
+    travelFeeCents: 7_500,
+    minJobCents: 50_000,
     adAccounts: [{ platform: "GOOGLE", name: "Ironclad — Google Ads" }],
   });
   await seedNightShiftDemo(c3.id);
   await seedComebackDemo(c3.id);
+  await seedEstimatorDemo(c3.id);
 
   console.log("✓ Seed complete.");
 }

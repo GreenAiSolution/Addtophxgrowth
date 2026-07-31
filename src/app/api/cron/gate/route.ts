@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { sweep, SWEEP_INTERVAL_MINUTES } from "@/lib/gate";
 import { registerComebackExecutors } from "@/lib/comeback";
+import { registerEstimateExecutors } from "@/lib/estimate";
 import { checkDb } from "@/lib/db-health";
 
 // Wire the automation builds' executors into the gate before anything is swept.
@@ -10,6 +11,7 @@ import { checkDb } from "@/lib/db-health";
 // whichever module happened to be imported first. Idempotent, so importing this
 // route repeatedly (as the cron does) re-registers harmlessly.
 registerComebackExecutors();
+registerEstimateExecutors();
 
 /**
  * The gate sweep. Every five minutes (see vercel.json).
