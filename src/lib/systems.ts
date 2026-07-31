@@ -142,6 +142,14 @@ const LAUNCH_MODULES: SystemModule[] = [
     delivery: "INSTANT",
   },
   {
+    key: "integration-phone-line",
+    kind: "INTEGRATION",
+    name: "AI Phone Line — Inbound",
+    description:
+      "A number that answers every call, day or night, qualifies the caller, and books or messages you — never voicemail.",
+    delivery: "INSTANT",
+  },
+  {
     key: "milestone-kickoff",
     kind: "MILESTONE",
     name: "Build kickoff call",
@@ -221,6 +229,14 @@ const SCALE_MODULES: SystemModule[] = [
     kind: "INTEGRATION",
     name: "CRM Delivery Hook",
     description: "Send-to-CRM wired to your pipeline, so agent output lands where your team works.",
+    delivery: "INSTANT",
+  },
+  {
+    key: "integration-phone-outbound",
+    kind: "INTEGRATION",
+    name: "AI Phone Line — Outbound & Estimates",
+    description:
+      "Calls back every missed lead on its own, and prices the job on the call from a rate card you control — the number never leaves without you releasing it.",
     delivery: "INSTANT",
   },
   {
@@ -570,6 +586,7 @@ export const SYSTEM_BLUEPRINTS: SystemBlueprint[] = [
       "Every lead scored, ranked, and followed up — before your competitor picks up the phone.",
     outcomes: [
       "No inbound lead goes more than minutes without a response",
+      "Every call gets answered, day or night — never voicemail",
       "Your team works the right leads first, every morning",
       "Quotes and no-shows get chased without anyone remembering to",
     ],
@@ -582,6 +599,7 @@ export const SYSTEM_BLUEPRINTS: SystemBlueprint[] = [
       "Everything in Launch, plus the creative that fills the funnel and the hygiene that keeps it clean.",
     outcomes: [
       "New campaigns launch in an afternoon, not a fortnight",
+      "Missed calls get called back on their own — no lead just goes cold",
       "Creative gets refreshed before fatigue costs you money",
       "Your CRM stays accurate without a single manual entry",
     ],

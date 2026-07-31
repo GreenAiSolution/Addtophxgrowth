@@ -130,6 +130,38 @@ enum AdAlertStatus {
 }
 
 // ---------------------------------------------------------------------------
+// The phone desk — an AI Employee that answers, calls back, and quotes
+// ---------------------------------------------------------------------------
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+/// Where a call landed. IN_PROGRESS is transient — every call resolves to
+/// something else by the time its status callback fires.
+enum CallOutcome {
+  IN_PROGRESS
+  ESTIMATE_GIVEN
+  BOOKED
+  TRANSFERRED
+  MESSAGE_TAKEN
+  VOICEMAIL
+  NO_ANSWER
+  HUNG_UP
+  SPAM
+}
+
+enum EstimateStatus {
+  /// Priced by the call, not yet reviewed by a human.
+  DRAFT
+  /// Released through the gate and delivered to the customer.
+  SENT
+  ACCEPTED
+  DECLINED
+}
+
+// ---------------------------------------------------------------------------
 // Auth.js (NextAuth) core models
 // ---------------------------------------------------------------------------
 
@@ -261,6 +293,9 @@ model ClientProfile {
   entitlements     ClientEntitlement[]
   embeddings       Embedding[]
   pendingActions   PendingAction[]
+  phoneLine        PhoneLine?
+  callLogs         CallLog[]
+  estimates        Estimate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -583,13 +618,125 @@ model Lead {
   nextAction String?    @db.Text
   scoredAt   DateTime?
 
-  outcomes DealOutcome[]
+  outcomes  DealOutcome[]
+  callLogs  CallLog[]
+  estimates Estimate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([clientId, status])
   @@index([clientId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// The phone desk — inbound answers, outbound callbacks, and quotes over the
+// phone. See lib/voice.ts (pure conversation logic), lib/telephony.ts (Twilio
+// I/O) and lib/voice-agent.ts (the run loop that ties them together).
+// ---------------------------------------------------------------------------
+
+/// One phone line, one tenant. Provisioned (disabled, no number) the moment
+/// the Inbound Phone Line module ships; an admin assigns the real Twilio
+/// number once one is purchased, and the client turns it on themselves.
+model PhoneLine {
+  id       String        @id @default(cuid())
+  clientId String        @unique
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// E.164. Null until a real Twilio number is assigned.
+  twilioNumber String? @unique
+  /// Where a TRANSFER action rings during business hours. Null = always take
+  /// a message instead of transferring — a line with no human to hand off to
+  /// is a perfectly normal starting point.
+  forwardingNumber String?
+  greeting           String? @db.Text
+  afterHoursGreeting String? @db.Text
+  /// { startUtcHour: 0-23, endUtcHour: 0-23, days: number[] (0=Sun) }. Null =
+  /// nobody is ever available to transfer to; the AI still answers 24/7
+  /// either way — this only gates whether TRANSFER is attempted.
+  businessHours Json?
+  /// Scale+ only. The AI still answers every inbound call regardless.
+  outboundEnabled Boolean @default(false)
+  /// The client's own on/off switch, independent of whether a number is
+  /// assigned yet.
+  active Boolean @default(false)
+
+  callLogs CallLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// One phone call, inbound or outbound, start to finish.
+model CallLog {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  phoneLineId String?
+  phoneLine   PhoneLine? @relation(fields: [phoneLineId], references: [id], onDelete: SetNull)
+
+  /// Twilio's CallSid. The natural idempotency key for webhooks that retry.
+  twilioCallSid String        @unique
+  direction     CallDirection
+  fromNumber    String
+  toNumber      String
+  outcome       CallOutcome   @default(IN_PROGRESS)
+
+  /// [{ role: "caller"|"assistant", text: string, at: ISO string }], appended
+  /// turn by turn as the call happens.
+  transcript Json?
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  estimate Estimate?
+
+  recordingUrl String?
+  durationSec  Int?
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId, createdAt])
+  @@index([clientId, direction])
+  @@index([leadId])
+}
+
+/// A price range the phone desk worked out on a call, from a deterministic
+/// rate card — never a model guess about someone's money (see lib/estimate.ts).
+/// Delivery to the customer is gated: the call ends with "you'll get a written
+/// number", not a promise sent on the spot. lib/executors/estimate-send.ts is
+/// the "quote.send" gate executor that actually sends it once released.
+model Estimate {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  callLogId String?  @unique
+  callLog   CallLog? @relation(fields: [callLogId], references: [id], onDelete: SetNull)
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  jobType  String
+  /// Whatever the caller told the agent — quantity, address, notes.
+  details  Json
+  priceLowCents  Int
+  priceHighCents Int
+  /// Plain-English explanation of the arithmetic, shown to the client and
+  /// quotable to the customer — never a bare number with no working shown.
+  basis    String @db.Text
+
+  status EstimateStatus @default(DRAFT)
+  sentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId, createdAt])
+  @@index([clientId, status])
 }
 
 // ---------------------------------------------------------------------------

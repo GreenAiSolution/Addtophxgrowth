@@ -2,6 +2,10 @@ import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { sweep, SWEEP_INTERVAL_MINUTES } from "@/lib/gate";
 import { checkDb } from "@/lib/db-health";
+// Side-effect import: registers the "quote.send" executor before sweep()
+// runs. Every build that proposes a gate action registers its executor the
+// same way — see the comment at the top of lib/executors/estimate-send.ts.
+import "@/lib/executors/estimate-send";
 
 /**
  * The gate sweep. Every five minutes (see vercel.json).
