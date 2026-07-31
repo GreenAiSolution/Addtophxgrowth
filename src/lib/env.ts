@@ -61,6 +61,32 @@ export const env = {
   },
 
   /**
+   * The telephony account's signing secret, used to verify that a webhook
+   * really came from the carrier.
+   *
+   * Account-wide, because that is how carriers sign: one secret per account,
+   * not per number. The per-tenant `voiceToken` in the URL is what decides
+   * *whose* call this is; this decides whether it is a real call at all. Both
+   * are checked, and neither is sufficient alone.
+   */
+  get voiceAuthToken() {
+    return firstOf("VOICE_AUTH_TOKEN", "TWILIO_AUTH_TOKEN", "voice_auth_token");
+  },
+  /**
+   * Where to POST an outgoing SMS, and what to authenticate with.
+   *
+   * Deliberately a URL rather than a vendor SDK. No carrier has been chosen,
+   * and a product that cannot send its recovery text until somebody signs a
+   * contract is a product blocked on a procurement decision.
+   */
+  get smsUrl() {
+    return firstOf("VOICE_SMS_URL", "SMS_WEBHOOK_URL");
+  },
+  get smsToken() {
+    return firstOf("VOICE_SMS_TOKEN", "SMS_WEBHOOK_TOKEN");
+  },
+
+  /**
    * Where this site actually lives — its own canonical origin.
    *
    * Used for anything that asserts identity: canonical tags, robots.txt,
