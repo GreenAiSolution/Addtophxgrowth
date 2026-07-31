@@ -12,6 +12,7 @@ import {
   Target,
   Activity,
   ShieldCheck,
+  PhoneCall,
 } from "lucide-react";
 
 export interface NavItem {
@@ -23,6 +24,9 @@ export interface NavItem {
 export const CLIENT_NAV: NavItem[] = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard },
   { href: "/app/brief", label: "Morning Brief", icon: Moon },
+  // Above Leads on purpose: a call is a lead that is still on the line, and the
+  // one on the line is the one worth looking at first.
+  { href: "/app/calls", label: "The Phone", icon: PhoneCall },
   { href: "/app/leads", label: "Leads", icon: Target },
   { href: "/app/gate", label: "The Queue", icon: ShieldCheck },
   { href: "/app/agents", label: "Agent Workspace", icon: Bot },

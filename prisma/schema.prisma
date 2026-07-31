@@ -235,6 +235,24 @@ model ClientProfile {
   /// Secret for this tenant's public lead-intake endpoint. Rotatable.
   intakeToken String? @unique
 
+  // --- The switchboard (Patch). See lib/employees.ts and lib/telephony.ts.
+  /// The number the crew answers on, E.164. Null means the phone is not live
+  /// yet, which every gate in the app reads as "do not answer" rather than
+  /// guessing a number.
+  voiceNumber   String?
+  /// Secret for this tenant's public telephony webhook. Separate from
+  /// intakeToken on purpose: a form endpoint leaking must not also hand
+  /// somebody the ability to fake calls.
+  voiceToken    String? @unique
+  /// First line spoken on an inbound call. Falls back to a composed default so
+  /// an unconfigured tenant still answers rather than reciting a blank.
+  voiceGreeting String? @db.Text
+  /// Sent when a call is missed anyway. The recovery, not the greeting.
+  voiceTextBack String? @db.Text
+  /// Off by default. Answering somebody's phone is not a thing to switch on
+  /// for them because a column defaulted to true.
+  voiceEnabled  Boolean @default(false)
+
   /// Night shift: the unattended run that produces the morning brief.
   nightShiftEnabled   Boolean   @default(true)
   /// UTC hour (0-23) the brief should be waiting by. Default 13:00 UTC = 6am Phoenix.
@@ -261,6 +279,7 @@ model ClientProfile {
   entitlements     ClientEntitlement[]
   embeddings       Embedding[]
   pendingActions   PendingAction[]
+  calls            EmployeeCall[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -584,12 +603,101 @@ model Lead {
   scoredAt   DateTime?
 
   outcomes DealOutcome[]
+  calls    EmployeeCall[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([clientId, status])
   @@index([clientId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// The switchboard — every call the crew answered, and every one it did not
+// ---------------------------------------------------------------------------
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+/// How a call ended.
+///
+/// MISSED is the important one and it is why this table records calls the crew
+/// did *not* handle. A switchboard that only logs its successes cannot be
+/// audited, and the number the client actually wants — how many people tried to
+/// reach them — is exactly the number such a table cannot produce.
+enum CallOutcome {
+  IN_PROGRESS
+  /// Handled: enough was established to act on.
+  QUALIFIED
+  /// Ended with an appointment in the diary.
+  BOOKED
+  /// Caller wanted a price and one is owed.
+  ESTIMATE_REQUESTED
+  /// Took a message; nothing more was wanted.
+  MESSAGE
+  /// Handed to a human on the client's side.
+  TRANSFERRED
+  /// Rang out with nobody and nothing answering. The leak, recorded.
+  MISSED
+  VOICEMAIL
+  /// The vendor, the network or we fell over.
+  FAILED
+}
+
+model EmployeeCall {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  direction CallDirection
+  outcome   CallOutcome   @default(IN_PROGRESS)
+
+  /// The telephony vendor's own call id.
+  ///
+  /// Unique per tenant, which is what makes the webhook idempotent: providers
+  /// retry status callbacks, and without this a retry writes a second call and
+  /// the client's missed-call count silently inflates.
+  externalId String
+
+  fromNumber String
+  toNumber   String
+  callerName String?
+
+  /// What the qualification actually established — see planCall in
+  /// lib/telephony.ts. Stored as given rather than spread into columns,
+  /// because which fields matter is the vertical pack's business.
+  collected Json    @default("{}")
+  transcript   String? @db.Text
+  summary      String? @db.Text
+  recordingUrl String?
+
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  durationSeconds Int?
+
+  /// Stamped the moment the recovery text goes. Together with the unique
+  /// externalId this is what stops a retried webhook texting somebody twice.
+  textBackSentAt DateTime?
+  textBackError  String?   @db.Text
+
+  /// The lead this call belongs to. A call that never becomes a lead is a call
+  /// nobody follows up, so the switchboard opens one on the way past.
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  /// Outbound only: the gate action that released this call. Null on inbound,
+  /// which is the schema stating that answering needs no permission.
+  pendingActionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, externalId])
+  @@index([clientId, startedAt])
+  @@index([clientId, outcome])
+  @@index([clientId, direction, startedAt])
 }
 
 // ---------------------------------------------------------------------------
