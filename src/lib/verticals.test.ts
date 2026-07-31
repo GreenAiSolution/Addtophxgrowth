@@ -59,6 +59,15 @@ describe("vertical packs", () => {
       expect(pack.typicalJobValueCents, pack.key).toBeGreaterThan(0);
     }
   });
+
+  it("gives every pack a sane re-approach interval for The Comeback", () => {
+    for (const pack of VERTICAL_PACKS) {
+      // At least monthly-floor, at most a couple of years — a pack outside this
+      // is almost certainly a typo, and it drives real customer outreach.
+      expect(pack.serviceIntervalDays, pack.key).toBeGreaterThanOrEqual(30);
+      expect(pack.serviceIntervalDays, pack.key).toBeLessThanOrEqual(1095);
+    }
+  });
 });
 
 describe("matching", () => {

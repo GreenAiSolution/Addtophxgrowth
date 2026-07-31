@@ -90,6 +90,14 @@ async function upsertClient(opts: {
   verticalKey?: string;
   agentsPlan?: string;
   adOpsPlan?: string;
+  /** Switch on The Comeback re-approach loop for this tenant. */
+  comebackEnabled?: boolean;
+  /** Switch on the Estimator, with its pricing settings. */
+  estimatorEnabled?: boolean;
+  taxRatePct?: number;
+  depositPct?: number;
+  travelFeeCents?: number;
+  minJobCents?: number;
   adAccounts: {
     platform: string;
     name: string;
@@ -115,6 +123,12 @@ async function upsertClient(opts: {
       goals: opts.goals,
       voiceTone: opts.voiceTone,
       verticalKey: opts.verticalKey ?? null,
+      comebackEnabled: opts.comebackEnabled ?? false,
+      estimatorEnabled: opts.estimatorEnabled ?? false,
+      taxRatePct: opts.taxRatePct ?? 0,
+      depositPct: opts.depositPct ?? 0,
+      travelFeeCents: opts.travelFeeCents ?? 0,
+      minJobCents: opts.minJobCents ?? null,
       onboardedAt: new Date(),
       intakeCompletedAt: new Date(),
     },
@@ -127,6 +141,12 @@ async function upsertClient(opts: {
       goals: opts.goals,
       voiceTone: opts.voiceTone,
       verticalKey: opts.verticalKey ?? null,
+      comebackEnabled: opts.comebackEnabled ?? false,
+      estimatorEnabled: opts.estimatorEnabled ?? false,
+      taxRatePct: opts.taxRatePct ?? 0,
+      depositPct: opts.depositPct ?? 0,
+      travelFeeCents: opts.travelFeeCents ?? 0,
+      minJobCents: opts.minJobCents ?? null,
       intakeToken: randomBytes(24).toString("base64url"),
       onboardedAt: new Date(),
       intakeCompletedAt: new Date(),
@@ -414,6 +434,128 @@ async function seedNightShiftDemo(clientId: string) {
 }
 
 /**
+ * Give demo client #3 a handful of real past customers — won jobs with a
+ * contactable lead behind each — then run the actual Comeback pass against them,
+ * so /app/gate opens with genuine re-approaches waiting rather than an empty
+ * queue. As with the memory and Spend Watch demos, the proposals are produced by
+ * production code (lib/comeback.ts → the gate), so the demo can't drift from what
+ * the system would really queue. Guarded on the won-customer count so re-seeding
+ * doesn't stack duplicate history.
+ */
+async function seedComebackDemo(clientId: string) {
+  const already = await prisma.dealOutcome.count({
+    where: { clientId, outcome: "WON", leadId: { not: null } },
+  });
+  if (already > 0) return;
+
+  const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000);
+
+  // roofing's interval is 365 days. One customer sits inside the reminder
+  // window (annual inspection due), two are long dormant (win-back), and one is
+  // too recent to contact — so the pass has something to include and something
+  // to correctly leave alone.
+  const pastJobs: { name: string; company: string; daysSince: number; value: number; phone: string }[] = [
+    { name: "Glen Marsh", company: "Marsh Residence", daysSince: 358, value: 1_540_000, phone: "+1 602 555 0143" },
+    { name: "Yara Nakamura", company: "Nakamura Property", daysSince: 690, value: 1_210_000, phone: "+1 602 555 0188" },
+    { name: "Ed Boone", company: "Boone Ranch", daysSince: 830, value: 2_060_000, phone: "+1 602 555 0207" },
+    { name: "Tessa Fields", company: "Fields Residence", daysSince: 45, value: 980_000, phone: "+1 602 555 0251" },
+  ];
+
+  for (const j of pastJobs) {
+    const lead = await prisma.lead.create({
+      data: {
+        clientId,
+        source: "google-ads",
+        name: j.name,
+        company: j.company,
+        email: `${j.name.split(" ")[0].toLowerCase()}@example.com`,
+        phone: j.phone,
+        message: "Full roof replacement, insurance claim.",
+        status: "WON",
+        score: 88,
+        tier: "HOT",
+        scoredAt: daysAgo(j.daysSince + 3),
+        createdAt: daysAgo(j.daysSince + 5),
+      },
+    });
+    await prisma.dealOutcome.create({
+      data: {
+        clientId,
+        leadId: lead.id,
+        outcome: "WON",
+        valueCents: j.value,
+        scoreAtQualification: 88,
+        tierAtQualification: "HOT",
+        source: "google-ads",
+        createdAt: daysAgo(j.daysSince),
+      },
+    });
+  }
+
+  // Run the real loop. It proposes through the gate exactly as the hourly cron
+  // would, so the queue fills with production output, not hand-written rows.
+  const { runComeback } = await import("../src/lib/comeback");
+  const result = await runComeback(clientId);
+  console.log(
+    `   · Comeback considered ${result.considered ?? 0} past customers, queued ${result.queued ?? 0}`,
+  );
+}
+
+/**
+ * Give demo client #3 a real rate card and produce one live estimate through the
+ * actual Estimator code path, so /app/gate opens with a real quote.send waiting
+ * behind the gate — produced by production pricing, not hand-typed. Guarded on
+ * the rate-card count so re-seeding doesn't duplicate.
+ */
+async function seedEstimatorDemo(clientId: string) {
+  const already = await prisma.rateCardItem.count({ where: { clientId } });
+  if (already > 0) return;
+
+  const items: { key: string; name: string; unit: string; unitPriceCents: number; minPriceCents?: number }[] = [
+    { key: "roof-replacement-tile", name: "Tile roof replacement", unit: "square", unitPriceCents: 65_000 },
+    { key: "roof-replacement-shingle", name: "Shingle roof replacement", unit: "square", unitPriceCents: 42_000 },
+    { key: "roof-inspection", name: "Roof inspection & report", unit: "job", unitPriceCents: 0, minPriceCents: 15_000 },
+    { key: "leak-repair", name: "Leak repair", unit: "job", unitPriceCents: 65_000 },
+    { key: "roof-coating", name: "Elastomeric roof coating", unit: "sqft", unitPriceCents: 120 },
+    { key: "gutter-replacement", name: "Gutter replacement", unit: "linear_ft", unitPriceCents: 1_800 },
+  ];
+
+  for (const it of items) {
+    await prisma.rateCardItem.create({
+      data: {
+        clientId,
+        key: it.key,
+        name: it.name,
+        unit: it.unit,
+        unitPriceCents: it.unitPriceCents,
+        minPriceCents: it.minPriceCents ?? 0,
+      },
+    });
+  }
+
+  // One real quote through the production path: a 22-square tile re-roof with an
+  // inspection, for a walk-in. It prices, then lands at the gate as quote.send.
+  const { createEstimate } = await import("../src/lib/estimate");
+  const result = await createEstimate({
+    clientId,
+    customerName: "Priya Shah",
+    customerEmail: "priya.shah@example.com",
+    customerPhone: "+1 602 555 0311",
+    requests: [
+      { key: "roof-replacement-tile", qty: 22 },
+      { key: "roof-inspection", qty: 1 },
+    ],
+    notes: "Two-story tile home, north Scottsdale. Insurance claim in progress.",
+    dedupeKey: "estimate:seed-priya-shah",
+  });
+  if (result.ok) {
+    console.log(`   · Estimator priced a quote of $${(result.priced.totalCents / 100).toFixed(2)} → gate quote.send`);
+  } else {
+    console.log(`   · Estimator demo skipped: ${result.reason}`);
+  }
+}
+
+/**
  * Degrade one of demo client #1's accounts over the last week and then run the
  * real Spend Watch against it, so /app/ads has genuine alerts on a fresh
  * install. As with the memory demo, the alerts are produced by production code
@@ -556,9 +698,17 @@ async function main() {
     voiceTone: "Straight-talking, no pressure, like a neighbour who happens to know roofs.",
     verticalKey: "roofing",
     agentsPlan: "command",
+    comebackEnabled: true,
+    estimatorEnabled: true,
+    taxRatePct: 8.6,
+    depositPct: 25,
+    travelFeeCents: 7_500,
+    minJobCents: 50_000,
     adAccounts: [{ platform: "GOOGLE", name: "Ironclad — Google Ads" }],
   });
   await seedNightShiftDemo(c3.id);
+  await seedComebackDemo(c3.id);
+  await seedEstimatorDemo(c3.id);
 
   console.log("✓ Seed complete.");
 }

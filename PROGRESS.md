@@ -570,7 +570,143 @@ better ad costs the same to run and can return several times more).
 
 ---
 
+## Phase 16 — The Comeback: the first automation build that runs ✅
+
+The gate (`lib/gate.ts`) shipped first, on purpose, holding action kinds for two
+automation builds — The Job Runner and The Comeback — with the executors
+deliberately empty: "Nothing is registered yet, because neither loop is built."
+This phase builds the first loop. The Comeback is the one the catalogue sells as
+"Echo asks them for a review. This one asks them back" — the re-approach that
+turns a past customer back into a booked job, and the outreach half of the
+platform's promise.
+
+### The loop (`src/lib/comeback.ts`)
+- **Past customers are won `DealOutcome` rows** with a contactable lead behind
+  them. `latestJobPerCustomer` collapses repeat buyers to their most recent job,
+  so a customer who bought three times is one comeback timed off their last
+  visit, not three overlapping ones.
+- **The cadence is the vertical's, overridable by the client.** `intervalFor`
+  reads `serviceIntervalDays` off the pack (roofing 365, HVAC/dental 180, med spa
+  90, remodeling 730) unless `ClientProfile.comebackIntervalDays` says otherwise,
+  and floors any override at 30 days so a fat-fingered number can't turn the loop
+  into a weekly nag.
+- **`classify` decides reminder vs win-back vs nothing.** A reminder fires in the
+  window around the due date; past 1.5× the interval with no return, the softer
+  reminder gives way to a win-back. The gap between them is a deliberate
+  cool-off. Reminders key off a single interval from the *latest* job, so a
+  customer who rebooks gets a fresh reminder next cycle and one who never does
+  slides into win-back instead of hearing "you're due" forever.
+- **`composeMessage` writes the copy — pure, and in the client's name, never
+  ours.** There is no model call anywhere in the file: a message sent in someone
+  else's business's name has to read identically whether or not the Anthropic API
+  is up, and the client reads the exact words in the queue before they send. A
+  test asserts no trace of the platform leaks into a customer-facing send.
+- **It proposes; it never sends.** `runComeback` walks the due customers and
+  `propose()`s each through the gate. Idempotent by construction — the gate's
+  unique `(clientId, dedupeKey)` and a stable per-cycle key mean the hourly cron
+  and its retries re-queue nothing.
+
+### Delivery, through the client's own channel
+- The two executors (`comeback.reminder`, `comeback.reactivate`) deliver a
+  *released* action through the client's **own CRM webhook** — their channel,
+  their sender — because a re-approach to their customer must arrive from their
+  business. It falls back to the agency automation hook, and if neither is wired
+  it throws, so the gate records a plain FAILED rather than a silent success:
+  the same rule the gate already lived by.
+- Registered from the sweep cron (`registerComebackExecutors`), never at import,
+  so importing the module for its pure helpers — or in a test — doesn't quietly
+  wire live delivery into the gate's global registry. `gate.test.ts`'s "no
+  executor wired" assertions still hold.
+
+### Wiring
+- The **hourly cron** now runs a Comeback pass alongside the night shift and
+  Spend Watch — it only *queues* into the gate. The **five-minute gate cron**
+  releases and delivers. `isDue` gates the hourly tick to roughly one pass a day
+  on `comebackLastRunAt`, the same shape as the Spend Watch's sweep gate.
+- **Schema:** `ClientProfile` gains `comebackEnabled` (off by default — it is a
+  paid build, switched on when bought, not a tier feature), `comebackIntervalDays`
+  and `comebackLastRunAt`. `VerticalPack` gains `serviceIntervalDays`.
+- **Seed:** demo client #3 (Ironclad Roofing) gets four real past customers — one
+  due for a reminder, two dormant, one too recent to touch — and the seed runs
+  the actual `runComeback`, so `/app/gate` opens with genuine proposals produced
+  by production code rather than hand-written rows.
+- 46 tests (`comeback.test.ts`, plus the interval assertion in
+  `verticals.test.ts`).
+
+### The surface, and what's deferred
+- The queue at `/app/gate` is the screen these builds were always pointed at:
+  every proposal is inspectable field by field, holds for a review window, and
+  can be pulled — and afterwards shows who was contacted, when, and what
+  happened. The catalogue's "monthly read-out of who was due, who replied, and
+  who came back" is served for *due* and *contacted*; **replied/came-back needs
+  an inbound channel that doesn't exist yet** and is the honest next step here.
+- The Job Runner's executors are still unbuilt; its action kinds sit in the gate
+  registry waiting, exactly as The Comeback's did.
+
+---
+
+## Phase 17 — The Estimator: the first Job Runner capability ✅
+
+"Set estimates" is the first real job of The Job Runner, and the gate already
+had the action kind waiting for it: `quote.send` moves money and is held MANUAL,
+so a named human releases every quote before it reaches a customer. This builds
+the loop that fills that queue.
+
+### The engine (`src/lib/estimate.ts`)
+- **A model may read a job; it may never price one.** `priceEstimate` is pure
+  arithmetic over the client's rate card — unit price × quantity, a per-line
+  floor, a trip charge and a transparent minimum-job bump, then tax and deposit
+  — so a quoted number is the owner's own published price, defensible and
+  identical whether or not Anthropic is up. Same money-is-math split as
+  spend-watch.ts and gate.ts.
+- `estimateFromDescription` is the **Estimator bot**: the model maps free text (a
+  call summary, a form message) to rate-card keys and quantities *only* — a
+  mistake there is caught at the gate — then the pure engine prices it. Metered
+  like any run; an unknown key becomes a surfaced warning, never a guessed price.
+- `createEstimate` prices, persists an `Estimate`, and proposes `quote.send` to
+  the gate. It never sends — the owner releases from `/app/gate`. Idempotent per
+  (client, job) so re-quoting updates rather than duplicates.
+- The `quote.send` **executor** (`registerEstimateExecutors`, wired into the
+  sweep cron) delivers a *released* quote through the client's own CRM channel
+  and marks the estimate SENT — and throws (recording a plain FAILED) when no
+  channel is wired, exactly like The Comeback. The Job Runner's first executor.
+- 19 tests on the pure engine (the money path gets the most rigor).
+
+### Surface & data
+- **`/api/estimate`** — Zod-validated, tenant-scoped. Takes structured
+  `requests` *or* a free-text `description`, returns the priced total and queues
+  it at the gate. Deliberately the shape a **Vapi voice agent's "price this job"
+  tool** will call in the voice phase — build the seam once.
+- **Schema:** `RateCardItem` (per-client priceable services), `Estimate`
+  (+`EstimateStatus`), and estimator settings on `ClientProfile`
+  (`estimatorEnabled`, `taxRatePct`, `depositPct`, `minJobCents`,
+  `travelFeeCents`, `estimateValidDays`).
+- **Seed:** demo #3 (Ironclad Roofing) gets a six-line rate card and one real
+  quote (22-square tile re-roof + inspection) produced by `createEstimate`, so
+  `/app/gate` opens with a genuine `quote.send` waiting — production output, not
+  a hand-typed row.
+
+### Next (voice, chosen: Vapi)
+- Inbound/outbound calling is a separate build against **Vapi**: the provider
+  handles telephony + speech; our app exposes the "brain" and tools (qualify,
+  `/api/estimate`, book). Live calls need a Vapi account + key — not runnable
+  from this repo alone. `/api/estimate` is already the estimate tool it will call.
+
+---
+
 ## Verified this session
+- `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (37 static pages,
+  `/api/estimate` live) · `pnpm test` ✅ (548 tests, 24 files) — after building
+  The Estimator.
+
+### Earlier this session
+- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
+  pages) · `pnpm test` ✅ (529 tests, 23 files) — after building The Comeback.
+- The Comeback is proposal-only in the hourly cron and delivery-only in the gate
+  sweep; both crons are bearer-authenticated and refuse when `CRON_SECRET` is
+  unset, so the loop can't be driven by anyone who finds the URL.
+
+### Earlier session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
   pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (260 tests, 11 files).
 - Landing page, both new plan pages and `/cockpit` rendered against a production
