@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   PhoneCall,
   Receipt,
+  CalendarDays,
 } from "lucide-react";
 
 export interface NavItem {
@@ -30,6 +31,7 @@ export const CLIENT_NAV: NavItem[] = [
   { href: "/app/calls", label: "The Phone", icon: PhoneCall },
   { href: "/app/leads", label: "Leads", icon: Target },
   { href: "/app/estimates", label: "Estimates", icon: Receipt },
+  { href: "/app/bookings", label: "The Diary", icon: CalendarDays },
   { href: "/app/gate", label: "The Queue", icon: ShieldCheck },
   { href: "/app/agents", label: "Agent Workspace", icon: Bot },
   { href: "/app/recall", label: "Recall", icon: Brain },

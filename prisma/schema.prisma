@@ -282,6 +282,21 @@ model ClientProfile {
   calls            EmployeeCall[]
   rateCardItems    RateCardItem[]
   estimates        Estimate[]
+  availability     AvailabilityRule[]
+  bookings         Booking[]
+
+  /// IANA zone, e.g. "America/Phoenix". Deliberately a zone and never a fixed
+  /// offset: "eight until five" means eight until five in their town in January
+  /// and in July, and a stored offset gets that right for half the year. The
+  /// failure is invisible in Phoenix, which has no DST — which is exactly where
+  /// it would ship from without being noticed.
+  timeZone String @default("America/Phoenix")
+  /// The public booking page's address. Null means no page is published.
+  bookingSlug String? @unique
+  /// Defaults for the booker. See lib/booking.ts for what each one prevents.
+  bookingDurationMinutes Int @default(60)
+  bookingLeadMinutes     Int @default(120)
+  bookingHorizonDays     Int @default(21)
 
   /// Sales tax applied to the taxable part of an estimate. Null means the
   /// client has not told us, and `priceEstimate` charges none rather than
@@ -613,6 +628,7 @@ model Lead {
 
   outcomes DealOutcome[]
   estimates Estimate[]
+  bookings  Booking[]
   calls    EmployeeCall[]
 
   createdAt DateTime @default(now())
@@ -1079,4 +1095,108 @@ model Estimate {
   @@unique([clientId, reference])
   @@index([clientId, status])
   @@index([clientId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// The booker — when the business works, and who is in the diary
+// ---------------------------------------------------------------------------
+
+enum BookingStatus {
+  BOOKED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum BookingSource {
+  /// Taken on the call, by the switchboard.
+  PHONE
+  /// The customer picked it themselves on the public page.
+  WEB
+  /// Put in the diary by a human.
+  MANUAL
+  /// Off the back of an accepted estimate.
+  ESTIMATE
+}
+
+/// One open window in the working week. Local time, in the client's zone.
+model AvailabilityRule {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// 0 = Sunday, matching JavaScript's own getDay.
+  weekday     Int
+  /// Minutes from local midnight. 8am = 480.
+  startMinute Int
+  /// Exclusive. 5pm = 1020.
+  endMinute   Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, weekday, startMinute])
+  @@index([clientId])
+}
+
+/// An appointment.
+///
+/// HOW TWO CUSTOMERS ARE STOPPED FROM TAKING THE SAME NINE O'CLOCK
+///   `canBook` checks the diary and then we insert, which is a race: two people
+///   can both pass the check before either row lands. The fix is `slotKey` —
+///   set to the start time while the booking is live, and set to NULL when it
+///   is cancelled. Postgres does not consider two NULLs equal in a unique
+///   index, so the constraint stops a genuine double-booking outright while
+///   still letting a cancelled slot be re-booked.
+///
+///   A plain @@unique([clientId, startsAt]) would do the first job and break
+///   the second, which is worse than the race it fixes.
+///
+///   The residual case is an overlapping booking with a *different* start —
+///   only reachable when the duration or the working hours change underneath a
+///   pending choice. `canBook` runs inside the same transaction as the insert
+///   to narrow it, and the overlap check is what catches it.
+model Booking {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  leadId     String?
+  lead       Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  callId     String?
+  estimateId String?
+
+  customerName  String
+  customerPhone String?
+  customerEmail String?
+  address       String?
+  jobSummary    String? @db.Text
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  /// Non-null exactly while this booking holds its slot. See the note above.
+  slotKey DateTime?
+
+  status BookingStatus @default(BOOKED)
+  source BookingSource @default(WEB)
+
+  /// When the reminder should go, and when it went. Null `remindAt` means the
+  /// appointment was already too close for a reminder to be anything but noise.
+  remindAt   DateTime?
+  remindedAt DateTime?
+
+  pendingActionId String?
+
+  confirmedAt  DateTime?
+  cancelledAt  DateTime?
+  cancelReason String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, slotKey])
+  @@index([clientId, startsAt])
+  @@index([clientId, status])
 }
