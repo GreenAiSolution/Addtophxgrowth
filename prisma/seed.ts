@@ -476,6 +476,245 @@ async function seedCapacityGrants(clientId: string) {
   console.log("   \u00b7 granted 2 capacity add-ons (extra agent + run pack)");
 }
 
+
+/**
+ * The Voice Employee, with a fortnight of calls behind it.
+ *
+ * A fresh install where every voice screen is empty makes it impossible to tell
+ * a working system from an unwired one, and it hides the whole argument: the
+ * refusals. So the demo data is chosen to show what the operator *would not*
+ * do — a call that handed over, one that opted out, one it declined to price —
+ * alongside the ones that went well.
+ */
+async function seedVoiceDemo(clientId: string, businessName: string) {
+  const { defaultPlaybook, playbookSchema } = await import("../src/lib/voice");
+  const { priceBookSchema } = await import("../src/lib/estimates");
+  const { calendarSchema } = await import("../src/lib/booking");
+
+  const playbook = playbookSchema.parse({
+    ...defaultPlaybook({
+      businessName,
+      services: ["Strategy calls", "Group coaching", "Corporate workshops"],
+      serviceArea: ["Phoenix", "Scottsdale", "Tempe", "Mesa"],
+      hours: "Monday to Friday, 8am to 4pm",
+      tone: "Confident, direct, motivational — no fluff.",
+    }),
+    transferNumber: "602 555 0100",
+    answers: [
+      {
+        q: "Do you do payment plans?",
+        a: "Yes — three or six months, interest free. The team will lay the options out on the call.",
+      },
+    ],
+  });
+
+  await prisma.voicePlaybook.upsert({
+    where: { clientId_version: { clientId, version: 1 } },
+    update: {},
+    create: {
+      clientId,
+      version: 1,
+      active: true,
+      payload: playbook as never,
+      note: "Seeded starting playbook — demo data",
+      createdBy: "seed",
+    },
+  });
+
+  const priceBook = priceBookSchema.parse({
+    callOutFeeCents: 0,
+    minimumJobCents: 25_000,
+    items: [
+      { key: "strategy_call", label: "Strategy call", unit: "each", rateCents: 35_000, minQty: 0, aliases: ["session", "consult"] },
+      { key: "group_program", label: "Group programme", unit: "each", rateCents: 240_000, minQty: 0, aliases: ["group"] },
+      { key: "workshop_day", label: "Corporate workshop", unit: "day", rateCents: 480_000, minQty: 1, aliases: ["workshop", "training day"] },
+    ],
+    rangeSpreadPct: 15,
+    maxSpokenTotalCents: 600_000,
+    disclaimer: "That's an estimate from what you've described — we confirm the final price in writing.",
+  });
+
+  await prisma.voicePriceBook.upsert({
+    where: { clientId_version: { clientId, version: 1 } },
+    update: {},
+    create: {
+      clientId,
+      version: 1,
+      active: true,
+      payload: priceBook as never,
+      note: "Seeded price book — demo data",
+      createdBy: "seed",
+    },
+  });
+
+  await prisma.bookingCalendar.upsert({
+    where: { clientId },
+    create: {
+      clientId,
+      payload: calendarSchema.parse({
+        utcOffsetMinutes: -420,
+        days: [1, 2, 3, 4, 5],
+        startHour: 8,
+        endHour: 16,
+        slotMinutes: 60,
+        leadTimeHours: 4,
+        maxPerDay: 5,
+        note: "We'll text you when we're half an hour out.",
+      }) as never,
+      updatedBy: "seed",
+    },
+    update: {},
+  });
+
+  const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000);
+  const demoCalls = [
+    {
+      key: "seed-booked",
+      from: "+16025550111",
+      outcome: "BOOKED" as const,
+      captured: { caller_name: "Dana Reyes", callback_number: "6025550111", job_address: "12 Palm Ave, Tempe", job_description: "Wants a strategy call before Q4" },
+      turns: [
+        { role: "caller", text: "Hi, I saw your ad — I'm after a strategy session." },
+        { role: "operator", text: "Happy to help. Can I take your name?" },
+        { role: "caller", text: "Dana Reyes." },
+        { role: "operator", text: "Thanks Dana. I can do Thursday the 6th at 9am, or Friday the 7th at 1pm." },
+        { role: "caller", text: "Thursday works." },
+        { role: "operator", text: "Booked you in for Thursday the 6th at 9am." },
+      ],
+      startedAt: hoursAgo(30),
+      grade: { score: 100, clean: true, headline: "Clean call, booked." },
+    },
+    {
+      key: "seed-handoff",
+      from: "+16025550122",
+      outcome: "HANDED_OFF" as const,
+      captured: { caller_name: "Mo Idris" },
+      turns: [
+        { role: "caller", text: "Are you a robot? I want to talk to an actual person." },
+        { role: "operator", text: "Of course — let me put you through to somebody now, one moment." },
+      ],
+      startedAt: hoursAgo(26),
+      grade: { score: 100, clean: true, headline: "Clean call, handed to a person as it should have been." },
+    },
+    {
+      key: "seed-refused-price",
+      from: "+16025550133",
+      outcome: "MESSAGE_TAKEN" as const,
+      captured: { caller_name: "Priya Shah", callback_number: "6025550133", job_description: "Wants a bespoke twelve-month programme" },
+      turns: [
+        { role: "caller", text: "What would a full year of coaching for my whole leadership team run to?" },
+        { role: "operator", text: "A job that size deserves a proper look rather than a phone number — let me get somebody to price it for you." },
+      ],
+      startedAt: hoursAgo(20),
+      unpriced: ["Priced above the $6,000 cap for quoting on a call."],
+      grade: { score: 100, clean: true, headline: "Clean call, message taken." },
+    },
+    {
+      key: "seed-optout",
+      to: "+16025550144",
+      direction: "OUTBOUND" as const,
+      outcome: "OPTED_OUT" as const,
+      captured: {},
+      turns: [
+        { role: "caller", text: "Take me off your list, please." },
+        { role: "operator", text: "Understood — I'll take you off the list and you won't hear from us again. Sorry to have bothered you." },
+      ],
+      startedAt: hoursAgo(14),
+      grade: { score: 100, clean: true, headline: "Opt-out honoured and recorded." },
+    },
+    {
+      key: "seed-abandoned",
+      from: "+16025550155",
+      outcome: "ABANDONED" as const,
+      captured: {},
+      turns: [{ role: "caller", text: "Hello?" }],
+      startedAt: hoursAgo(6),
+      textBack: true,
+      grade: { score: 95, clean: true, headline: "They hung up before it went anywhere." },
+    },
+  ];
+
+  for (const c of demoCalls) {
+    const providerCallId = `${clientId}:${c.key}`;
+    const existing = await prisma.voiceCall.findUnique({ where: { providerCallId } });
+    if (existing) continue;
+
+    await prisma.voiceCall.create({
+      data: {
+        clientId,
+        providerCallId,
+        provider: "twilio",
+        direction: c.direction ?? "INBOUND",
+        purpose: c.direction === "OUTBOUND" ? "reactivate" : "answer",
+        fromNumber: c.from ?? null,
+        toNumber: c.to ?? null,
+        startedAt: c.startedAt,
+        endedAt: new Date(c.startedAt.getTime() + 3 * 60_000),
+        durationSec: 180,
+        outcome: c.outcome,
+        captured: c.captured as never,
+        turns: c.turns as never,
+        playbookVersion: 1,
+        priceBookVersion: 1,
+        unpricedItems: c.unpriced ?? [],
+        textBackSentAt: c.textBack ? new Date(c.startedAt.getTime() + 20_000) : null,
+        textBackStatus: c.textBack ? "sent" : null,
+        gradeScore: c.grade.score,
+        gradeClean: c.grade.clean,
+        gradeHeadline: c.grade.headline,
+        gradeFindings: [] as never,
+        gradedAt: new Date(c.startedAt.getTime() + 4 * 3_600_000),
+      },
+    });
+  }
+
+  // One estimate priced on a call, still waiting for somebody to send it.
+  const estimateExists = await prisma.voiceEstimate.findFirst({ where: { clientId } });
+  if (!estimateExists) {
+    await prisma.voiceEstimate.create({
+      data: {
+        clientId,
+        customerName: "Dana Reyes",
+        customerPhone: "6025550111",
+        jobDescription: "Strategy call plus a half-day team workshop",
+        payload: {
+          customer: { name: "Dana Reyes", phone: "6025550111", address: null },
+          job: "Strategy call plus a half-day team workshop",
+          lines: [
+            { label: "Strategy call", qty: 1, unit: "each", rate: "$350", total: "$350", note: null },
+            { label: "Corporate workshop", qty: 1, unit: "per day", rate: "$4,800", total: "$4,800", note: null },
+          ],
+          total: "$5,150",
+          range: "$4,375 – $5,925",
+          confidence: "MEDIUM",
+          confidenceWhy: "1 of 2 quantities were measured",
+          quotedOnCall: "$4,375 to $5,925. That's an estimate from what you've described — we confirm the final price in writing.",
+        } as never,
+        totalCents: 515_000,
+        lowCents: 437_500,
+        highCents: 592_500,
+        confidence: "MEDIUM",
+        spoken:
+          "$4,375 to $5,925. That's an estimate from what you've described — we confirm the final price in writing.",
+        status: "DRAFT",
+      },
+    });
+  }
+
+  await prisma.doNotCallEntry.upsert({
+    where: { clientId_phone: { clientId, phone: "6025550144" } },
+    create: {
+      clientId,
+      phone: "6025550144",
+      source: "call",
+      reason: "Asked not to be contacted, on the call",
+    },
+    update: {},
+  });
+
+  console.log("   \u00b7 voice: playbook v1, price book v1, a diary, 5 calls, 1 estimate, 1 suppressed number");
+}
+
 async function main() {
   console.log("→ Seeding catalog (product lines + plans)…");
   await seedCatalog();
@@ -527,6 +766,7 @@ async function main() {
   await seedSampleConversation(c1.id);
   await seedSpendWatchDemo(c1.id);
   await seedCapacityGrants(c1.id);
+  await seedVoiceDemo(c1.id, "Peak Performance Coaching");
 
   console.log("→ Seeding demo client #2 (Launch)…");
   await upsertClient({

@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   rankSignals,
   summarizeSignals,
+  HANDOFF_COLD_HOURS,
   SWEEP_STALLED_HOURS,
+  UNGRADED_BACKLOG,
   UNSCORED_ALARM_HOURS,
   type ClientFacts,
 } from "@/lib/signals";
@@ -20,6 +22,11 @@ function facts(over: Partial<ClientFacts> = {}): ClientFacts {
     staleLeads: 0,
     accountsMissingTargets: 0,
     agingRequests: 0,
+    coldHandoffs: 0,
+    oldestHandoffHours: null,
+    ungradedCalls: 0,
+    failedTextBacks: 0,
+    callsOnDefaultPlaybook: 0,
     ...over,
   };
 }
@@ -150,5 +157,54 @@ describe("summarizeSignals", () => {
       facts({ clientId: "a", businessName: "A", criticalAlerts: 1, staleLeads: 1 }),
     ]);
     expect(summarizeSignals(s, 10)).toContain("1 of 10 clients");
+  });
+});
+
+describe("the voice signals", () => {
+  it("raises a promised call back that nobody made", () => {
+    // The worst failure this platform has: the customer was told, out loud,
+    // that a person would ring them.
+    const s = rankSignals([
+      facts({ coldHandoffs: 3, oldestHandoffHours: HANDOFF_COLD_HOURS + 2 }),
+    ]);
+    const cold = s.find((x) => x.kind === "CALL_HANDOFF_COLD");
+    expect(cold?.severity).toBe("URGENT");
+    expect(cold?.title).toMatch(/promised a call back/);
+  });
+
+  it("gives a fresh handover time to be picked up", () => {
+    const s = rankSignals([facts({ coldHandoffs: 2, oldestHandoffHours: 1 })]);
+    expect(s.find((x) => x.kind === "CALL_HANDOFF_COLD")).toBeUndefined();
+  });
+
+  it("treats a failed text-back as urgent, because that lead heard nothing", () => {
+    const s = rankSignals([facts({ failedTextBacks: 2 })]);
+    expect(s.find((x) => x.kind === "TEXTBACK_FAILING")?.severity).toBe("URGENT");
+  });
+
+  it("flags real customers being answered by the built-in defaults", () => {
+    const s = rankSignals([facts({ callsOnDefaultPlaybook: 9 })]);
+    expect(s.find((x) => x.kind === "OPERATOR_UNTUNED")?.severity).toBe("ATTENTION");
+  });
+
+  it("only mentions an ungraded backlog once it is actually a backlog", () => {
+    expect(
+      rankSignals([facts({ ungradedCalls: UNGRADED_BACKLOG - 1 })]).find(
+        (x) => x.kind === "CALLS_UNGRADED",
+      ),
+    ).toBeUndefined();
+    expect(
+      rankSignals([facts({ ungradedCalls: UNGRADED_BACKLOG })]).find(
+        (x) => x.kind === "CALLS_UNGRADED",
+      )?.severity,
+    ).toBe("FYI");
+  });
+
+  it("puts a cold handover above a critical ad alert", () => {
+    // Silently broken outranks loudly wrong: the alert already emailed them.
+    const s = rankSignals([
+      facts({ criticalAlerts: 4, coldHandoffs: 1, oldestHandoffHours: 9 }),
+    ]);
+    expect(s[0]!.kind).toBe("CALL_HANDOFF_COLD");
   });
 });

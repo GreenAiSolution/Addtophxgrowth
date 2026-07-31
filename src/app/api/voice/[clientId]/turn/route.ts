@@ -20,6 +20,7 @@ import {
   type Provider,
 } from "@/lib/telephony";
 import { sendSms, textBackMessage } from "@/lib/sms";
+import { activeCalendar, bookedAppointments, createAppointment } from "@/lib/booking-store";
 import { env } from "@/lib/env";
 
 /**
@@ -167,10 +168,12 @@ async function handleTurn(input: {
 }) {
   const { clientId, provider, turn, continueUrl } = input;
 
-  const [playbook, priceBook] = await Promise.all([
+  const [playbook, priceBook, calendar] = await Promise.all([
     activePlaybook(clientId),
     activePriceBook(clientId),
+    activeCalendar(clientId),
   ]);
+  const appointments = await bookedAppointments(clientId, calendar.value);
 
   const call = await startCall({
     clientId,
@@ -218,11 +221,41 @@ async function handleTurn(input: {
   const result = await runTurn({
     playbook: playbook.value,
     priceBook: priceBook.value,
+    calendar: calendar.value,
+    appointments,
     state,
     transcript,
     callerSaid: turn.said,
     context: { direction: turn.direction, purpose: input.purpose },
   });
+
+  /*
+    A confirmed booking is written immediately, not gated.
+
+    The gate holds what reaches outside the conversation the customer is having.
+    This is inside it: the operator has just read a time back and the caller has
+    agreed to it. Holding the write for review would mean the diary disagrees
+    with what the customer was told for as long as the queue takes — and the
+    person who finds out is the one standing on the doorstep.
+
+    A losing race writes nothing and says so, rather than reporting a booking
+    that does not exist.
+  */
+  if (result.booking?.ok) {
+    const written = await createAppointment({
+      clientId,
+      callId: call.id,
+      slot: result.booking.slot,
+      minutes: calendar.value.slotMinutes,
+      customer: {
+        name: result.state.captured.caller_name,
+        phone: result.state.captured.callback_number ?? turn.from,
+        address: result.state.captured.job_address,
+        description: result.state.captured.job_description,
+      },
+    });
+    if (!written) console.error(`[voice] slot ${result.booking.slot.key} lost a race; not booked`);
+  }
 
   // An estimate produced on this turn is recorded but not sent. The document
   // leaves through the gate, released by a person — `estimate.send` moves money

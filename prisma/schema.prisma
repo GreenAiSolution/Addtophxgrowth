@@ -303,6 +303,8 @@ model ClientProfile {
   estimates        VoiceEstimate[]
   tuneProposals    TuneProposal[]
   doNotCall        DoNotCallEntry[]
+  bookingCalendar  BookingCalendar?
+  appointments     Appointment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1015,7 +1017,8 @@ model VoiceCall {
   dealOutcome    DealOutcomeKind?
   dealValueCents Int?
 
-  estimates VoiceEstimate[]
+  estimates    VoiceEstimate[]
+  appointments Appointment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1125,4 +1128,52 @@ model DoNotCallEntry {
 
   @@unique([clientId, phone])
   @@index([clientId, createdAt])
+}
+
+/// A client's booking rules. One per tenant, versionless — unlike the playbook
+/// this is operational state rather than a claim the Tuning Lab argues about,
+/// and an owner changing their working hours does not want a version history.
+model BookingCalendar {
+  id       String        @id @default(cuid())
+  clientId String        @unique
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// Validated by calendarSchema in lib/booking.ts.
+  payload Json
+
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A visit the operator booked on a call.
+///
+/// `slotKey` is the minute-precision key the operator read out loud, and it is
+/// unique per client: two calls landing on the same slot at the same moment
+/// cannot both book it, whatever either conversation believed.
+model Appointment {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  callId String?
+  call   VoiceCall? @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  slotKey String
+  at      DateTime
+  minutes Int    @default(60)
+
+  customerName    String?
+  customerPhone   String?
+  customerAddress String?
+  jobDescription  String? @db.Text
+
+  /// BOOKED | CANCELLED | COMPLETED | NO_SHOW
+  status String @default("BOOKED")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, slotKey])
+  @@index([clientId, at])
 }

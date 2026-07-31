@@ -15,6 +15,8 @@ import { playbookSchema, type Playbook } from "@/lib/voice";
 import { priceBookSchema, UNIT_LABELS, type PriceBook } from "@/lib/estimates";
 import { DRILLS } from "@/lib/training";
 import { PROVIDERS } from "@/lib/telephony";
+import { calendarSchema, nextSlots, offerLine, WEEKDAY_NAMES, type Calendar } from "@/lib/booking";
+import { activeCalendar, bookedAppointments, saveCalendar } from "@/lib/booking-store";
 import { runDrills } from "@/lib/drill-runner";
 import {
   centsToDollars,
@@ -72,11 +74,13 @@ export default async function VoicePage({
   let playbook: Awaited<ReturnType<typeof activePlaybook>> | null = null;
   let priceBook: Awaited<ReturnType<typeof activePriceBook>> | null = null;
   let calls: Awaited<ReturnType<typeof prisma.voiceCall.findMany>> = [];
+  let calendar: Awaited<ReturnType<typeof activeCalendar>> | null = null;
+  let appointments: Awaited<ReturnType<typeof prisma.appointment.findMany>> = [];
   let token: string | null = null;
   let dbError: string | null = null;
 
   try {
-    [playbook, priceBook, calls, token] = await Promise.all([
+    [playbook, priceBook, calls, token, calendar] = await Promise.all([
       activePlaybook(client.id),
       activePriceBook(client.id),
       prisma.voiceCall.findMany({
@@ -87,7 +91,13 @@ export default async function VoicePage({
       prisma.clientProfile
         .findUnique({ where: { id: client.id }, select: { intakeToken: true } })
         .then((r) => r?.intakeToken ?? null),
+      activeCalendar(client.id),
     ]);
+    appointments = await prisma.appointment.findMany({
+      where: { clientId: client.id, status: "BOOKED", at: { gte: new Date() } },
+      orderBy: { at: "asc" },
+      take: 20,
+    });
   } catch {
     dbError =
       "Nothing can be read or saved right now, which also means no call is being answered — " +
@@ -136,6 +146,24 @@ export default async function VoicePage({
       return redirectWith(`saved=playbook+v${version}`);
     }
 
+    if (section === "calendar") {
+      const days = WEEKDAY_NAMES.map((_, i) => i).filter((i) => formData.get(`day${i}`) === "on");
+      const next: Calendar = calendarSchema.parse({
+        utcOffsetMinutes: Number(s("offset")) || -420,
+        days,
+        startHour: Number(s("startHour")) || 8,
+        endHour: Number(s("endHour")) || 16,
+        slotMinutes: Number(s("slotMinutes")) || 60,
+        leadTimeHours: Number(s("leadTimeHours")) || 0,
+        horizonDays: Number(s("horizonDays")) || 14,
+        maxPerDay: Number(s("maxPerDay")) || 6,
+        blackoutDates: parseList(s("blackoutDates")).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)),
+        note: s("calNote"),
+      });
+      await saveCalendar(c.id, next, a.email || "a signed-in user");
+      return redirectWith("saved=the+diary");
+    }
+
     if (section === "pricebook") {
       const items = parsePriceItems(s("items"));
       if (items.errors.length) {
@@ -163,7 +191,7 @@ export default async function VoicePage({
     }
   }
 
-  if (dbError || !playbook || !priceBook) {
+  if (dbError || !playbook || !priceBook || !calendar) {
     return (
       <div className="space-y-6">
         <Header version={0} />
@@ -227,6 +255,12 @@ export default async function VoicePage({
             label="Endpoint"
             good="reachable, token set"
             bad="no token — the endpoint will refuse every call"
+          />
+          <Status
+            ok={calendar.saved}
+            label="The diary"
+            good={`${calendar.value.days.length} days a week, ${calendar.value.slotMinutes}-minute visits`}
+            bad="not set — it takes requests but never promises a time"
           />
         </div>
         <div className="mt-4 rounded-lg border border-border bg-black/30 p-3">
@@ -494,6 +528,121 @@ export default async function VoicePage({
               <Input name="note" placeholder="Kept for the record" maxLength={200} />
             </Field>
             <Button type="submit">Save as v{priceBook.version + 1}</Button>
+          </div>
+        </Card>
+      </form>
+
+      {/* --- The diary. --- */}
+      <form action={save}>
+        <input type="hidden" name="section" value="calendar" />
+        <Card className="p-5">
+          <CardTitle>The diary</CardTitle>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            The operator can only ever offer times computed from these rules, and it can only book a
+            time it read out loud on that call. It cannot invent a slot, agree to one a caller
+            proposes, or promise anything sooner than your lead time — however the conversation goes.
+          </p>
+
+          <div className="mt-4">
+            <Label className="text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">
+              Days you work
+            </Label>
+            <div className="mt-2 flex flex-wrap gap-3">
+              {WEEKDAY_NAMES.map((name, i) => (
+                <label key={name} className="flex items-center gap-1.5 text-sm">
+                  <input
+                    type="checkbox"
+                    name={`day${i}`}
+                    defaultChecked={calendar!.value.days.includes(i)}
+                    className="h-4 w-4"
+                  />
+                  {name.slice(0, 3)}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-4">
+            <Field label="First slot" hint="Local hour, 24h.">
+              <Input name="startHour" type="number" min={0} max={23} defaultValue={calendar!.value.startHour} />
+            </Field>
+            <Field label="Last slot before" hint="Local hour, 24h.">
+              <Input name="endHour" type="number" min={1} max={24} defaultValue={calendar!.value.endHour} />
+            </Field>
+            <Field label="Visit length" hint="Minutes.">
+              <Input name="slotMinutes" type="number" min={15} max={480} defaultValue={calendar!.value.slotMinutes} />
+            </Field>
+            <Field label="Most per day">
+              <Input name="maxPerDay" type="number" min={1} max={50} defaultValue={calendar!.value.maxPerDay} />
+            </Field>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <Field label="Soonest it may offer" hint="Hours from now. Zero means same-hour.">
+              <Input name="leadTimeHours" type="number" min={0} max={168} defaultValue={calendar!.value.leadTimeHours} />
+            </Field>
+            <Field label="How far ahead" hint="Days. Beyond this a person books it.">
+              <Input name="horizonDays" type="number" min={1} max={120} defaultValue={calendar!.value.horizonDays} />
+            </Field>
+            <Field label="Your offset from UTC" hint="Minutes. Phoenix is -420.">
+              <Input name="offset" type="number" defaultValue={calendar!.value.utcOffsetMinutes} />
+            </Field>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="Days you are closed" hint="One per line, as 2026-12-25.">
+              <Textarea
+                name="blackoutDates"
+                rows={3}
+                defaultValue={calendar!.value.blackoutDates.join("\n")}
+                className="font-mono text-[0.78rem]"
+              />
+            </Field>
+            <Field label="Said with every offer" hint="Optional.">
+              <Textarea name="calNote" rows={3} maxLength={200} defaultValue={calendar!.value.note} />
+            </Field>
+          </div>
+
+          <div className="mt-4 rounded-lg border border-border bg-black/20 p-3">
+            <p className="text-[0.7rem] uppercase tracking-[0.14em] text-muted-foreground">
+              What it would offer, right now
+            </p>
+            <p className="mt-1.5 text-sm">
+              {offerLine(
+                nextSlots(
+                  calendar!.value,
+                  appointments.map((a) => ({ at: a.at, minutes: a.minutes })),
+                  { count: 3 },
+                ),
+                calendar!.value.note,
+              )}
+            </p>
+          </div>
+
+          {appointments.length > 0 && (
+            <div className="mt-4">
+              <p className="text-[0.7rem] uppercase tracking-[0.14em] text-muted-foreground">
+                Booked
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {appointments.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-border px-3 py-1.5 text-[0.8rem]"
+                  >
+                    <span>{a.customerName ?? a.customerPhone ?? "A caller"}</span>
+                    <span className="text-muted-foreground">
+                      {a.at.toISOString().slice(0, 16).replace("T", " ")} ·{" "}
+                      {a.jobDescription ?? "visit"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="mt-5 flex justify-end border-t border-border pt-5">
+            <Button type="submit">Save the diary</Button>
           </div>
         </Card>
       </form>

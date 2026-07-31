@@ -4,6 +4,7 @@ import { defaultPlaybook, playbookSchema, type CallState, type Playbook } from "
 import { priceBookSchema, type PriceBook } from "@/lib/estimates";
 import { runDrill, runDrills } from "@/lib/drill-runner";
 import { DRILLS, drillByKey } from "@/lib/training";
+import { calendarSchema, defaultCalendar, nextSlots, type Calendar } from "@/lib/booking";
 
 /**
  * THE ADVERSARIAL TESTS.
@@ -271,6 +272,137 @@ describe("one turn of a call", () => {
     );
     expect(out.transcript).toHaveLength(4);
     expect(out.transcript[0]!.text).toBe("Thanks for calling.");
+  });
+});
+
+describe("the diary", () => {
+  const PHOENIX = -420;
+  const NOW = new Date("2026-08-03T16:00:00Z");
+  const cal = (over: Partial<Calendar> = {}): Calendar =>
+    calendarSchema.parse({ ...defaultCalendar(), utcOffsetMinutes: PHOENIX, ...over });
+
+  const ready = () =>
+    state({ captured: { ...filled, __price_request: "[]" }, quoted: true });
+
+  it("hands the model a fixed list of times rather than asking for one", async () => {
+    let seen = "";
+    await runTurn(
+      {
+        playbook: pb(),
+        priceBook: book(),
+        calendar: cal(),
+        appointments: [],
+        state: ready(),
+        transcript: [],
+        callerSaid: "when can you come out?",
+        context: { direction: "INBOUND", purpose: "answer" },
+      },
+      {
+        callModel: async (system) => {
+          seen = system;
+          return { say: "I can do Thursday." } as never;
+        },
+      },
+    );
+    expect(seen).toMatch(/exactly these times and no others/);
+    expect(seen).toMatch(/Never invent a time/);
+  });
+
+  it("refuses a slot the model invented, and re-offers instead", async () => {
+    // The whole point. The model says they're booked in for Sunday; nobody is.
+    const out = await runTurn(
+      {
+        playbook: pb(),
+        priceBook: book(),
+        calendar: cal(),
+        appointments: [],
+        state: ready(),
+        transcript: [],
+        callerSaid: "Sunday evening works for me",
+        context: { direction: "INBOUND", purpose: "answer" },
+      },
+      {
+        callModel: says("Perfect, you're booked in for Sunday at 7pm.", {
+          bookingConfirmed: true,
+          slotKey: "202608091900",
+        }),
+      },
+    );
+    expect(out.booking?.ok).toBe(false);
+    expect(out.state.booked).toBeFalsy();
+    expect(out.say).not.toMatch(/Sunday/);
+    expect(out.say).toMatch(/what I've actually got/);
+    expect(out.events.some((e) => e.startsWith("booking-refused:"))).toBe(true);
+  });
+
+  it("books a slot it actually offered", async () => {
+    const offered = nextSlots(cal(), [], { count: 3, now: NOW });
+    const out = await runTurn(
+      {
+        playbook: pb(),
+        priceBook: book(),
+        calendar: cal(),
+        appointments: [],
+        state: state({
+          captured: {
+            ...filled,
+            __price_request: "[]",
+            __offered: JSON.stringify(
+              offered.map((s) => ({ key: s.key, at: s.at.toISOString(), spoken: s.spoken })),
+            ),
+          },
+          quoted: true,
+        }),
+        transcript: [],
+        callerSaid: "that first one works",
+        context: { direction: "INBOUND", purpose: "answer" },
+      },
+      {
+        callModel: says("Booked you in, see you then.", {
+          bookingConfirmed: true,
+          slotKey: offered[0]!.key,
+        }),
+      },
+    );
+    expect(out.booking?.ok).toBe(true);
+    expect(out.state.booked).toBe(true);
+  });
+
+  it("will not claim a booking when there is no diary wired at all", async () => {
+    const out = await runTurn(
+      {
+        playbook: pb(),
+        priceBook: book(),
+        state: ready(),
+        transcript: [],
+        callerSaid: "thursday please",
+        context: { direction: "INBOUND", purpose: "answer" },
+      },
+      { callModel: says("You're all booked in.", { bookingConfirmed: true }) },
+    );
+    expect(out.state.booked).toBeFalsy();
+    expect(out.events).toContain("booking-without-a-diary");
+  });
+
+  it("tells the model not to name a time when it has no diary", async () => {
+    let seen = "";
+    await runTurn(
+      {
+        playbook: pb(),
+        priceBook: book(),
+        state: ready(),
+        transcript: [],
+        callerSaid: "when can you come?",
+        context: { direction: "INBOUND", purpose: "answer" },
+      },
+      {
+        callModel: async (system) => {
+          seen = system;
+          return { say: "Somebody will confirm a time." } as never;
+        },
+      },
+    );
+    expect(seen).toMatch(/do not have the diary in front of you/);
   });
 });
 

@@ -26,7 +26,11 @@ export type SignalKind =
   | "LEADS_UNSCORED"
   | "LEADS_GOING_COLD"
   | "CHECKS_ASLEEP"
-  | "REQUEST_WAITING";
+  | "REQUEST_WAITING"
+  | "CALL_HANDOFF_COLD"
+  | "CALLS_UNGRADED"
+  | "TEXTBACK_FAILING"
+  | "OPERATOR_UNTUNED";
 
 export type SignalSeverity = "URGENT" | "ATTENTION" | "FYI";
 
@@ -60,12 +64,34 @@ export interface ClientFacts {
   accountsMissingTargets: number;
   /** Open requests older than a working day. */
   agingRequests: number;
+
+  // --- The Voice Employee. These fail silently by construction: a call that
+  // --- handed over to nobody looks identical to a quiet afternoon.
+  /** Calls handed to a human that nothing has happened to since. */
+  coldHandoffs: number;
+  /** Hours the oldest of those has waited. */
+  oldestHandoffHours: number | null;
+  /** Finished calls the Lab has never scored. */
+  ungradedCalls: number;
+  /** Text-backs the carrier refused. Each one is a lead that heard nothing. */
+  failedTextBacks: number;
+  /** True when calls are arriving against the built-in default playbook. */
+  callsOnDefaultPlaybook: number;
 }
 
 /** A sweep this far behind schedule is broken, not late. */
 export const SWEEP_STALLED_HOURS = 48;
 /** An unscored lead older than this on a tier that auto-scores means something failed. */
 export const UNSCORED_ALARM_HOURS = 36;
+/**
+ * A handover nobody has touched in this long is a customer who was promised a
+ * call back and did not get one. Deliberately short: the operator said
+ * "somebody will ring you straight back", and four hours is already a stretch
+ * of that sentence.
+ */
+export const HANDOFF_COLD_HOURS = 4;
+/** Finished calls piling up ungraded means the Lab has stopped running. */
+export const UNGRADED_BACKLOG = 25;
 
 const SEVERITY_ORDER: Record<SignalSeverity, number> = { URGENT: 0, ATTENTION: 1, FYI: 2 };
 
@@ -169,6 +195,60 @@ export function rankSignals(facts: ClientFacts[]): Signal[] {
       });
     }
 
+    // A handover that went cold is the worst failure this platform has: the
+    // customer was told, out loud, that a person would ring them back.
+    if (f.coldHandoffs > 0 && (f.oldestHandoffHours ?? 0) >= HANDOFF_COLD_HOURS) {
+      out.push({
+        kind: "CALL_HANDOFF_COLD",
+        severity: "URGENT",
+        clientId: f.clientId,
+        businessName: f.businessName,
+        title: `${f.coldHandoffs} caller${f.coldHandoffs === 1 ? " was" : "s were"} promised a call back`,
+        detail: `The operator handed over and nobody has picked it up. The oldest has waited ${Math.round(
+          f.oldestHandoffHours ?? 0,
+        )} hours.`,
+        path: admin,
+      });
+    }
+
+    if (f.failedTextBacks > 0) {
+      out.push({
+        kind: "TEXTBACK_FAILING",
+        severity: "URGENT",
+        clientId: f.clientId,
+        businessName: f.businessName,
+        title: `${f.failedTextBacks} missed-call text${f.failedTextBacks === 1 ? "" : "s"} never sent`,
+        detail:
+          "The carrier refused them. Each one is somebody who rang, got no answer, and then heard nothing at all.",
+        path: admin,
+      });
+    }
+
+    if (f.callsOnDefaultPlaybook > 0) {
+      out.push({
+        kind: "OPERATOR_UNTUNED",
+        severity: "ATTENTION",
+        clientId: f.clientId,
+        businessName: f.businessName,
+        title: `${f.callsOnDefaultPlaybook} calls answered on the built-in playbook`,
+        detail:
+          "Nobody has saved a playbook for this client, so the operator is running generic defaults on real customers.",
+        path: admin,
+      });
+    }
+
+    if (f.ungradedCalls >= UNGRADED_BACKLOG) {
+      out.push({
+        kind: "CALLS_UNGRADED",
+        severity: "FYI",
+        clientId: f.clientId,
+        businessName: f.businessName,
+        title: `${f.ungradedCalls} calls waiting to be graded`,
+        detail: "The Tuning Lab has nothing to report until these are scored.",
+        path: admin,
+      });
+    }
+
     if (f.accountsMissingTargets > 0) {
       out.push({
         kind: "CHECKS_ASLEEP",
@@ -206,7 +286,10 @@ export async function collectSignals(now = new Date()): Promise<{
   const dayAgo = new Date(now.getTime() - 24 * 3_600_000);
   const staleBefore = new Date(now.getTime() - STALE_AFTER_HOURS * 3_600_000);
 
-  const [clients, subs, alerts, failedBriefs, leadRows, requests, accounts] = await Promise.all([
+  const handoffCold = new Date(now.getTime() - HANDOFF_COLD_HOURS * 3_600_000);
+
+  const [clients, subs, alerts, failedBriefs, leadRows, requests, accounts, calls, playbooks] =
+    await Promise.all([
     prisma.clientProfile.findMany({
       select: { id: true, businessName: true, spendWatchLastRunAt: true },
     }),
@@ -233,15 +316,27 @@ export async function collectSignals(now = new Date()): Promise<{
       where: { status: "OPEN", createdAt: { lt: dayAgo } },
       _count: true,
     }),
-    prisma.adAccount.findMany({
-      select: {
-        clientId: true,
-        monthlyBudgetCents: true,
-        targetCpaCents: true,
-        targetRoas: true,
-      },
-    }),
-  ]);
+      prisma.adAccount.findMany({
+        select: {
+          clientId: true,
+          monthlyBudgetCents: true,
+          targetCpaCents: true,
+          targetRoas: true,
+        },
+      }),
+      prisma.voiceCall.findMany({
+        where: { startedAt: { gte: new Date(now.getTime() - 14 * 86_400_000) } },
+        select: {
+          clientId: true,
+          outcome: true,
+          endedAt: true,
+          gradedAt: true,
+          textBackStatus: true,
+          playbookVersion: true,
+        },
+      }),
+      prisma.voicePlaybook.findMany({ where: { active: true }, select: { clientId: true } }),
+    ]);
 
   const countBy = (rows: { clientId: string; _count: number }[]) =>
     new Map(rows.map((r) => [r.clientId, r._count]));
@@ -276,8 +371,33 @@ export async function collectSignals(now = new Date()): Promise<{
     }
   }
 
+  // --- Voice facts, folded per client in one pass over the call rows.
+  const hasPlaybook = new Set(playbooks.map((p) => p.clientId));
+  const voice = new Map<
+    string,
+    { cold: number; oldest: Date | null; ungraded: number; failedTexts: number; onDefault: number }
+  >();
+  for (const call of calls) {
+    const v =
+      voice.get(call.clientId) ??
+      { cold: 0, oldest: null as Date | null, ungraded: 0, failedTexts: 0, onDefault: 0 };
+
+    const handed = call.outcome === "HANDED_OFF" || call.outcome === "MESSAGE_TAKEN";
+    if (handed && call.endedAt && call.endedAt < handoffCold) {
+      v.cold += 1;
+      if (!v.oldest || call.endedAt < v.oldest) v.oldest = call.endedAt;
+    }
+    if (call.endedAt && !call.gradedAt) v.ungraded += 1;
+    if (call.textBackStatus === "failed") v.failedTexts += 1;
+    // Version 0 is the built-in default — nothing was ever saved.
+    if (!call.playbookVersion && !hasPlaybook.has(call.clientId)) v.onDefault += 1;
+
+    voice.set(call.clientId, v);
+  }
+
   const facts: ClientFacts[] = clients.map((c) => {
     const u = unscored.get(c.id);
+    const v = voice.get(c.id);
     return {
       clientId: c.id,
       businessName: c.businessName,
@@ -293,6 +413,11 @@ export async function collectSignals(now = new Date()): Promise<{
       staleLeads: stale.get(c.id) ?? 0,
       accountsMissingTargets: missingTargets.get(c.id) ?? 0,
       agingRequests: agingByClient.get(c.id) ?? 0,
+      coldHandoffs: v?.cold ?? 0,
+      oldestHandoffHours: v?.oldest ? (now.getTime() - v.oldest.getTime()) / 3_600_000 : null,
+      ungradedCalls: v?.ungraded ?? 0,
+      failedTextBacks: v?.failedTexts ?? 0,
+      callsOnDefaultPlaybook: v?.onDefault ?? 0,
     };
   });
 

@@ -41,6 +41,15 @@ import {
   type Turn,
 } from "@/lib/voice";
 import { priceEstimate, type EstimateResult, type PriceBook, type RequestedLine } from "@/lib/estimates";
+import {
+  confirmSlot,
+  nextSlots,
+  offerLine,
+  type Appointment,
+  type BookVerdict,
+  type Calendar,
+  type Slot,
+} from "@/lib/booking";
 
 /** Lines the operator says without asking a model. Fixed, so they cannot drift. */
 export const CANNED = {
@@ -63,6 +72,10 @@ export interface TurnInput {
   state: CallState;
   /** The conversation so far, redacted. `state.turns` is only its length. */
   transcript: Turn[];
+  /** The diary. Without it the operator takes a request rather than a booking. */
+  calendar?: Calendar;
+  /** What is already in the diary, so nothing is offered twice. */
+  appointments?: Appointment[];
   /** What the caller just said. Empty on the opening turn of an inbound call. */
   callerSaid: string;
   context: Omit<CallContext, "captured" | "spokenPrice">;
@@ -77,6 +90,8 @@ export interface TurnOutput {
   verdict: CallVerdict;
   /** The estimate this turn produced, if any. Persisted by the caller. */
   estimate?: EstimateResult;
+  /** The booking this turn confirmed, or refused. Persisted by the caller. */
+  booking?: BookVerdict;
   /** What happened, in order. Written to the call record and read by the grader. */
   events: string[];
   /** Set once the call is over. */
@@ -97,6 +112,8 @@ interface ModelTurn {
   priceRequest?: { item: string; qty: number; measured?: boolean }[];
   /** The caller confirmed a day and time back. */
   bookingConfirmed?: boolean;
+  /** Which offered slot they agreed to, by its key. Never a free-text time. */
+  slotKey?: string;
   /**
    * An escalation rule the model believes has fired, by its key.
    *
@@ -221,6 +238,50 @@ export async function runTurn(
     }
   }
 
+  // Offer times the same way a price is offered: computed here, handed to the
+  // model as a fixed list, never invented in prose. The keys are remembered on
+  // the call so the confirmation can be checked against what was actually said.
+  let offeredTimes: string | undefined;
+  let offered: Slot[] = [];
+  if (verdict.do === "book" && pb.booking.enabled && input.calendar) {
+    /*
+      Times already read out on this call are kept, not recomputed.
+
+      The first version recomputed on every turn, which meant the caller was
+      offered a slot, said "the first one", and had it refused — because by the
+      next turn the list had shifted and their answer no longer matched anything
+      on it. Whatever the operator has said out loud stays offerable for the rest
+      of the call, as long as it is still free and still ahead of the lead time.
+    */
+    const held = rememberedSlots(state).filter(
+      (s) =>
+        s.at.getTime() >= Date.now() + input.calendar!.leadTimeHours * 3_600_000 &&
+        !(input.appointments ?? []).some(
+          (a) =>
+            s.at.getTime() < a.at.getTime() + a.minutes * 60_000 &&
+            a.at.getTime() < s.at.getTime() + input.calendar!.slotMinutes * 60_000,
+        ),
+    );
+
+    offered = held.length
+      ? held.map((s) => ({ ...s, minutes: input.calendar!.slotMinutes }))
+      : nextSlots(input.calendar, input.appointments ?? [], { count: 3 });
+
+    if (held.length) {
+      // Nothing new to say; the model already has these in the transcript.
+      offeredTimes = offerLine(offered, input.calendar.note);
+      events.push("times-still-good");
+    } else if (offered.length) {
+      offeredTimes = offerLine(offered, input.calendar.note);
+      state.captured.__offered = JSON.stringify(
+        offered.map((s) => ({ key: s.key, at: s.at.toISOString(), spoken: s.spoken })),
+      ).slice(0, 1200);
+      events.push("offered-times");
+    } else {
+      events.push("diary-full");
+    }
+  }
+
   // An address outside the area is a message, not an appointment. Checked here
   // rather than trusted to the prompt, because the prompt has the area list and
   // the model still books Flagstaff.
@@ -246,6 +307,7 @@ export async function runTurn(
     ...input.context,
     captured: state.captured,
     spokenPrice,
+    offeredTimes,
   });
 
   const call = deps.callModel ?? defaultCallModel;
@@ -281,9 +343,33 @@ export async function runTurn(
       state.captured[k] = redactSpoken(v.trim()).slice(0, 500);
     }
   }
-  if (drafted.bookingConfirmed && pb.booking.enabled) {
-    state.booked = true;
-    events.push("booked");
+  /*
+    The booking equivalent of the price sanitiser.
+
+    `bookingConfirmed` on its own is not enough — a model that agreed to a time
+    nobody offered has still agreed to something. The slot has to be one this
+    call read out loud, and it is re-checked against the diary because a long
+    call can outlive its own offer.
+  */
+  let booking: BookVerdict | undefined;
+  if (drafted.bookingConfirmed && pb.booking.enabled && input.calendar) {
+    const remembered = rememberedSlots(state);
+    booking = confirmSlot(
+      remembered,
+      drafted.slotKey ?? "",
+      input.calendar,
+      input.appointments ?? [],
+    );
+    if (booking.ok) {
+      state.booked = true;
+      events.push(`booked:${booking.slot.key}`);
+    } else {
+      events.push(`booking-refused:${booking.why}`);
+    }
+  } else if (drafted.bookingConfirmed && pb.booking.enabled) {
+    // No diary wired. The operator may take the request; it may not promise a
+    // time, and saying it booked one would be the worst kind of false record.
+    events.push("booking-without-a-diary");
   }
   if (drafted.askedAbout?.trim()) {
     events.push(`unanswered:${drafted.askedAbout.trim().slice(0, 120)}`);
@@ -302,7 +388,22 @@ export async function runTurn(
   }
 
   // ---- Stage three: nothing unauthorised leaves.
-  const clean = sanitizeSpoken(drafted.say, { authorizedPrice: spokenPrice, neverSay: pb.neverSay });
+  // A refused booking replaces the reply outright: the model has just told
+  // somebody they are booked in, and every further word makes that worse.
+  const draftedSay = booking && !booking.ok ? booking.spoken : drafted.say;
+  if (booking && !booking.ok && booking.offer.length) {
+    state.captured.__offered = JSON.stringify(
+      booking.offer.map((s) => ({ key: s.key, at: s.at.toISOString(), spoken: s.spoken })),
+    ).slice(0, 1200);
+  }
+
+  const clean = sanitizeSpoken(draftedSay, {
+    authorizedPrice: spokenPrice,
+    neverSay: pb.neverSay,
+    // The offered times are authorised text; a refusal line naming them must
+    // not trip the money filter on "the 6th at 9".
+    allowText: offeredTimes,
+  });
   if (clean.replaced) events.push(`sanitised:${clean.why}`);
 
   turns.push({ role: "operator", text: clean.text });
@@ -316,11 +417,28 @@ export async function runTurn(
     state: finalState,
     verdict: nextVerdict,
     estimate,
+    booking,
     events,
     outcome: ending ? classifyOutcome(finalState, { reachedEnd: true }) : undefined,
     offline: false,
     transcript: turns,
   };
+}
+
+/** Slots this call actually read out loud, from the running record. */
+function rememberedSlots(state: CallState): Slot[] {
+  const raw = state.captured.__offered;
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as { key: string; at: string; spoken: string }[];
+    return Array.isArray(parsed)
+      ? parsed
+          .filter((s) => s?.key && s?.at)
+          .map((s) => ({ key: s.key, at: new Date(s.at), spoken: s.spoken, minutes: 0 }))
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 /** Price lines the extractor left on the record for this call. */
@@ -352,7 +470,7 @@ const MONEY = /(\$\s?\d[\d,]*(?:\.\d{2})?)|(\b\d[\d,]{1,}\s?(?:dollars|bucks)\b)
 
 export function sanitizeSpoken(
   text: string,
-  rules: { authorizedPrice?: string; neverSay?: string[] },
+  rules: { authorizedPrice?: string; neverSay?: string[]; allowText?: string },
 ): { text: string; replaced: boolean; why: string } {
   const safe = redactSpoken(text.trim());
 
@@ -365,7 +483,10 @@ export function sanitizeSpoken(
 
   const found = safe.match(MONEY);
   if (found) {
-    const authorised = (rules.authorizedPrice ?? "").match(MONEY) ?? [];
+    const authorised = [
+      ...((rules.authorizedPrice ?? "").match(MONEY) ?? []),
+      ...((rules.allowText ?? "").match(MONEY) ?? []),
+    ];
     const allowed = new Set(authorised.map(normaliseMoney));
     const unauthorised = found.filter((f) => !allowed.has(normaliseMoney(f)));
     if (unauthorised.length) {

@@ -194,6 +194,11 @@ export interface CallContext {
   captured: Record<string, string>;
   /** Set when the price book produced a number this call may speak. */
   spokenPrice?: string;
+  /**
+   * Set when the diary produced times this call may offer. Exactly like
+   * `spokenPrice`: the model is handed the answer, never asked to invent one.
+   */
+  offeredTimes?: string;
   /** Anything the retrieval layer found about this caller. */
   history?: string;
 }
@@ -255,11 +260,15 @@ export function composeCallPrompt(pb: Playbook, ctx: CallContext): string {
     );
   }
 
-  if (pb.booking.enabled) {
+  if (pb.booking.enabled && ctx.offeredTimes) {
     parts.push(
-      `You may book an appointment.${pb.booking.rules ? ` Rules: ${pb.booking.rules}` : ""}${
-        pb.booking.confirmBack ? " Always read the day and time back before you confirm it." : ""
-      }`,
+      `You may offer exactly these times and no others: ${ctx.offeredTimes} Never invent a time, never say "we can probably fit you in", and never agree to a time the caller proposes that is not on that list — offer the closest one you have instead.${
+        pb.booking.rules ? ` Rules: ${pb.booking.rules}` : ""
+      }${pb.booking.confirmBack ? " Read the day and time back before you confirm it." : ""}`,
+    );
+  } else if (pb.booking.enabled) {
+    parts.push(
+      "You may take an appointment request but you do not have the diary in front of you. Do not name a day or a time — say somebody will confirm it.",
     );
   } else {
     parts.push("You do not book appointments. Take the details and say somebody will ring to arrange a time.");

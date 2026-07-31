@@ -748,6 +748,69 @@ demo voice data.
 
 ---
 
+## Phase 18 — The diary, outreach, the signals, and something to look at ✅
+
+The four things standing between the Voice Employee and a paying customer.
+
+### The diary (`booking.ts`, 24 tests)
+The last catalogue promise that was not real: "calendar booking handled on the
+call". Built on exactly the same idea as pricing — **the model never picks a
+time**. This file computes the next genuinely available slots, the prompt is
+told it may offer those and no others, and the slot the caller agrees to is
+checked against what was actually read out loud before anything is written.
+A model that invents "Sunday at 7pm" produces a refusal and a re-offer.
+
+- Working days, hours, visit length, lead time, horizon, a daily cap, blackout
+  dates — all in the client's own local offset. Lead time defaults to four hours
+  because a crew already on the road cannot be at a new address in ten minutes.
+- `speakSlot` says "today at 2pm", "tomorrow at 9am", "Thursday the 6th at 9am".
+  Never a year, a timezone or a leading zero — reading an ISO string aloud is the
+  fastest way to sound like software. The awkward ordinals (11th, 21st, 23rd) are
+  tested.
+- **A defect the tests caught before anything shipped**: the first version
+  recomputed the offer every turn, so a caller who said "the first one" could be
+  refused because the list had shifted underneath them. Times already read out
+  now stay offerable for the rest of the call, as long as they are still free.
+- Double-booking is prevented by a unique constraint on `(clientId, slotKey)`,
+  not by a check — two calls landing on one slot in the same second is exactly
+  what a read-then-write loses. A losing race writes nothing and logs it, rather
+  than reporting a booking that does not exist.
+- Bookings are **not** gated, and the reason is written down: the gate holds what
+  reaches outside a live conversation, and the operator has just read a time back
+  to somebody who agreed to it. A queue here means the diary disagrees with what
+  the customer was told, and the person who finds out is standing on a doorstep.
+
+### `/app/outreach`
+The two gates in series, made legible. `canCallNow` runs *before* anything
+queues, so a suppressed number never appears in a queue as something releasable;
+the gate then holds the call itself. The refusals are the product and they are
+shown in full — "this number is on your do-not-call list", "it is 22:00 where
+they are". The do-not-call list is editable, and anything added by a caller
+saying stop, or replying STOP to a text, lands there without approval.
+
+### Voice signals in the agency console
+Four new signals, and the ordering rule holds — silently broken outranks loudly
+wrong:
+- **A promised call back that nobody made** is URGENT and outranks a critical ad
+  alert. The alert has already emailed the client; the caller was told out loud
+  that a person would ring them.
+- A failed text-back is URGENT: somebody rang, got no answer, then heard nothing.
+- Real customers being answered by the built-in default playbook is ATTENTION.
+- An ungraded backlog is FYI.
+
+### Seeded demo data
+A fortnight of calls chosen to show the **refusals**, not just the wins: one
+booked, one handed to a person, one it declined to price above the cap, one
+opt-out with the number suppressed, one abandoned with a text-back. Plus a
+playbook, a price book, a diary and an estimate waiting to be sent. An empty
+voice screen makes a working system indistinguishable from an unwired one.
+
+`pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ · `pnpm test` ✅ **725 tests,
+29 files (35 new)**. All four screens rendered against a real Postgres with a
+signed-in session.
+
+---
+
 ## Verified this session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
   pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (260 tests, 11 files).
