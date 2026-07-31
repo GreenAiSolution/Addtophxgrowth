@@ -111,8 +111,11 @@ export async function provisionPlan(
   );
 
   // Integrations get a real, editable config row so the client can point them
-  // at their own endpoint without waiting on us.
-  for (const m of plan.toCreate.filter((x) => x.kind === "INTEGRATION")) {
+  // at their own endpoint without waiting on us. The two phone-desk modules
+  // are the exception — a phone line isn't a webhook URL a client types in,
+  // it's a real Twilio number an admin has to assign, so they get a PhoneLine
+  // row instead (see below).
+  for (const m of plan.toCreate.filter((x) => x.kind === "INTEGRATION" && !x.key.startsWith("integration-phone"))) {
     const already = await prisma.webhookConfig.findFirst({
       where: { clientId, label: m.name },
       select: { id: true },
@@ -122,6 +125,21 @@ export async function provisionPlan(
         data: { clientId, label: m.name, url: "", enabled: false },
       });
     }
+  }
+
+  // The Inbound Phone Line module provisions a disabled PhoneLine row — no
+  // Twilio number yet (an admin assigns one once a real number is
+  // purchased), off by default so nothing rings until the client turns it on
+  // from /app/phone. Outbound gets folded onto the same row rather than a
+  // second one; a tenant has exactly one phone desk.
+  const wantsInbound = plan.toCreate.some((m) => m.key === "integration-phone-line");
+  const wantsOutbound = plan.toCreate.some((m) => m.key === "integration-phone-outbound");
+  if (wantsInbound || wantsOutbound) {
+    await prisma.phoneLine.upsert({
+      where: { clientId },
+      update: wantsOutbound ? { outboundEnabled: true } : {},
+      create: { clientId, outboundEnabled: wantsOutbound },
+    });
   }
 
   // One kickoff request so the build phase lands in the agency queue.

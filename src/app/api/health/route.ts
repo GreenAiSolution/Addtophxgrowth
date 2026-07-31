@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { deliveryChannels, canDeliver, env } from "@/lib/env";
 import { UPGRADES } from "@/lib/upgrades";
 import { checkDb } from "@/lib/db-health";
+import { twilioConfigured } from "@/lib/telephony";
 
 /**
  * Is the site actually working?
@@ -62,6 +63,12 @@ export async function GET() {
        * hide exactly that case.
        */
       retrieval: db.retrieval,
+      // Every /api/voice/* webhook fails closed (refused, not trusted
+      // unverified) when this is false — see lib/telephony.ts.
+      phoneDesk: {
+        configured: twilioConfigured(),
+        ...(twilioConfigured() ? {} : { fix: "Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to enable the phone desk." }),
+      },
       // What the site believes its own address is — the value that goes into
       // the sitemap, the canonical tag and every share preview.
       siteUrl: env.siteUrl,

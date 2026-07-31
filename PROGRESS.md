@@ -570,19 +570,115 @@ better ad costs the same to run and can return several times more).
 
 ---
 
+## Phase 16 — The phone desk: an AI Employee that answers, calls back, and quotes ✅
+
+The "AI Employees" service the parent sells names phones by name — inbound and
+outbound calls, lead capture, estimates — and until this phase none of it
+existed here. This is that build: real Twilio telephony, wired through the
+same discipline every unattended system in this repo already follows.
+
+### The split (same shape as night-shift.ts and gate.ts)
+- **`lib/voice.ts`** — pure, tested conversation logic. Business-hours gating
+  (`isWithinBusinessHours`), greeting copy, turn parsing (`parseAgentTurn`,
+  same tolerant fenced-JSON-then-degrade shape as night-shift's `parseScore`),
+  and outbound-callback selection (`selectLeadsForCallback`) — no I/O, no
+  model, no database. 26 tests.
+- **`lib/estimate.ts`** — the one rule that matters most: **no model call
+  anywhere in it**, same posture as `spend-watch.ts`. A per-vertical rate card
+  turns what the caller said (job type, quantity, urgency) into a price range
+  through arithmetic a human wrote down, never something the conversation
+  model is trusted to state out loud. 9 tests.
+- **`lib/telephony.ts`** — the only file that touches Twilio. Every webhook
+  fails **closed**: with no `TWILIO_AUTH_TOKEN` configured, requests are
+  refused rather than trusted unverified — an unauthenticated voice webhook
+  could feed fake speech into a live call and make the AI say anything to a
+  real customer, which is a sharper failure mode than the silently-skipped
+  email `notify.ts` already tolerates elsewhere. Hand-rolled HMAC-SHA1
+  signature verification (`twilio.validateRequest` wants a Node http-params
+  shape; this works directly against a parsed `Request`), plus the TwiML
+  builders. 9 tests.
+- **`lib/voice-agent.ts`** — the impure run loop. One model call per turn,
+  transcript persisted after every one, capped at `MAX_TURNS` so a stuck
+  conversation degrades to taking a message rather than looping forever.
+
+### Money never leaves the building on its own
+An ESTIMATE turn creates a `DRAFT` Estimate from `computeEstimate` and
+**proposes it through the gate that already existed** — `lib/gate.ts` shipped
+months ago with `quote.send` fully specified (`movesMoney: true`,
+`minimumHold: MANUAL`) and "nothing registered yet, because neither build
+exists." This is the first build to register an executor.
+`lib/executors/estimate-send.ts` is that executor — delivers the estimate by
+email (and SMS, if the client's Twilio number can send one) only once a human
+releases it from `/app/gate`, which was already built and already had nowhere
+to route its releases. The call itself never promises a firm number; it says
+"you'll get a written one" and means it.
+
+### The desk itself
+- **Inbound**: `/api/voice/inbound` answers every call to an assigned number,
+  24 hours a day — business hours only gate whether a later TRANSFER attempts
+  a live hand-off, never whether the AI picks up. `/api/voice/gather` runs
+  every turn after that, keyed by Twilio's own `CallSid` rather than a
+  thread-through query param. Every call becomes a `Lead` the instant it
+  connects, even one that hangs up before a word is said.
+- **Outbound**: `/api/cron/outbound-calls`, every 30 minutes, dials leads that
+  are due a callback — `selectLeadsForCallback` caps attempts at 3, enforces a
+  20-hour cooldown, and never reaches back further than 8 days. Scale+/Command
+  only (`integration-phone-outbound`); the AI still answers every inbound call
+  on every tier regardless.
+- **Fallback paths**: `/api/voice/dial-fallback` (the `<Dial>` action — no
+  answer becomes "leave a message," not silence), `/api/voice/recording`
+  (voicemail lands, agency is paged), `/api/voice/status` (the call-level
+  callback that closes out duration, recording, and backfills the lead's
+  message with the transcript for the night shift to score).
+
+### Provisioning and the console
+- Two new `INTEGRATION` modules — `integration-phone-line` (Launch+) and
+  `integration-phone-outbound` (Scale+) — provision a disabled `PhoneLine` row
+  automatically, same idempotent path every other module uses.
+  `systems.test.ts`'s superset and uniqueness checks cover them for free.
+- **The one step that has to be an admin**: buying and assigning the real
+  Twilio number costs actual money and needs a Twilio console action. Every
+  other setting — greeting, after-hours greeting, forwarding number, business
+  hours, the on/off switch — is the client's, on the new `/app/phone` page,
+  alongside their call log and their estimate queue.
+- `/api/health` gained a `phoneDesk` field, same "which env var, if any"
+  posture as the delivery-channel report already there.
+
+### Schema
+- New: `PhoneLine`, `CallLog`, `Estimate` + `CallDirection`, `CallOutcome`,
+  `EstimateStatus`. `Lead` and `ClientProfile` both gain the relations.
+
+### What's deliberately still open
+- No real-time barge-in — this is Twilio's `<Gather input="speech">` per
+  turn, not a streaming voice model. Functional and testable without a second
+  vendor; a lower-latency streaming pipeline (Twilio Media Streams + a
+  realtime voice API) is a real upgrade, not a fix.
+- Outbound calling hours fall back to a fixed UTC window
+  (`DEFAULT_OUTBOUND_HOURS`) when a client hasn't set their own — conservative
+  on purpose, but per-client timezone-aware scheduling would be better than a
+  hardcoded Mountain-time guess.
+- No number is purchased by this build — Twilio numbers cost money per month
+  and per minute, so provisioning creates the row and leaves the actual
+  purchase to a human, the same trade the build fees already make for
+  everything else that costs real money before a client sees value.
+
 ## Verified this session
-- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
-  pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (260 tests, 11 files).
-- Landing page, both new plan pages and `/cockpit` rendered against a production
-  server and read back — and `/cockpit` screenshotted at desktop and mobile
-  widths, which is how the sticky-rail defect above was found.
-- Not yet run against a live DB / Stripe / Anthropic (no credentials in this
-  environment) — those are the 🟡 items above.
+- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅
+  (schema synced with `prisma generate`, no `DATABASE_URL` in this
+  environment) · `pnpm test` ✅ (546 tests, 25 files, including 44 new tests
+  across `voice.test.ts`, `estimate.test.ts`, `telephony.test.ts`).
+- Not yet run against a live DB / Stripe / Anthropic / Twilio (no credentials
+  in this environment) — those are the 🟡 items below, same as every prior
+  phase that needed live secrets.
 
 ## Suggested next steps
 1. Provision Neon/Vercel Postgres, set `DATABASE_URL`, `pnpm prisma:push && pnpm db:seed`.
 2. Run `pnpm stripe:setup`, wire the webhook, verify checkout → gating.
 3. Set `ANTHROPIC_API_KEY`, exercise a real agent run + monthly report.
-4. Deploy to Vercel; run Lighthouse against the live URL.
-5. Wire Resend for the notification stubs; replace testimonial placeholders
+4. Set `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN`, buy a Twilio number, point
+   its Voice webhook at `/api/voice/inbound`, assign it on
+   `/admin/clients/[clientId]`, and place a real call end to end — including
+   releasing a resulting estimate from `/app/gate` and confirming delivery.
+5. Deploy to Vercel; run Lighthouse against the live URL.
+6. Wire Resend for the notification stubs; replace testimonial placeholders
    with real client results.

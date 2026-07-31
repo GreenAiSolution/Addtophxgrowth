@@ -71,6 +71,7 @@ existing clients and are not part of the pitch.
 | Auth        | Auth.js (NextAuth v5) — email magic link + Google OAuth; roles `CLIENT` / `ADMIN` |
 | Billing     | Stripe subscriptions + Customer Portal + webhooks |
 | AI          | Anthropic API (`claude-sonnet-4-6`) via server-side route handlers only |
+| Telephony   | Twilio Voice + Messaging — inbound/outbound calls, SMS estimate delivery |
 | UI          | Tailwind CSS + shadcn/ui-style primitives + Recharts |
 | Integrations| Zapier Catch Hook → HubSpot via outbound webhooks |
 
@@ -330,6 +331,19 @@ the page actually offers.
   `x-intake-token` or `?token=`, compared in constant time. Leads land unscored;
   scoring happens on the night shift so a slow model call can never make a
   client's website form time out.
+- **The phone desk** (`src/lib/voice.ts` + `telephony.ts` + `voice-agent.ts` →
+  `/api/voice/*`, `/api/cron/outbound-calls`, `/app/phone`) — an AI Employee
+  that answers every inbound call 24/7, calls back leads that haven't been
+  worked (Scale+), and prices jobs on the call from a deterministic rate card
+  (`lib/estimate.ts`) rather than letting the model state a number. No model
+  call decides money, same posture as the Spend Watch, and every generated
+  estimate is proposed through `lib/gate.ts`'s pre-existing `quote.send`
+  action — held `MANUAL` until a human releases it from `/app/gate` — rather
+  than sent straight to a customer. Every voice webhook verifies Twilio's
+  HMAC signature and fails closed with no `TWILIO_AUTH_TOKEN` configured.
+  Assigning the real Twilio number is the one admin-only step (real money,
+  a console action); everything else — greeting, hours, forwarding number,
+  on/off — is the client's on `/app/phone`. See Phase 16 in `PROGRESS.md`.
 - **System memory** (`src/lib/memory.ts`) — closed deals a client logs are
   distilled into `MemoryEntry` rows by a pure `computeCalibration`, then injected
   ahead of every agent run. Nothing is stated below `MIN_EVIDENCE` closed deals,

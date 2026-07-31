@@ -35,7 +35,15 @@ export type NotificationKind =
   | "ALERT_CRITICAL"
   | "COCKPIT_CONFIGURED"
   | "RESERVATION"
-  | "MARKETING_LEAD";
+  | "MARKETING_LEAD"
+  /** To the customer: a phone estimate the client released through the gate. */
+  | "ESTIMATE_READY"
+  /** To the agency: the phone desk priced a call off a fallback range because
+   * no rate-card line matched — worth a look before it reaches a customer. */
+  | "ESTIMATE_FALLBACK_USED"
+  /** To the agency: a caller left a voicemail-style message because nobody
+   * was available to transfer to. */
+  | "VOICEMAIL_LEFT";
 
 export interface NotificationPayload {
   businessName: string;
@@ -236,6 +244,56 @@ export function renderNotification(
           "",
           payload.detail ?? "",
           bullets ? `\n${bullets}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
+    case "ESTIMATE_READY":
+      return {
+        subject: payload.title, // e.g. "Your estimate from Acme Roofing"
+        text: [
+          payload.detail ?? "",
+          bullets ? `\n${bullets}` : "",
+          "",
+          "This is a range, not a final invoice — the exact number gets confirmed before any work starts.",
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+        html: renderEmailHtml({
+          kicker: payload.businessName,
+          headline: payload.title,
+          intro: payload.detail ?? "",
+          blocks: (payload.lines ?? []).map((l, i) => ({
+            label: i === 0 ? "Estimated range" : "Detail",
+            value: l,
+            big: i === 0,
+            tone: (i === 0 ? "gold" : "plain") as "gold" | "plain",
+          })),
+          footnote: "This is a range, not a final invoice — the exact number gets confirmed before any work starts.",
+        }),
+      };
+
+    case "ESTIMATE_FALLBACK_USED":
+      return {
+        subject: `Phone estimate used a placeholder range — ${payload.title}`,
+        text: [
+          `The phone desk priced a call for ${payload.businessName} without a matching rate-card line, so it used a wide placeholder range instead of a real one.`,
+          "",
+          payload.detail ?? "",
+          "Check the gate queue before it goes out.",
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
+    case "VOICEMAIL_LEFT":
+      return {
+        subject: `Voicemail — ${payload.businessName}: ${payload.title}`,
+        text: [
+          `Someone called ${payload.businessName} and left a message — nobody was available to transfer to.`,
+          "",
+          payload.detail ?? "",
         ]
           .filter(Boolean)
           .join("\n") + sign,
