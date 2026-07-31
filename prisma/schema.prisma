@@ -280,6 +280,15 @@ model ClientProfile {
   embeddings       Embedding[]
   pendingActions   PendingAction[]
   calls            EmployeeCall[]
+  rateCardItems    RateCardItem[]
+  estimates        Estimate[]
+
+  /// Sales tax applied to the taxable part of an estimate. Null means the
+  /// client has not told us, and `priceEstimate` charges none rather than
+  /// guessing a rate onto somebody's invoice.
+  taxRatePercent Float?
+  /// How long a quote stands. Null falls back to DEFAULT_VALID_DAYS.
+  estimateValidDays Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -603,6 +612,7 @@ model Lead {
   scoredAt   DateTime?
 
   outcomes DealOutcome[]
+  estimates Estimate[]
   calls    EmployeeCall[]
 
   createdAt DateTime @default(now())
@@ -953,4 +963,120 @@ model Embedding {
   @@unique([clientId, sourceType, sourceId, chunkIndex, model])
   @@index([clientId, sourceType])
   @@index([clientId, model])
+}
+
+// ---------------------------------------------------------------------------
+// The estimator — the client's own rate card, and what was quoted off it
+// ---------------------------------------------------------------------------
+
+enum RateUnit {
+  HOUR
+  DAY
+  EACH
+  SQ_FT
+  LINEAR_FT
+  FLAT
+}
+
+enum EstimateStatus {
+  DRAFT
+  /// Priced and waiting at the gate for a named human to release it.
+  HELD
+  SENT
+  VIEWED
+  ACCEPTED
+  DECLINED
+  /// The price stood for its validity window and nobody acted.
+  EXPIRED
+  /// Pulled before it went.
+  WITHDRAWN
+}
+
+/// One line on the client's own rate card.
+///
+/// The estimator prices from these and from nothing else. A job with a line
+/// that has no rate here is not quoted at zero — it is refused, and the client
+/// is told which code is missing. See the top of lib/estimating.ts.
+model RateCardItem {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// What the estimator refers to it by. Stable; the label may be reworded.
+  code           String
+  label          String
+  unit           RateUnit
+  unitPriceCents Int
+  /// Never charge less than this for the line, however small the quantity.
+  minimumCents   Int?
+  /// Labour and materials are often taxed differently.
+  taxable        Boolean  @default(true)
+  active         Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  notes          String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, code])
+  @@index([clientId, active])
+}
+
+/// A price put in front of a customer.
+///
+/// WHY THE LINES ARE JSON AND NOT ROWS
+///   An estimate has to mean what it meant on the day it was sent. Rate cards
+///   get edited — that is what they are for — so lines that pointed at
+///   RateCardItem rows would silently restate a price the customer is already
+///   holding. `lines` is the snapshot `priceEstimate` produced, kept verbatim,
+///   and every total below was computed from it by that one function.
+model Estimate {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// Sequential per client, because customers ring up about "estimate
+  /// forty-two" and a cuid is not something anybody reads down a phone.
+  reference String
+
+  /// Where the job came from. Both optional: an estimate can be raised by hand.
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  callId String?
+
+  customerName  String
+  customerPhone String?
+  customerEmail String?
+  jobSummary    String  @db.Text
+
+  /// The PricedLine[] snapshot. Never re-read from the rate card.
+  lines Json
+
+  subtotalCents    Int
+  discountCents    Int   @default(0)
+  taxableBaseCents Int   @default(0)
+  taxCents         Int   @default(0)
+  totalCents       Int
+  taxRatePercent   Float?
+
+  status EstimateStatus @default(DRAFT)
+
+  /// The gate action holding this. A quote is a price commitment, so it can
+  /// never go out on a timer — quote.send is MANUAL in lib/gate.ts.
+  pendingActionId String?
+
+  sentAt     DateTime?
+  viewedAt   DateTime?
+  acceptedAt DateTime?
+  declinedAt DateTime?
+  expiresAt  DateTime?
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, reference])
+  @@index([clientId, status])
+  @@index([clientId, createdAt])
 }
