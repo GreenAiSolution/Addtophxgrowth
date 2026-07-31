@@ -15,6 +15,7 @@ import {
   PhoneCall,
   Receipt,
   CalendarDays,
+  Users2,
 } from "lucide-react";
 
 export interface NavItem {
@@ -25,6 +26,7 @@ export interface NavItem {
 
 export const CLIENT_NAV: NavItem[] = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/app/employees", label: "The Crew", icon: Users2 },
   { href: "/app/brief", label: "Morning Brief", icon: Moon },
   // Above Leads on purpose: a call is a lead that is still on the line, and the
   // one on the line is the one worth looking at first.
