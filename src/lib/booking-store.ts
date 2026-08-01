@@ -70,8 +70,9 @@ export async function createAppointment(input: {
   minutes: number;
   customer: { name?: string; phone?: string; address?: string; description?: string };
 }) {
+  let appointment;
   try {
-    return await prisma.appointment.create({
+    appointment = await prisma.appointment.create({
       data: {
         clientId: input.clientId,
         callId: input.callId ?? null,
@@ -87,4 +88,28 @@ export async function createAppointment(input: {
   } catch {
     return null;
   }
+
+  // Told to whoever is listening — the client's calendar, their CRM, their
+  // scheduler. Queued, never delivered inline: this runs while a caller is
+  // still on the line waiting to hear the slot read back.
+  const { emit } = await import("@/lib/event-bus");
+  await emit({
+    clientId: input.clientId,
+    type: "appointment.booked",
+    key: appointment.id,
+    data: {
+      appointmentId: appointment.id,
+      callId: input.callId ?? null,
+      at: appointment.at.toISOString(),
+      minutes: appointment.minutes,
+      customer: {
+        name: input.customer.name ?? null,
+        phone: input.customer.phone ?? null,
+        address: input.customer.address ?? null,
+      },
+      job: input.customer.description ?? null,
+    },
+  });
+
+  return appointment;
 }

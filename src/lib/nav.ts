@@ -15,6 +15,7 @@ import {
   PhoneCall,
   PhoneOutgoing,
   FlaskConical,
+  Plug,
 } from "lucide-react";
 
 export interface NavItem {
@@ -32,6 +33,7 @@ export const CLIENT_NAV: NavItem[] = [
   { href: "/app/estimates", label: "Estimates", icon: FileText },
   { href: "/app/outreach", label: "Outreach", icon: PhoneOutgoing },
   { href: "/app/tuning", label: "Tuning Lab", icon: FlaskConical },
+  { href: "/app/connections", label: "Connections", icon: Plug },
   { href: "/app/agents", label: "Agent Workspace", icon: Bot },
   { href: "/app/recall", label: "Recall", icon: Brain },
   { href: "/app/memory", label: "System Memory", icon: Brain },

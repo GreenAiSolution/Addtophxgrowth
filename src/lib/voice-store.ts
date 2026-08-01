@@ -339,7 +339,7 @@ export async function endCall(
     }
   }
 
-  return prisma.voiceCall.update({
+  const updated = await prisma.voiceCall.update({
     where: { id: callId },
     data: {
       outcome: final.outcome,
@@ -355,6 +355,70 @@ export async function endCall(
         : null,
     },
   });
+
+  // Out to whatever the client has connected. The transcript is not in here on
+  // purpose — the event stream ends up in somebody else's database where we
+  // cannot delete it, and a recording of a customer's kitchen is not something
+  // to scatter. What the call *captured* goes; what was said does not.
+  if (call) {
+    const { emit } = await import("@/lib/event-bus");
+    const customer = {
+      name: final.captured.name ?? null,
+      phone: call.fromNumber ?? call.toNumber ?? null,
+      address: final.captured.address ?? null,
+    };
+    await emit({
+      clientId: call.clientId,
+      type: "call.completed",
+      key: callId,
+      at: endedAt,
+      data: {
+        callId,
+        direction: updated.direction,
+        outcome: final.outcome,
+        durationSec: updated.durationSec,
+        customer,
+        capturedAnswers: final.captured,
+        unpricedItems: final.unpricedItems ?? [],
+        unansweredQuestions: final.unansweredQuestions ?? [],
+      },
+    });
+
+    // A second, narrower event for the one outcome that needs a person. A
+    // client routing everything into a Slack channel wants the whole stream;
+    // one routing a pager wants this and nothing else.
+    if (final.outcome === "HANDED_OFF" || final.outcome === "MESSAGE_TAKEN") {
+      await emit({
+        clientId: call.clientId,
+        type: "call.handoff",
+        key: callId,
+        at: endedAt,
+        data: {
+          callId,
+          reason: final.handoffReason ?? "The operator handed this to a person.",
+          outcome: final.outcome,
+          customer,
+          capturedAnswers: final.captured,
+        },
+      });
+    }
+
+    if (final.outcome === "OPTED_OUT" && customer.phone) {
+      await emit({
+        clientId: call.clientId,
+        type: "contact.opted_out",
+        key: `${callId}:optout`,
+        at: endedAt,
+        data: {
+          phone: customer.phone,
+          reason: "Asked not to be contacted, on the call",
+          source: "call",
+        },
+      });
+    }
+  }
+
+  return updated;
 }
 
 // ---------------------------------------------------------------------------
@@ -368,7 +432,7 @@ export async function recordEstimate(input: {
   payload: Record<string, unknown>;
   customer: { name?: string; phone?: string; address?: string; description?: string };
 }) {
-  return prisma.voiceEstimate.create({
+  const row = await prisma.voiceEstimate.create({
     data: {
       clientId: input.clientId,
       callId: input.callId ?? null,
@@ -385,6 +449,34 @@ export async function recordEstimate(input: {
       status: "DRAFT",
     },
   });
+
+  // `estimate.created` is the softer of the two. It says a price was spoken —
+  // useful to a CRM tracking pipeline, and explicitly refused by the QuickBooks
+  // adapter, because a spoken price is not an accounting record.
+  const { emit } = await import("@/lib/event-bus");
+  await emit({
+    clientId: input.clientId,
+    type: "estimate.created",
+    key: row.id,
+    data: {
+      estimateId: row.id,
+      callId: input.callId ?? null,
+      customer: {
+        name: input.customer.name ?? null,
+        phone: input.customer.phone ?? null,
+        address: input.customer.address ?? null,
+      },
+      job: input.customer.description ?? null,
+      totalCents: row.totalCents,
+      lowCents: row.lowCents,
+      highCents: row.highCents,
+      confidence: row.confidence,
+      lines: input.estimate.lines,
+      quotedOnCall: input.estimate.spoken,
+    },
+  });
+
+  return row;
 }
 
 /**
@@ -514,9 +606,46 @@ export function registerVoiceExecutors(): void {
       path: "/app/gate?filter=done",
     });
     if (typeof p.estimateId === "string") {
-      await prisma.voiceEstimate.update({
+      const est = await prisma.voiceEstimate.update({
         where: { id: p.estimateId },
         data: { status: "SENT" },
+      });
+
+      // The event that means money, and the only one QuickBooks will take. It
+      // is emitted from inside the executor rather than from the button that
+      // proposed it, so it cannot fire for an estimate a person never released.
+      // Who released it is on the gate row, not in the payload — an executor is
+      // handed the proposal, not the decision. Worth the extra read: "released
+      // by" is the field a client's own records need to carry.
+      const action = est.pendingActionId
+        ? await prisma.pendingAction.findUnique({
+            where: { id: est.pendingActionId },
+            select: { releasedBy: true, autoReleased: true },
+          })
+        : null;
+
+      const { emit } = await import("@/lib/event-bus");
+      await emit({
+        clientId: est.clientId,
+        type: "estimate.sent",
+        key: est.id,
+        data: {
+          estimateId: est.id,
+          callId: est.callId,
+          customer: {
+            name: est.customerName,
+            phone: est.customerPhone,
+            address: est.customerAddress,
+          },
+          job: est.jobDescription,
+          totalCents: est.totalCents,
+          lowCents: est.lowCents,
+          highCents: est.highCents,
+          confidence: est.confidence,
+          lines: (est.payload as Record<string, unknown>)?.lines ?? [],
+          quotedOnCall: est.spoken,
+          releasedBy: action?.releasedBy ?? (action?.autoReleased ? "released on the timer" : null),
+        },
       });
     }
 

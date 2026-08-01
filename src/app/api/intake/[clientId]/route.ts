@@ -103,5 +103,23 @@ export async function POST(req: Request, { params }: { params: { clientId: strin
     select: { id: true },
   });
 
+  const { emit } = await import("@/lib/event-bus");
+  await emit({
+    clientId: client.id,
+    type: "lead.received",
+    key: lead.id,
+    data: {
+      leadId: lead.id,
+      source: d.source ?? "WEBHOOK",
+      customer: {
+        name: name || null,
+        email: d.email ?? null,
+        phone: d.phone ?? d.tel ?? null,
+        company: d.company ?? d.business ?? null,
+      },
+      message: d.message ?? d.comments ?? d.notes ?? null,
+    },
+  });
+
   return json({ ok: true, leadId: lead.id }, 201);
 }

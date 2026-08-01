@@ -305,6 +305,7 @@ model ClientProfile {
   doNotCall        DoNotCallEntry[]
   bookingCalendar  BookingCalendar?
   appointments     Appointment[]
+  connections      Connection[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1176,4 +1177,88 @@ model Appointment {
 
   @@unique([clientId, slotKey])
   @@index([clientId, at])
+}
+
+// ---------------------------------------------------------------------------
+// Connections — how the rest of a client's software finds out what happened
+// ---------------------------------------------------------------------------
+
+/// One destination a client has connected.
+///
+/// Two shapes live in this table. A URL destination (webhook, Zapier, Make,
+/// n8n) stores `url` plus a generated `secret` used to sign every request. An
+/// adapter destination (QuickBooks) stores `credentials` instead. Neither the
+/// secret nor the credentials are ever rendered back onto a screen; the secret
+/// is shown exactly once, at the moment it is created.
+model Connection {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// A ConnectorId from lib/connectors.ts.
+  connector String
+  label     String
+  enabled   Boolean @default(true)
+
+  /// Event types this destination wants. Empty means everything the connector
+  /// accepts — see wantsEvent(); silence is a worse default than noise.
+  events String[] @default([])
+
+  url    String?
+  secret String?
+
+  /// Adapter configuration — refresh token, realm id, environment. Secret.
+  credentials Json?
+
+  lastOkAt            DateTime?
+  lastFailAt          DateTime?
+  lastError           String?   @db.Text
+  consecutiveFailures Int       @default(0)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deliveries EventDelivery[]
+
+  @@index([clientId, enabled])
+}
+
+enum DeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  DROPPED
+}
+
+/// The outbox. One row per (connection, event).
+///
+/// The unique constraint is the whole idempotency story: the same real-world
+/// occurrence always produces the same `eventId` (see buildEvent), so emitting
+/// twice — and a provider webhook retry will — cannot deliver twice.
+model EventDelivery {
+  id       String @id @default(cuid())
+  clientId String
+
+  connectionId String
+  connection   Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  eventId   String
+  eventType String
+  /// The full envelope as it will be sent, already scrubbed.
+  payload   Json
+
+  status        DeliveryStatus @default(PENDING)
+  attempts      Int            @default(0)
+  nextAttemptAt DateTime?
+  lastStatus    Int?
+  lastError     String?        @db.Text
+  deliveredAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([connectionId, eventId])
+  @@index([status, nextAttemptAt])
+  @@index([clientId, createdAt])
 }

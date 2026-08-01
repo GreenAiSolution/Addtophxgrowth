@@ -30,7 +30,8 @@ export type SignalKind =
   | "CALL_HANDOFF_COLD"
   | "CALLS_UNGRADED"
   | "TEXTBACK_FAILING"
-  | "OPERATOR_UNTUNED";
+  | "OPERATOR_UNTUNED"
+  | "CONNECTION_BROKEN";
 
 export type SignalSeverity = "URGENT" | "ATTENTION" | "FYI";
 
@@ -77,6 +78,16 @@ export interface ClientFacts {
   failedTextBacks: number;
   /** True when calls are arriving against the built-in default playbook. */
   callsOnDefaultPlaybook: number;
+
+  // --- Connections. The most silent failure of the lot: a client's QuickBooks
+  // --- or CRM stops receiving and absolutely nothing surfaces, because the
+  // --- events keep being produced correctly and only the last hop is broken.
+  /** Connections whose last several attempts all failed. */
+  brokenConnections: number;
+  /** What the worst of them last said, for the desk to act on. */
+  worstConnectionError: string | null;
+  /** Events queued and undelivered across all of this client's connections. */
+  undeliveredEvents: number;
 }
 
 /** A sweep this far behind schedule is broken, not late. */
@@ -92,6 +103,13 @@ export const UNSCORED_ALARM_HOURS = 36;
 export const HANDOFF_COLD_HOURS = 4;
 /** Finished calls piling up ungraded means the Lab has stopped running. */
 export const UNGRADED_BACKLOG = 25;
+/**
+ * Failures in a row before a connection counts as broken rather than flaky.
+ *
+ * Three, because the retry schedule already absorbs a deploy: an endpoint that
+ * has refused three consecutive attempts is not having a bad minute.
+ */
+export const CONNECTION_BROKEN_AFTER = 3;
 
 const SEVERITY_ORDER: Record<SignalSeverity, number> = { URGENT: 0, ATTENTION: 1, FYI: 2 };
 
@@ -237,6 +255,22 @@ export function rankSignals(facts: ClientFacts[]): Signal[] {
       });
     }
 
+    // A dead connection produces no error anywhere a client would look. Their
+    // books simply stop filling in, and they find out at month end.
+    if (f.brokenConnections > 0) {
+      out.push({
+        kind: "CONNECTION_BROKEN",
+        severity: "URGENT",
+        clientId: f.clientId,
+        businessName: f.businessName,
+        title: `${f.brokenConnections} connection${f.brokenConnections === 1 ? " has" : "s have"} stopped receiving`,
+        detail:
+          `${f.undeliveredEvents} event${f.undeliveredEvents === 1 ? " is" : "s are"} queued and not getting through. ` +
+          (f.worstConnectionError ?? "No error was recorded, which is its own problem."),
+        path: admin,
+      });
+    }
+
     if (f.ungradedCalls >= UNGRADED_BACKLOG) {
       out.push({
         kind: "CALLS_UNGRADED",
@@ -288,8 +322,19 @@ export async function collectSignals(now = new Date()): Promise<{
 
   const handoffCold = new Date(now.getTime() - HANDOFF_COLD_HOURS * 3_600_000);
 
-  const [clients, subs, alerts, failedBriefs, leadRows, requests, accounts, calls, playbooks] =
-    await Promise.all([
+  const [
+    clients,
+    subs,
+    alerts,
+    failedBriefs,
+    leadRows,
+    requests,
+    accounts,
+    calls,
+    playbooks,
+    connections,
+    undelivered,
+  ] = await Promise.all([
     prisma.clientProfile.findMany({
       select: { id: true, businessName: true, spendWatchLastRunAt: true },
     }),
@@ -336,10 +381,29 @@ export async function collectSignals(now = new Date()): Promise<{
         },
       }),
       prisma.voicePlaybook.findMany({ where: { active: true }, select: { clientId: true } }),
+      prisma.connection.findMany({
+        where: { enabled: true, consecutiveFailures: { gte: CONNECTION_BROKEN_AFTER } },
+        select: { clientId: true, label: true, lastError: true, consecutiveFailures: true },
+      }),
+      prisma.eventDelivery.groupBy({
+        by: ["clientId"],
+        where: { status: { in: ["PENDING", "FAILED"] } },
+        _count: { _all: true },
+      }),
     ]);
 
   const countBy = (rows: { clientId: string; _count: number }[]) =>
     new Map(rows.map((r) => [r.clientId, r._count]));
+
+  // Connections that have stopped receiving, and how much is stuck behind them.
+  const broken = new Map<string, { count: number; worst: string | null }>();
+  for (const c of connections) {
+    const row = broken.get(c.clientId) ?? { count: 0, worst: null as string | null };
+    row.count += 1;
+    if (!row.worst) row.worst = c.lastError ? `${c.label}: ${c.lastError}` : null;
+    broken.set(c.clientId, row);
+  }
+  const stuckEvents = new Map(undelivered.map((r) => [r.clientId, r._count._all]));
 
   const criticalByClient = countBy(alerts);
   const failedByClient = countBy(failedBriefs);
@@ -418,6 +482,9 @@ export async function collectSignals(now = new Date()): Promise<{
       ungradedCalls: v?.ungraded ?? 0,
       failedTextBacks: v?.failedTexts ?? 0,
       callsOnDefaultPlaybook: v?.onDefault ?? 0,
+      brokenConnections: broken.get(c.id)?.count ?? 0,
+      worstConnectionError: broken.get(c.id)?.worst ?? null,
+      undeliveredEvents: stuckEvents.get(c.id) ?? 0,
     };
   });
 

@@ -27,9 +27,36 @@ function facts(over: Partial<ClientFacts> = {}): ClientFacts {
     ungradedCalls: 0,
     failedTextBacks: 0,
     callsOnDefaultPlaybook: 0,
+    brokenConnections: 0,
+    worstConnectionError: null,
+    undeliveredEvents: 0,
     ...over,
   };
 }
+
+describe("a connection that has stopped receiving", () => {
+  it("is urgent, because nothing else surfaces it", () => {
+    // The client's books simply stop filling in. They find out at month end.
+    const [s] = rankSignals([
+      facts({ brokenConnections: 1, undeliveredEvents: 12, worstConnectionError: "QuickBooks: token revoked" }),
+    ]);
+    expect(s!.kind).toBe("CONNECTION_BROKEN");
+    expect(s!.severity).toBe("URGENT");
+    expect(s!.detail).toContain("12 events are queued");
+    expect(s!.detail).toContain("token revoked");
+  });
+
+  it("says so plainly when nothing was even recorded", () => {
+    const [s] = rankSignals([facts({ brokenConnections: 2, undeliveredEvents: 1 })]);
+    expect(s!.title).toContain("2 connections have");
+    expect(s!.detail).toContain("1 event is queued");
+    expect(s!.detail).toContain("No error was recorded");
+  });
+
+  it("stays quiet while a connection is merely flaky", () => {
+    expect(rankSignals([facts({ brokenConnections: 0, undeliveredEvents: 4 })])).toHaveLength(0);
+  });
+});
 
 describe("rankSignals", () => {
   it("says nothing about a healthy client", () => {

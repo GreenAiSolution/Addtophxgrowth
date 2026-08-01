@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import { sweep, SWEEP_INTERVAL_MINUTES } from "@/lib/gate";
 import { checkDb } from "@/lib/db-health";
 import { registerVoiceExecutors } from "@/lib/voice-store";
+import { deliverDue } from "@/lib/event-bus";
 
 /**
  * The gate sweep. Every five minutes (see vercel.json).
@@ -60,10 +61,24 @@ export async function GET(req: Request) {
   const startedAt = new Date();
   try {
     const result = await sweep(startedAt);
+
+    // The outbox rides along on the same sweep. Deliberate: an event describing
+    // a released action must not go out before the action does, and running
+    // both in one pass in this order is the cheapest way to guarantee it.
+    // Failures here are reported, not thrown — a client's broken Zapier hook is
+    // not a reason for the gate sweep to read as failed.
+    let events: Record<string, unknown>;
+    try {
+      events = { ...(await deliverDue(startedAt)) };
+    } catch (e) {
+      events = { error: e instanceof Error ? e.message : String(e) };
+    }
+
     return json({
       ok: true,
       everyMinutes: SWEEP_INTERVAL_MINUTES,
       ...result,
+      events,
       tookMs: Date.now() - startedAt.getTime(),
     });
   } catch (e) {

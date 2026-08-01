@@ -1,7 +1,12 @@
 /**
- * Outbound webhook helpers — Zapier Catch Hook + HubSpot integration points.
- * Failures are logged, never thrown into the user flow (fire-and-forget with a
- * short timeout). Wire real retry/queue semantics later.
+ * Outbound webhook helpers — the *agency's own* Zapier hooks.
+ *
+ * NOT the client integration path. Anything a client connects — their CRM,
+ * their QuickBooks, their own endpoint — goes through `event-bus.ts`, which is
+ * signed, queued and retried. This file stays fire-and-forget on purpose: it
+ * posts internal ops notifications to a hook we own, where a dropped message
+ * costs somebody a glance at a dashboard rather than a row in a customer's
+ * ledger. Do not reach for it for anything a client is relying on.
  */
 
 export async function postWebhook(
