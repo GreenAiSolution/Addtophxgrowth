@@ -74,6 +74,16 @@ export interface Connector {
   verified: boolean;
   unverifiedNote?: string;
   docsUrl?: string;
+  /**
+   * Where to send the owner when the destination does OAuth.
+   *
+   * Present means the connection is a button: we hold the app registration and
+   * they click yes. Absent means the fields above have to be filled in by hand,
+   * which for anything but a URL is a cliff most small businesses fall off.
+   */
+  oauthStart?: string;
+  /** Env vars this deployment needs before `oauthStart` will work. */
+  requiresEnv?: string[];
 }
 
 export const CONNECTORS: Connector[] = [
@@ -191,36 +201,20 @@ export const CONNECTORS: Connector[] = [
       "Never writes anything from a price said on a call. Only what a person released.",
     ],
     style: "adapter",
-    fields: [
-      {
-        key: "realmId",
-        label: "Company ID (Realm ID)",
-        hint: "In QuickBooks: the numeric company id from your Intuit app's connection.",
-        required: true,
-      },
-      {
-        key: "refreshToken",
-        label: "Refresh token",
-        hint: "From the Intuit OAuth exchange. Stored encrypted at rest and never shown again.",
-        required: true,
-        secret: true,
-      },
-      {
-        key: "environment",
-        label: "Environment",
-        hint: "sandbox while you are testing, production when you are live.",
-        required: true,
-      },
-    ],
+    // Nothing to type. The owner presses a button, approves on Intuit's own
+    // screen and comes back connected — see `oauthStart` below.
+    fields: [],
     // The gate decides what reaches the books. An estimate that was only spoken
     // on a call is not an accounting record, so `estimate.created` is not here.
     accepts: ["estimate.sent", "lead.received"],
     setup: [
-      "Create an app at developer.intuit.com with the com.intuit.quickbooks.accounting scope.",
-      "Run the OAuth flow once and keep the refresh token and realm id.",
-      "Paste both here and pick the environment.",
+      "Press Connect. You will land on Intuit's own sign-in page.",
+      "Pick the company you keep your books in and approve the connection.",
+      "You come straight back here — there is nothing to copy or paste.",
       "Release one estimate at the queue and check it appears in QuickBooks.",
     ],
+    oauthStart: "/api/connectors/quickbooks/start",
+    requiresEnv: ["QUICKBOOKS_CLIENT_ID", "QUICKBOOKS_CLIENT_SECRET"],
     verified: false,
     unverifiedNote:
       "Written against Intuit's documented v3 API but never run against a live company file — " +

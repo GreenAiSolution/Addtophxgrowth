@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 /**
  * Short, because the site is short.
  *
- * Two public pages and the legal set. `/` is the instrument deck; `/upgrades`
+ * Three public pages and the legal set. `/` is the instrument deck; `/upgrades`
  * is the price list, and it is the one most likely to earn a search result —
  * "what does X cost" is a query, and a deck of canvases is not an answer to it.
  * The console and admin are noindex by nature and have nothing to gain from
@@ -35,6 +35,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: 0.9,
+    },
+    // The event reference. Public on purpose: an integration doc nobody can
+    // open without an account is one that gets replaced by a support email,
+    // and "how do I verify the webhook signature" is a searched query.
+    {
+      url: `${base}/developers`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
     },
     ...LEGAL_DOCUMENTS.map((d) => ({
       url: `${base}/legal/${d.slug}`,

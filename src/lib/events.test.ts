@@ -6,6 +6,8 @@ import {
   isRetryable,
   MAX_ATTEMPTS,
   nextAttemptAt,
+  backoffSchedule,
+  retryWindowHours,
   scrub,
   signPayload,
   verifySignature,
@@ -190,6 +192,22 @@ describe("retries", () => {
     const hours = gaps.slice(1).reduce((a, b) => a + b, 0) / 3_600_000;
     expect(hours).toBeGreaterThan(20);
     expect(hours).toBeLessThan(30);
+  });
+
+  it("describes itself in words that match the schedule it runs", () => {
+    // /developers prints these. If the array is tuned and the prose is not, a
+    // public docs page starts lying to people building against it.
+    const words = backoffSchedule();
+    expect(words).toHaveLength(MAX_ATTEMPTS);
+    expect(words[0]).toBe("immediately");
+    expect(retryWindowHours()).toBeGreaterThan(20);
+    expect(retryWindowHours()).toBeLessThan(30);
+
+    const total = [0, 1, 2, 3, 4, 5]
+      .map((n) => nextAttemptAt(n, AT)!.getTime() - AT.getTime())
+      .slice(1)
+      .reduce((a, b) => a + b, 0);
+    expect(retryWindowHours()).toBe(Math.round(total / 3_600_000));
   });
 
   it("retries what means later and refuses what means no", () => {

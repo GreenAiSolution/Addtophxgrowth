@@ -233,6 +233,28 @@ export function nextAttemptAt(attempts: number, from = new Date()): Date | null 
   return new Date(from.getTime() + BACKOFF_SECONDS[attempts]! * 1000);
 }
 
+/**
+ * The schedule in words, derived rather than written down.
+ *
+ * The public reference at /developers prints this. Typing the same list into a
+ * docs page by hand is how a docs page starts lying — somebody tunes the array
+ * above and the prose keeps promising the old numbers to people building
+ * against it.
+ */
+export function backoffSchedule(): string[] {
+  return BACKOFF_SECONDS.map((s) => {
+    if (s === 0) return "immediately";
+    if (s < 3600) return `${Math.round(s / 60)} min`;
+    const hours = Math.round(s / 3600);
+    return `${hours} hour${hours === 1 ? "" : "s"}`;
+  });
+}
+
+/** Roughly how long the whole schedule covers, for a sentence. */
+export function retryWindowHours(): number {
+  return Math.round(BACKOFF_SECONDS.slice(1).reduce((a, b) => a + b, 0) / 3600);
+}
+
 /** Whether a response code is worth trying again. */
 export function isRetryable(status: number): boolean {
   // 4xx means the receiver understood and refused — sending it again is rude

@@ -26,6 +26,8 @@ import {
   validateEndpoint,
 } from "@/lib/connectors";
 import { attemptDelivery, testEvent } from "@/lib/event-bus";
+import { env } from "@/lib/env";
+import type { Connector } from "@/lib/connectors";
 
 /**
  * CONNECTIONS.
@@ -96,36 +98,9 @@ export default async function ConnectionsPage({
     const label = String(formData.get("label") ?? "").trim() || connector.name;
     const events = formData.getAll("events").map(String).filter(Boolean);
 
-    if (connector.style === "adapter") {
-      const realmId = String(formData.get("realmId") ?? "").trim();
-      const refreshToken = String(formData.get("refreshToken") ?? "").trim();
-      const environment = String(formData.get("environment") ?? "sandbox") === "production"
-        ? "production"
-        : "sandbox";
-      if (!realmId || !refreshToken) {
-        redirect(
-          `/app/connections?error=${encodeURIComponent(
-            "QuickBooks needs both the company id and the refresh token.",
-          )}`,
-        );
-      }
-      await prisma.connection.create({
-        data: {
-          clientId: c.id,
-          connector: connector.id,
-          label,
-          events,
-          credentials: { realmId, refreshToken, environment } as never,
-          createdBy: who.email ?? who.userId,
-        },
-      });
-      revalidatePath("/app/connections");
-      redirect(
-        `/app/connections?note=${encodeURIComponent(
-          "QuickBooks connected. Release one estimate and check it lands before you rely on it.",
-        )}`,
-      );
-    }
+    // An OAuth connector is never created from this form — the callback creates
+    // it, because only the callback has the credentials.
+    if (connector.oauthStart) return;
 
     const checked = validateEndpoint(String(formData.get("url") ?? ""));
     if (!checked.ok) {
@@ -169,16 +144,32 @@ export default async function ConnectionsPage({
     "use server";
     const { client: c } = await requireClient();
     const id = String(formData.get("id") ?? "");
-    const owned = await prisma.connection.findFirst({
-      where: { id, clientId: c.id },
-      select: { id: true },
-    });
+    const owned = await prisma.connection.findFirst({ where: { id, clientId: c.id } });
     if (!owned) return;
+
+    // Hand an OAuth grant back before dropping the row. Leaving a live token
+    // against somebody's books after they pressed disconnect is not a thing to
+    // shrug at — best effort, because the row is going either way.
+    let revoked = true;
+    if (owned.connector === "quickbooks" && owned.credentials) {
+      const intuitId = env.optional("QUICKBOOKS_CLIENT_ID");
+      const intuitSecret = env.optional("QUICKBOOKS_CLIENT_SECRET");
+      if (intuitId && intuitSecret) {
+        const { revokeToken } = await import("@/lib/quickbooks");
+        revoked = await revokeToken(owned.credentials as never, {
+          clientId: intuitId,
+          clientSecret: intuitSecret,
+        });
+      }
+    }
+
     await prisma.connection.delete({ where: { id: owned.id } });
     revalidatePath("/app/connections");
     redirect(
       `/app/connections?note=${encodeURIComponent(
-        "Disconnected. Anything still queued for it went with it.",
+        revoked
+          ? "Disconnected. Anything still queued for it went with it."
+          : "Disconnected here, but QuickBooks did not confirm the token was revoked. Remove this app under Apps in QuickBooks to be certain.",
       )}`,
     );
   }
@@ -390,6 +381,45 @@ export default async function ConnectionsPage({
             ))}
           </ol>
 
+          {adding.oauthStart ? (
+            <div className="mt-5 space-y-3">
+              {oauthReady(adding) ? (
+                <>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button asChild>
+                      <a href={`${adding.oauthStart}?environment=production`}>
+                        Connect {adding.name}
+                      </a>
+                    </Button>
+                    <a
+                      href={`${adding.oauthStart}?environment=sandbox`}
+                      className="text-xs text-muted-foreground hover:text-cyan"
+                    >
+                      Connect the sandbox instead
+                    </a>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    You will approve this on Intuit&apos;s own sign-in page. We never see your
+                    QuickBooks password. Which events it takes is fixed by what QuickBooks can
+                    sensibly accept —{" "}
+                    <span className="text-foreground">
+                      {acceptedEvents(adding).join(" and ")}
+                    </span>
+                    .
+                  </p>
+                </>
+              ) : (
+                <p className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
+                  QuickBooks is not configured on this deployment yet, so the Connect button would
+                  only fail. Nothing is wrong on your side — ask us to set it up and it becomes a
+                  single click.
+                </p>
+              )}
+              <a href="/app/connections" className="block text-sm text-muted-foreground hover:text-cyan">
+                Cancel
+              </a>
+            </div>
+          ) : (
           <form action={add} className="mt-5 space-y-4">
             <input type="hidden" name="connector" value={adding.id} />
 
@@ -462,6 +492,7 @@ export default async function ConnectionsPage({
               </a>
             </div>
           </form>
+          )}
         </Card>
       ) : (
         <section className="space-y-3">
@@ -548,6 +579,16 @@ export default async function ConnectionsPage({
       </Card>
     </div>
   );
+}
+
+/**
+ * Whether the OAuth button would actually work.
+ *
+ * Checked so an owner is told "ask us to set it up" rather than being sent to
+ * Intuit with an empty client id and reading their error instead of ours.
+ */
+function oauthReady(connector: Connector): boolean {
+  return (connector.requiresEnv ?? []).every((name) => Boolean(env.optional(name)));
 }
 
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {

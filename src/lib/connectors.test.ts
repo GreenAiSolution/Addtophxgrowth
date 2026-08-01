@@ -36,7 +36,29 @@ describe("the registry", () => {
       expect(c.name.length).toBeGreaterThan(0);
       expect(c.does.length).toBeGreaterThan(0);
       expect(c.setup.length).toBeGreaterThan(0);
-      expect(c.fields.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("gives every connector a way in — fields to fill or a button to press", () => {
+    // A connector with neither is one the screen renders as an empty form.
+    for (const c of CONNECTORS) {
+      expect(c.fields.length > 0 || Boolean(c.oauthStart), c.id).toBe(true);
+    }
+  });
+
+  it("names the deploy variables an OAuth connector needs", () => {
+    // Without this the button sends the owner to the destination with an empty
+    // client id, and they read the destination's error instead of ours.
+    for (const c of CONNECTORS.filter((c) => c.oauthStart)) {
+      expect(c.requiresEnv?.length, c.id).toBeGreaterThan(0);
+    }
+  });
+
+  it("asks nobody to paste a token by hand", () => {
+    // The paste-a-refresh-token flow is where a small business gives up. If a
+    // connector ever grows a secret field again, it needs a very good reason.
+    for (const c of CONNECTORS) {
+      expect(c.fields.some((f) => f.secret), c.id).toBe(false);
     }
   });
 

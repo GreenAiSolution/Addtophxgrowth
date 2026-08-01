@@ -170,6 +170,133 @@ export function estimatePayload(
 // ---------------------------------------------------------------------------
 
 const TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
+const AUTHORIZE_URL = "https://appcenter.intuit.com/connect/oauth2";
+const REVOKE_URL = "https://developer.api.intuit.com/v2/oauth2/tokens/revoke";
+
+/** The only scope this needs. Asking for more would be asking for a refusal. */
+export const QBO_SCOPE = "com.intuit.quickbooks.accounting";
+
+/**
+ * The callback address, registered with Intuit.
+ *
+ * Lives here rather than on the start route so the callback does not have to
+ * import an authenticated page to learn its own address — the callback is
+ * reached by a browser coming back from Intuit and must not depend on a
+ * session, on purpose.
+ */
+export function quickBooksRedirectUri(siteUrl: string): string {
+  return `${siteUrl.replace(/\/$/, "")}/api/connectors/quickbooks/callback`;
+}
+
+/**
+ * Where to send the owner to say yes.
+ *
+ * This exists so a business owner never has to visit developer.intuit.com. We
+ * hold one Intuit app at the platform level and they click a button — the
+ * alternative, which this replaces, was asking a roofer to register an OAuth
+ * client and paste a refresh token, which is not a thing that happens.
+ */
+export function authorizeUrl(input: {
+  clientId: string;
+  redirectUri: string;
+  state: string;
+}): string {
+  const q = new URLSearchParams({
+    client_id: input.clientId,
+    response_type: "code",
+    scope: QBO_SCOPE,
+    redirect_uri: input.redirectUri,
+    state: input.state,
+  });
+  return `${AUTHORIZE_URL}?${q.toString()}`;
+}
+
+/** Swap the one-time code Intuit sent back for the tokens we keep. */
+export async function exchangeCode(input: {
+  code: string;
+  realmId: string;
+  redirectUri: string;
+  environment: QuickBooksConfig["environment"];
+  creds: { clientId: string; clientSecret: string };
+}): Promise<{ ok: true; config: QuickBooksConfig } | { ok: false; detail: string }> {
+  const basic = Buffer.from(`${input.creds.clientId}:${input.creds.clientSecret}`).toString("base64");
+  const res = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: {
+      authorization: `Basic ${basic}`,
+      "content-type": "application/x-www-form-urlencoded",
+      accept: "application/json",
+    },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code: input.code,
+      redirect_uri: input.redirectUri,
+    }).toString(),
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    return {
+      ok: false,
+      detail: `QuickBooks would not complete the connection (${res.status}). ${text.slice(0, 200)}`,
+    };
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return { ok: false, detail: "QuickBooks returned a response we could not read." };
+  }
+
+  const refreshToken = typeof body.refresh_token === "string" ? body.refresh_token : null;
+  if (!refreshToken) return { ok: false, detail: "QuickBooks returned no refresh token." };
+
+  const expiresIn = typeof body.expires_in === "number" ? body.expires_in : 3600;
+  return {
+    ok: true,
+    config: {
+      realmId: input.realmId,
+      refreshToken,
+      environment: input.environment,
+      ...(typeof body.access_token === "string"
+        ? {
+            accessToken: body.access_token,
+            accessTokenExpiresAt: new Date(Date.now() + (expiresIn - 60) * 1000).toISOString(),
+          }
+        : {}),
+    },
+  };
+}
+
+/**
+ * Hand the token back to Intuit when a client disconnects.
+ *
+ * Best-effort and never throws: the row is going regardless, and a token we
+ * failed to revoke expires on its own. But leaving a live grant against
+ * somebody's books after they pressed disconnect is not something to shrug at,
+ * so we do ask.
+ */
+export async function revokeToken(
+  cfg: QuickBooksConfig,
+  creds: { clientId: string; clientSecret: string },
+): Promise<boolean> {
+  try {
+    const basic = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString("base64");
+    const res = await fetch(REVOKE_URL, {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${basic}`,
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({ token: cfg.refreshToken }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 export interface QboResult {
   ok: boolean;
