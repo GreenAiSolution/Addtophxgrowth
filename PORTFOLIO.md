@@ -22,6 +22,7 @@ Live URLs verified as configured in the repos (CNAME files / deploy configs):
 | greenaisolution.github.io/omniagent | `omniagent` |
 | greenaisolution.github.io/omniagent-system | `omniagent-system` |
 | greenaisolution.github.io/greenai-aether | `greenai-aether` |
+| pixel-pilot-snowy.vercel.app | `Pixel-Pilot-` (Vercel production deployment) |
 
 ---
 
@@ -127,7 +128,7 @@ crystals, customize add-ons, and activate — a five-stage cinematic checkout.
 sites.
 
 ### Pixel Pilot — cinematic 3D marketing platform
-**Repo:** [`Pixel-Pilot-`](https://github.com/GreenAiSolution/Pixel-Pilot-) (public)
+**Repo:** [`Pixel-Pilot-`](https://github.com/GreenAiSolution/Pixel-Pilot-) (public) · **Live:** [pixel-pilot-snowy.vercel.app](https://pixel-pilot-snowy.vercel.app) (Vercel production)
 Next.js 16 / React 19 / React Three Fiber / Tailwind v4 platform with ten
 service sections, live OAuth connector endpoints, a Higgsfield-powered
 Creative Forge, lead capture, and n8n workflow triggers. Everything demos with
