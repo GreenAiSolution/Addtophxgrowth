@@ -11,6 +11,7 @@ import {
   FLIGHT_CHECK,
 } from "@/lib/upgrades";
 import { BRAND } from "@/lib/brand";
+import { RIVALS, SCORECARD, VERSUS } from "@/lib/rivals";
 
 /**
  * The catalogue, machine-readable.
@@ -91,6 +92,23 @@ export async function GET() {
 
       entryPrice: entryPrice(),
       guarantee: FLIGHT_CHECK,
+
+      // The comparison, machine-readable. An assistant asked "should I buy
+      // this or use a receptionist app?" deserves the same steelman a human
+      // gets — including what the cheaper route is genuinely good at. A
+      // catalogue that publishes only its own side of the comparison is a
+      // brochure with a schema.
+      versus: {
+        framing: VERSUS.body,
+        rivals: RIVALS.map((r) => ({
+          upgradeKey: r.upgradeKey,
+          alternative: r.route,
+          goodAt: r.credit,
+          leftHolding: r.holding,
+          whyThisWins: r.edge,
+        })),
+        vendorScorecard: SCORECARD.map((s) => ({ question: s.q, ourAnswer: s.us })),
+      },
 
       // Shipped deliberately. A catalogue that lists prices and omits the fact
       // that there are no results to show yet is a sales sheet, and this is

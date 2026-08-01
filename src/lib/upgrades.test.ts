@@ -30,6 +30,7 @@ import {
   FLIGHT_CHECK,
   FAIR_QUESTIONS,
 } from "@/lib/upgrades";
+import { RIVALS, SCORECARD, VERSUS } from "@/lib/rivals";
 
 describe("the services these attach to", () => {
   it("names all three PHX/GROWTH à la carte services once each", () => {
@@ -470,6 +471,14 @@ describe("the upgrades", () => {
       THESIS.headline,
       THESIS.body,
       ...FAIR_QUESTIONS.flatMap((f) => [f.q, f.a]),
+      // The comparison lives in its own module, but "anywhere" means anywhere:
+      // an invented statistic in a rival's edge would be the most damaging
+      // place on the site to put one, because the section's whole authority is
+      // that it plays fair.
+      VERSUS.headline,
+      VERSUS.body,
+      ...RIVALS.flatMap((r) => [r.route, r.credit, r.holding, r.edge]),
+      ...SCORECARD.flatMap((s) => [s.q, s.us]),
     ].join(" ");
 
     // A percentage is only allowed if it is one of PHX/GROWTH's real

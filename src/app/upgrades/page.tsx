@@ -22,6 +22,7 @@ import {
   upgradesFor,
   entryPrice,
 } from "@/lib/upgrades";
+import { SCORECARD, VERSUS, rivalFor } from "@/lib/rivals";
 import { formatCurrency, cn } from "@/lib/utils";
 import { env } from "@/lib/env";
 import { Enquiry } from "@/components/marketing/enquiry";
@@ -571,6 +572,112 @@ export default function UpgradesPage() {
                 <span className="font-semibold text-foreground/80">{b.name}.</span> {b.rationale}
               </p>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Against the alternatives ───────────────────────────────────── */}
+      {/*
+        The section that decides the sale. A visitor reading a four-figure
+        monthly price is comparing it to a marketplace, an app or a dashboard
+        they have already seen an ad for — and if this page stays silent, they
+        run that comparison on the rival's landing page, with the rival writing
+        both columns.
+
+        So it happens here, and it plays fair on purpose: every rival gets a
+        real steelman, no vendor is named, and every edge is anchored to an
+        operator, service or published mechanism rather than a slogan.
+        `rivals.test.ts` fails the build on all three, because each failure
+        mode reads as good marketing right up until it costs the page its
+        credibility.
+      */}
+      <section id="versus" className="scroll-mt-24 border-t border-white/[0.06] py-14 md:py-16">
+        <div className="container">
+          <p className="eyebrow text-[0.62rem] text-cyan">{VERSUS.eyebrow}</p>
+          <h2 className="mt-4 max-w-2xl text-[1.75rem] font-bold leading-tight tracking-tight md:text-4xl">
+            {VERSUS.headline}
+          </h2>
+          <p className="mt-3 max-w-2xl text-[0.95rem] leading-relaxed text-muted-foreground">
+            {VERSUS.body}
+          </p>
+
+          <div className="mt-9 space-y-4">
+            {UPGRADES.map((u) => {
+              const rival = rivalFor(u.key);
+              if (!rival) return null;
+              return (
+                <article
+                  key={u.key}
+                  className="rounded-2xl border border-white/[0.07] bg-black/20 p-5 md:p-6"
+                >
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+                    <h3 className="font-bold tracking-tight">
+                      <a href={`#${u.key}`} className="transition-colors hover:text-cyan">
+                        {u.name}
+                      </a>
+                    </h3>
+                    <span className="font-mono text-[0.72rem] tabular-nums text-muted-foreground">
+                      {priceLine(u.price, u.billing)}
+                    </span>
+                    <span aria-hidden className="text-muted-foreground/40">
+                      vs
+                    </span>
+                    <span className="chip border-white/10 bg-white/[0.03] text-muted-foreground">
+                      {rival.route}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 border-t border-white/[0.06] pt-4 lg:grid-cols-3">
+                    <div>
+                      <p className="eyebrow text-[0.56rem] text-signal">
+                        What it&rsquo;s genuinely good at
+                      </p>
+                      <p className="mt-2 text-[0.82rem] leading-relaxed text-muted-foreground">
+                        {rival.credit}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="eyebrow text-[0.56rem] text-muted-foreground/70">
+                        What you&rsquo;re left holding
+                      </p>
+                      <p className="mt-2 text-[0.82rem] leading-relaxed text-muted-foreground">
+                        {rival.holding}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="eyebrow text-[0.56rem] text-gold">Why this wins here</p>
+                      <p className="mt-2 text-[0.82rem] leading-relaxed text-foreground/85">
+                        {rival.edge}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {/* The scorecard — the questions that decide it, handed over. */}
+          <div className="mt-8 rounded-2xl border border-cyan/25 bg-cyan/[0.03] p-5 md:p-7">
+            <p className="eyebrow text-[0.6rem] text-cyan">The vendor scorecard</p>
+            <h3 className="mt-3 max-w-2xl text-xl font-bold leading-snug tracking-tight md:text-2xl">
+              Take these {SCORECARD.length} questions to any vendor. Here are our answers, in
+              public.
+            </h3>
+            <p className="mt-3 max-w-2xl text-[0.88rem] leading-relaxed text-muted-foreground">
+              Every answer below is checkable on this site today — the additive rules are
+              tests, the prices are machine-readable, and the guarantee is the parent&rsquo;s
+              own. Grade the others with the same sheet.
+            </p>
+            <dl className="mt-6 grid gap-x-8 gap-y-6 md:grid-cols-2">
+              {SCORECARD.map((s) => (
+                <div key={s.q}>
+                  <dt className="font-semibold text-[0.95rem]">{s.q}</dt>
+                  <dd className="mt-2 text-[0.84rem] leading-relaxed text-muted-foreground">
+                    {s.us}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </div>
       </section>
