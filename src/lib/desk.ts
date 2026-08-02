@@ -344,7 +344,7 @@ async function dispatch(
   }
 
   try {
-    const action = await propose({
+    const { action, created } = await propose({
       clientId: ctx.clientId,
       kind: kind.key,
       summary: String(input.summary ?? kind.label),
@@ -357,19 +357,22 @@ async function dispatch(
       dedupeKey: dedupeKeyFor(ctx.employee.slug, op, input),
     });
 
-    ctx.proposals += 1;
+    // Only a new row counts. `proposed` on the run record means "reached the
+    // gate", and a dedupe hit reached a row that was already there.
+    if (created) ctx.proposals += 1;
 
     return {
       status: "OK",
       pendingActionId: action.id,
       result: {
-        queued: true,
+        queued: created,
         queue_id: action.id,
         hold: action.hold,
         state: action.state,
         releases_at: action.releaseAt?.toISOString() ?? null,
-        note:
-          action.hold === "MANUAL"
+        note: !created
+          ? "Already in the queue — you or an earlier run proposed this exact action. Nothing new was added. Do not try again; move on."
+          : action.hold === "MANUAL"
             ? "Waiting for a named person at this business. Nothing has been sent."
             : "Visible to the business now; sends when the review window closes unless somebody pulls it.",
       },
@@ -588,15 +591,23 @@ export async function runDuty(input: RunDutyInput): Promise<RunDutyResult> {
     let finalText = "";
     let report: DutyReport | null = null;
     let lastFailure: { reason: EscalationReason; detail: string } | null = null;
+    /** Model calls that threw. Bounds the retry, and paces the backoff. */
+    let modelFailures = 0;
+    /** Set when the model errors have run out of road, to leave both loops. */
+    let outOfRetries = false;
 
-    // Each attempt is a full tool loop followed by a report. A bad report costs
-    // one more attempt, not one more whole run — the tool calls already made
-    // are real and must not be repeated.
-    for (attempts = 1; attempts <= MAX_ATTEMPTS && !report; attempts++) {
+    // Each report attempt is a full tool loop followed by a report. A bad
+    // report costs one more attempt, not one more whole run — the tool calls
+    // already made are real and must not be repeated.
+    //
+    // `attempts` counts every model call the run makes, which is what the run
+    // record means by it and what somebody reading a failed run needs to know.
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS && !report && !outOfRetries; attempt++) {
       let turns = 0;
 
       while (turns < MAX_TOOL_TURNS) {
         turns++;
+        attempts++;
         let res;
         try {
           res = await anthropic().messages.create({
@@ -607,9 +618,26 @@ export async function runDuty(input: RunDutyInput): Promise<RunDutyResult> {
             messages,
           });
         } catch (e) {
+          /*
+            Counted separately from `attempts`, and the first version of this
+            was wrong in a way only a real run showed.
+
+            `attempts` belongs to the outer loop and does not move inside the
+            tool loop, so passing it here meant `nextStep` was always asked
+            about attempt 1 and always said retry — the real bound became
+            MAX_TOOL_TURNS, and `backoffMs(1)` returned the same 500ms every
+            time. Against an API that was down, one duty made eight rapid calls
+            and then recorded `attempts: 1`. Bounded, but by the wrong constant,
+            with no growing backoff, and reported as something that never
+            happened.
+          */
+          modelFailures++;
           lastFailure = { reason: "MODEL_ERROR", detail: (e as Error).message };
-          if (nextStep("MODEL_ERROR", attempts) === "escalate") break;
-          await new Promise((r) => setTimeout(r, backoffMs(attempts)));
+          if (nextStep("MODEL_ERROR", modelFailures) === "escalate") {
+            outOfRetries = true;
+            break;
+          }
+          await new Promise((r) => setTimeout(r, backoffMs(modelFailures)));
           continue;
         }
 
@@ -692,7 +720,7 @@ export async function runDuty(input: RunDutyInput): Promise<RunDutyResult> {
       }
 
       lastFailure = { reason: "INVALID_OUTPUT", detail: parsed.error };
-      if (nextStep("INVALID_OUTPUT", attempts) === "escalate") break;
+      if (nextStep("INVALID_OUTPUT", attempt) === "escalate") break;
       messages.push({ role: "user", content: repairPrompt(parsed.error, finalText) });
       finalText = "";
     }

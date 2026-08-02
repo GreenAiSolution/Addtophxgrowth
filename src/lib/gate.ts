@@ -375,6 +375,12 @@ export interface ProposeInput {
  * Queue an action. Returns the existing row if this client has already
  * proposed the same `dedupeKey`, so a re-running agent is safe by
  * construction rather than by remembering to check.
+ *
+ * `created` says which of the two happened, and it is not a convenience. A
+ * caller that cannot tell "queued" from "already queued" cannot report either
+ * one honestly — the first rehearsal run recorded three proposals against two
+ * queue rows, and told the model it had queued something it had not. Both are
+ * small lies in a feature whose entire pitch is that the record can be trusted.
  */
 export async function propose(input: ProposeInput) {
   const kind = kindByKey(input.kind);
@@ -386,9 +392,9 @@ export async function propose(input: ProposeInput) {
   const existing = await prisma.pendingAction.findUnique({
     where: { clientId_dedupeKey: { clientId: input.clientId, dedupeKey: input.dedupeKey } },
   });
-  if (existing) return existing;
+  if (existing) return { action: existing, created: false };
 
-  return prisma.pendingAction.create({
+  const action = await prisma.pendingAction.create({
     data: {
       clientId: input.clientId,
       build: kind.build,
@@ -404,6 +410,8 @@ export async function propose(input: ProposeInput) {
       dedupeKey: input.dedupeKey,
     },
   });
+
+  return { action, created: true };
 }
 
 /**
