@@ -12,6 +12,12 @@ import { env } from "@/lib/env";
  * whole file wasted. `siteUrl` reads Vercel's own domain variables, so a deploy
  * identifies itself correctly with no dashboard step.
  *
+ * `/present` is the follow-up deck we screen-share on sales calls. It is
+ * unlisted rather than authenticated — a rep opening it thirty seconds before a
+ * call cannot be stopped by a login — so this block, its `noindex` metadata and
+ * its absence from the sitemap are the whole of what keeps it out of a search
+ * result for the business.
+ *
  * `/api/catalogue` is the one deliberate exception to the `/api/` block. This
  * site sells Answer Engine Visibility — being the business a model can
  * describe accurately — and blocking the one endpoint that states our offer in
@@ -40,7 +46,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/api/catalogue"],
-        disallow: ["/app/", "/admin/", "/api/", "/login"],
+        disallow: ["/app/", "/admin/", "/api/", "/login", "/present"],
       },
     ],
     sitemap: `${base}/sitemap.xml`,
