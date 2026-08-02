@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" width="900" height="900" role="img" aria-label="hg seal">
+  <title>hg seal</title>
+  <defs><path id="hg-seal-band" d="M450 844A394 394 0 0 1 450 56A394 394 0 0 1 450 844" fill="none"/></defs>
+  <circle cx="450" cy="450" r="436" fill="none" stroke="currentColor" stroke-width="7"/>
+  <circle cx="450" cy="450" r="352" fill="none" stroke="currentColor" stroke-width="2.5"/>
+  <text fill="currentColor" font-family="ui-sans-serif, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="43" letter-spacing="12"><textPath href="#hg-seal-band" startOffset="50%" text-anchor="middle">HANDMADE BY HALLE</textPath></text>
+  <g transform="translate(267.3 167.2) scale(0.7)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="21" d="M78 466C76 396 76 334 78 288C80 214 82 148 85 94C87 52 64 20 52 48C42 72 62 152 70 216C74 252 76 270 78 288"/>
+    <path stroke-width="21" d="M79 302C86 240 130 208 188 222C248 238 294 278 322 322C346 358 346 414 316 446C286 478 232 480 196 454C158 428 150 378 166 334C178 300 200 272 230 250"/>
+    <path stroke-width="21" d="M336 410C358 464 367 540 367 620C367 690 339 754 295 772C251 790 204 768 202 726C200 686 226 646 262 596"/>
+    <path stroke-width="21" d="M262 596C264.9 592 267.8 587.8 271 583.5"/>
+    <path stroke-width="21" d="M271 583.5C274.1 579.1 277.4 574.5 280.8 569.7"/>
+    <path stroke-width="21" d="M280.8 569.7C284.2 564.9 287.8 559.8 291.5 554.5"/>
+    <path stroke-width="21" d="M291.5 554.5C295.3 549.2 299.2 543.7 303.2 537.8"/>
+    <path stroke-width="20.9" d="M303.2 537.8C307.3 532 311.5 525.8 315.9 519.3"/>
+    <path stroke-width="20.8" d="M315.9 519.3C320.3 512.9 324.9 506.1 329.6 499"/>
+    <path stroke-width="20.5" d="M329.6 499C334.4 491.8 339.4 484.4 344.5 476.5"/>
+    <path stroke-width="20" d="M344.5 476.5C349.6 468.6 355 460.4 360.5 451.8"/>
+    <path stroke-width="19.3" d="M360.5 451.8C366.1 443.1 371.8 434.1 377.8 424.6"/>
+    <path stroke-width="18.1" d="M377.8 424.6C383.7 415.1 389.9 405.2 396.3 394.8"/>
+    <path stroke-width="16.5" d="M396.3 394.8C402.6 384.4 409.2 373.6 416.1 362.2"/>
+    <path stroke-width="14.2" d="M416.1 362.2C422.9 350.9 430 339 437.3 326.7"/>
+    <path stroke-width="11.1" d="M437.3 326.7C444.6 314.3 452.1 301.4 459.9 288"/>
+    <path stroke-width="7" d="M459.9 288C467.7 274.6 475.7 260.6 484 246"/>
+  </g>
+</svg>
