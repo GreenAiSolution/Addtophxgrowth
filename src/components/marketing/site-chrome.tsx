@@ -71,9 +71,13 @@ export function SiteFooter() {
     <footer className="border-t border-white/[0.06] py-12">
       <div className="container space-y-6">
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-          <Link href="/" className="transition-colors hover:text-foreground">The tools</Link>
+          <Link href="/tools" className="transition-colors hover:text-foreground">The tools</Link>
+          <Link href="/map" className="transition-colors hover:text-foreground">The system map</Link>
           <Link href="/upgrades" className="transition-colors hover:text-foreground">
             Upgrades &amp; prices
+          </Link>
+          <Link href="/get-a-price" className="transition-colors hover:text-foreground">
+            Get a price
           </Link>
           <a
             href={`mailto:${BRAND.parent.email}`}

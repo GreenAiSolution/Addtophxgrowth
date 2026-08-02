@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight, ArrowLeft, Check } from "lucide-react";
+import { ArrowUpRight, ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 import {
   PARENT_SERVICES,
@@ -142,7 +142,7 @@ export default function UpgradesPage() {
             >
               {BRAND.parent.name} <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
-            <Link href="/" className="pill-ghost px-4 py-2.5 text-sm">
+            <Link href="/tools" className="pill-ghost px-4 py-2.5 text-sm">
               <ArrowLeft className="h-4 w-4" />
               <span className="sm:hidden">Tools</span>
               <span className="hidden sm:inline">Try the tools</span>
@@ -359,9 +359,9 @@ export default function UpgradesPage() {
             </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {automationBuilds().map((u) => (
-                <a
+                <Link
                   key={u.key}
-                  href={`#${u.key}`}
+                  href={`/upgrades/${u.key}`}
                   className="flex items-baseline justify-between gap-3 rounded-xl border border-gold/25 bg-black/25 px-4 py-3.5 transition-colors hover:border-gold/50"
                 >
                   <span className="min-w-0">
@@ -373,7 +373,7 @@ export default function UpgradesPage() {
                   <span className="shrink-0 font-mono text-[0.78rem] tabular-nums text-gold">
                     {priceLine(u.price, u.billing)}
                   </span>
-                </a>
+                </Link>
               ))}
             </div>
           </div>
@@ -424,12 +424,28 @@ export default function UpgradesPage() {
                         )}
                       </div>
 
+                      {/* The card is the summary; the page is the argument.
+                          Linking the heading rather than adding a second button
+                          keeps the row's shape and gives the detail page the
+                          anchor text it should actually rank for. */}
                       <h3 className="mt-3.5 text-2xl font-bold tracking-tight md:text-3xl">
-                        {u.name}
+                        <Link
+                          href={`/upgrades/${u.key}`}
+                          className="transition-colors hover:text-cyan"
+                        >
+                          {u.name}
+                        </Link>
                       </h3>
                       <p className="mt-2.5 max-w-xl text-[0.98rem] leading-relaxed text-muted-foreground">
                         {u.promise}
                       </p>
+                      <Link
+                        href={`/upgrades/${u.key}`}
+                        className="mt-3 inline-flex items-center gap-1.5 text-[0.82rem] text-cyan hover:underline"
+                      >
+                        Why this, and what it bolts onto
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
 
                       <p className="mt-4 text-[0.8rem] text-muted-foreground/70">
                         <span className="eyebrow text-[0.56rem] text-gold">Fixes</span>{" "}
@@ -523,7 +539,11 @@ export default function UpgradesPage() {
                       Everything, at once
                     </span>
                   )}
-                  <h3 className="text-xl font-bold tracking-tight">{b.name}</h3>
+                  <h3 className="text-xl font-bold tracking-tight">
+                    <Link href={`/stacks/${b.key}`} className="transition-colors hover:text-cyan">
+                      {b.name}
+                    </Link>
+                  </h3>
                   <p className="mt-2 text-[0.88rem] leading-relaxed text-muted-foreground">
                     {b.promise}
                   </p>
@@ -534,7 +554,12 @@ export default function UpgradesPage() {
                         key={u.key}
                         className="flex items-baseline justify-between gap-3 text-[0.82rem]"
                       >
-                        <span>{u.name}</span>
+                        <Link
+                          href={`/upgrades/${u.key}`}
+                          className="min-w-0 truncate transition-colors hover:text-cyan"
+                        >
+                          {u.name}
+                        </Link>
                         <span className="shrink-0 font-mono text-[0.7rem] tabular-nums text-muted-foreground/60 line-through">
                           {formatCurrency(u.price)}
                         </span>
@@ -555,6 +580,13 @@ export default function UpgradesPage() {
                     <p className="mt-1.5 font-mono text-[0.72rem] tabular-nums text-signal">
                       Saves {formatCurrency(bundleSaving(b))}/mo
                     </p>
+                    <Link
+                      href={`/stacks/${b.key}`}
+                      className="mt-3 inline-flex items-center gap-1.5 text-[0.8rem] text-cyan hover:underline"
+                    >
+                      See the stack
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
                   </div>
                 </div>
               );

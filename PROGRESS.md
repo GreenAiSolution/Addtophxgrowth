@@ -626,6 +626,63 @@ taller rung buys less than it looks like it does once the stagger exists.
 
 ---
 
+## Phase 10 — Every button lands on a page
+
+The site was two public pages and a lot of anchors. That was survivable while
+the catalogue was five items on one screen; it stopped being so once each
+upgrade had an argument worth reading. Fifteen new routes, all generated:
+
+- **`/upgrades/[key]`** (8, prerendered) — the full sales page per upgrade:
+  promise, the entire demand argument rather than the two lines a card holds,
+  what you get, the service it bolts onto with that service's own bullet list,
+  where that service stops, the FAQ answer that promises nothing is billed
+  twice, the stacks it belongs to priced against buying it alone, its siblings,
+  and the form arriving with that one upgrade ticked.
+- **`/stacks/[key]`** (4, prerendered) — promise, why the members compound,
+  every member linked and priced, and the arithmetic shown three ways: list,
+  stack, saving.
+- **`/tools`, `/map`, `/get-a-price`** — the three surfaces that were only ever
+  reachable as `#tools`-style anchors into the middle of a long page.
+
+`/get-a-price` takes `?add=` and `?stack=`, both validated against the
+catalogue so a stale link degrades to an empty form rather than 404ing the one
+page that takes orders. A stack link ticks all its members, and the existing
+exact-match logic then quotes the bundle price automatically.
+
+### `routes.test.ts` — the check that was missing
+
+Nothing in the suite could see a link. The catalogue is checked against the
+parent's copy, prices against each other, the map for overlapping nodes — and a
+button pointing at a route nobody built renders and styles perfectly, then 404s
+only for the visitor.
+
+That went from theoretical to likely the moment the links became generated:
+the failure mode is no longer a typo in one `href`, it is a route directory
+renamed out from under a template literal. One rename, fifteen dead buttons,
+nothing red.
+
+So the route table is read from the filesystem (`src/app/**/page.tsx`, group
+segments dropped, `[param]` as a wildcard — what Next actually does), every
+`href` literal in the app and the marketing components is resolved against it,
+and template literals have their interpolations blanked so `/upgrades/${u.key}`
+is matched as `/upgrades/*`. Anything not statically knowable is skipped rather
+than guessed. **Verified non-vacuous both ways**: a hand-typed `/pricing` and a
+`/stacks/` → `/bundles/` rename each fail it, and each names the file and line.
+
+### One real finding
+
+`SystemMap` reads the shared selection store, so `/map` could not render it —
+the build failed on a `usePlayground` outside its provider rather than shipping
+something broken. `Playground` now takes `rail={false}`: the store still has to
+be provided (add an upgrade from the map, open the deck, the composer has it),
+but the instrument rail must not come with it, because every dot on that rail
+is an anchor into a module that is not on that page. Seven dead links, rendered
+by the component whose whole job is telling you where you are.
+
+Sitemap grew from 5 URLs to 20, all generated from `UPGRADES` and `BUNDLES`.
+
+---
+
 ## Verified this session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
   pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (260 tests, 11 files).

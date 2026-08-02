@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { LEGAL_DOCUMENTS } from "@/lib/legal";
+import { UPGRADES, BUNDLES } from "@/lib/upgrades";
 import { env } from "@/lib/env";
 
 /**
@@ -35,6 +36,46 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: 0.9,
+    },
+    /*
+      One entry per upgrade and per stack, generated from the catalogue.
+
+      These are the pages worth ranking: "what does an AI answering service
+      cost" is a query about one product, and until each had an address the
+      only answer we could offer a crawler was a list of eight. Generated
+      rather than listed, for the same reason the legal set is — a ninth
+      upgrade should be discoverable the moment it ships, not whenever somebody
+      remembers this file exists.
+    */
+    ...UPGRADES.map((u) => ({
+      url: `${base}/upgrades/${u.key}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    })),
+    ...BUNDLES.map((b) => ({
+      url: `${base}/stacks/${b.key}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    })),
+    {
+      url: `${base}/tools`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    },
+    {
+      url: `${base}/map`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    },
+    {
+      url: `${base}/get-a-price`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
     },
     ...LEGAL_DOCUMENTS.map((d) => ({
       url: `${base}/legal/${d.slug}`,

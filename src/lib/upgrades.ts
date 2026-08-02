@@ -956,6 +956,17 @@ export function bundleByKey(key: string): Bundle | undefined {
   return BUNDLES.find((b) => b.key === key);
 }
 
+/**
+ * Every stack an upgrade appears in.
+ *
+ * Derived, never listed on the upgrade — a `stacks: [...]` field on both sides
+ * is two lists to keep in step, and the detail page would happily render a
+ * stack the bundle itself no longer carries.
+ */
+export function bundlesWith(upgradeKey: string): Bundle[] {
+  return BUNDLES.filter((b) => b.members.includes(upgradeKey));
+}
+
 export function bundleMembers(bundle: Bundle): Upgrade[] {
   return bundle.members
     .map((k) => upgradeByKey(k))

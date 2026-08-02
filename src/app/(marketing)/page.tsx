@@ -327,6 +327,25 @@ export default function Home() {
                   Upgrades &amp; prices
                 </Link>
               </li>
+              <li>
+                <Link href="/get-a-price" className="transition-colors hover:text-foreground">
+                  Get a price
+                </Link>
+              </li>
+              {/* The pages behind the anchors below. The deck's own links are
+                  in-page jumps, which is right while you are on the deck and
+                  useless in a search result or a pasted link — so the two
+                  surfaces that deserve an address have one. */}
+              <li>
+                <Link href="/tools" className="transition-colors hover:text-foreground">
+                  All {DECK.length - 1} tools
+                </Link>
+              </li>
+              <li>
+                <Link href="/map" className="transition-colors hover:text-foreground">
+                  The system map
+                </Link>
+              </li>
               {DECK.map((d) => (
                 <li key={d.id}>
                   <a href={`#${d.id}`} className="transition-colors hover:text-foreground">

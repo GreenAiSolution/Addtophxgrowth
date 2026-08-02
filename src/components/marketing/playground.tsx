@@ -117,7 +117,26 @@ const SAMPLE = {
   exponent: 0.62,
 };
 
-export function Playground({ children }: { children: React.ReactNode }) {
+/**
+ * `rail` exists for the map's own page.
+ *
+ * The Hud is a contents bar for the deck: a dot per instrument, each one an
+ * anchor into a module further down the same page. On `/map` there are no
+ * modules further down, so every one of those anchors would point at an id
+ * that does not exist on the document — seven dead links, rendered by a
+ * component whose whole job is to tell you where you are.
+ *
+ * The store still has to be provided, because the map reads and writes the
+ * same selection the deck does: add an upgrade from the map on its own page,
+ * then open the deck, and the composer already has it.
+ */
+export function Playground({
+  children,
+  rail = true,
+}: {
+  children: React.ReactNode;
+  rail?: boolean;
+}) {
   const [entity, setEntity] = React.useState<EntityAnswers>({});
   const [business, setBusiness] = React.useState("");
   const [citations, setCitations] = React.useState<CorroborationAnswers>({});
@@ -205,7 +224,7 @@ export function Playground({ children }: { children: React.ReactNode }) {
   return (
     <Ctx.Provider value={value}>
       {children}
-      <Hud onSeed={seed} onReset={reset} />
+      {rail && <Hud onSeed={seed} onReset={reset} />}
     </Ctx.Provider>
   );
 }
