@@ -586,3 +586,119 @@ better ad costs the same to run and can return several times more).
 4. Deploy to Vercel; run Lighthouse against the live URL.
 5. Wire Resend for the notification stubs; replace testimonial placeholders
    with real client results.
+
+---
+
+## Phase 16 — The revenue engine ✅
+
+The platform could deliver work unattended. It could not defend the money.
+
+An audit of the commercial path found three holes, in descending order of what
+they cost:
+
+### 1. `invoice.payment_failed` was not handled at all
+The Stripe webhook reconciled `checkout.session.completed`,
+`customer.subscription.*` and `invoice.paid` — and ignored the event that
+represents money going missing. A card expires, Stripe retries quietly for two
+weeks, gives up, and the subscription flips to `PAST_DUE` on a row nobody
+reads. **The client was never told. The desk was never told. The work carried on
+being delivered.** Involuntary churn is the largest single cause of lost revenue
+in a subscription business and it was entirely silent here.
+
+- `src/lib/dunning.ts` — a three-rung ladder (immediately, +72h, +168h), then
+  exactly one escalation to a human at +240h. `planDunning` is pure; 15 tests.
+- New `PaymentIssue` model, keyed on the Stripe invoice id so Stripe's own
+  retries advance one issue rather than starting a second ladder against the
+  same money.
+- `invoice.paid` closes it RECOVERED (and closes *first*, so a recovered payment
+  stops the ladder even if the subscription re-sync throws).
+  `customer.subscription.deleted` closes it LOST.
+- **The tone is load-bearing.** The first notice is deliberately not alarming —
+  it names the automatic retry date and says nothing changes today. An emergency
+  subject line on a problem that usually fixes itself is how people learn to
+  ignore the third email, which is the one that matters. The final rung states
+  the consequence plainly, because by then it is real. Both are pinned by tests.
+- Recovery is silent to the client on purpose.
+
+### 2. The entire sales pipeline lived in an inbox
+`/api/reserve` is the only conversion endpoint on the site and deliberately
+touches no database — the right call, and it stays. But it meant a prospect who
+configured a four-figure monthly build existed only as an email. If
+`RESEND_API_KEY` was unset, or it landed in spam, or it arrived on a busy
+Tuesday, they were gone and nothing knew they had ever existed.
+
+- `src/lib/pipeline.ts` + `Opportunity` model. Capture is **best-effort by
+  construction** — `captureOpportunity` swallows its own failures and returns
+  null — so the endpoint's survives-an-unconfigured-deploy property is intact.
+  Verified by posting a real reservation with no `DATABASE_URL`: still 200, still
+  the mailto fallback, plus one loud log line saying no follow-up was scheduled.
+- Merges into the open opportunity for that email rather than creating a second
+  one. Two rows would mean two ladders emailing the same person in parallel.
+- A three-touch ladder (+24h, +96h, +240h), then DORMANT. Front-loaded, because
+  by day ten you are reminding somebody of a decision they have already made.
+- **Every reason to stop beats every reason to send** — a reply, a stage change,
+  or the opt-out link, checked before anything else.
+- `/api/pipeline/stop` — one click, no login, token in the URL, returns a human
+  page rather than JSON. This is the only loop that emails a non-client; an
+  unattended sequence with no way off it is not something to point at a
+  stranger's inbox. A test reads the opt-out kinds **out of the ladder itself**,
+  so a fourth rung is covered the moment it exists.
+
+### 3. MRR was one number that looked the same on a good month and a bad one
+`getAdminTotals` summed active subscriptions. That figure is identical whether
+everything is fine or three clients are in dunning and a fourth has pressed
+cancel.
+
+- `src/lib/revenue.ts` — `computeRevenue` is pure and is the single source of
+  every figure on `/admin/revenue` *and* in the Monday digest, for the same
+  reason `priceCockpit` is the only pricing arithmetic in the configurator.
+- Splits committed / at-risk / pipeline rather than blending them. `PAST_DUE`
+  still counts toward MRR (the work is still being delivered) precisely so it
+  shows up in at-risk instead of vanishing. At-risk is never double-counted.
+- An open `PaymentIssue` marks a client at risk even while Stripe still says
+  ACTIVE — Stripe does not flip to `past_due` on the first decline, so status
+  alone makes the first days of a failure invisible.
+- **The win rate is evidence, not a guess.** Below `MIN_PIPELINE_EVIDENCE` (5)
+  closed opportunities the board and the digest say so instead of showing a
+  percentage. DORMANT prospects are excluded from pipeline entirely.
+- 27 tests.
+
+### Found while building
+- **The notification kind list had already drifted.** `notify.test.ts` kept a
+  hand-copied array of kinds, and three — including `ENQUIRY_RECEIPT`, the first
+  email a prospect ever receives — had shipped with no coverage at all. Kinds are
+  now a `NOTIFICATION_KINDS` registry carrying an audience (AGENCY / CLIENT /
+  PROSPECT), the type is derived from it, and the tests enumerate the real thing.
+  That also split an invariant that was wrong: "the subject must name the
+  business" is correct for the desk, which juggles many clients, and is
+  mail-merge spam when sent to the prospect themselves. Now asserted per
+  audience, with the inverse pinned too — no client or agency email can render
+  an unsubscribe link.
+- Rendering the emails for real (rather than trusting the templates) found the
+  `""` array separators were being stripped by `.filter(Boolean)`, so every new
+  message would have shipped as an unbroken wall of text, and the first dunning
+  notice stated the retry date twice in six lines.
+- **Nothing registers a gate executor.** `registerExecutor` is called nowhere in
+  `src/`, so any action reaching RELEASED fails the sweep with "No executor is
+  wired". The gate is currently a queue with nothing behind it. Out of scope
+  here and left alone deliberately — wiring it needs the real job-runner
+  integrations — but it is the next thing worth fixing.
+
+### Schema
+New: `PaymentIssue`, `Opportunity`, `SystemRun` + three enums. Seed adds a
+failing payment, a recovered one and three prospects at different rungs —
+deliberately **not** five closed opportunities to manufacture a win rate, so a
+fresh install demonstrates the honest "not enough evidence yet" state.
+
+### Verified this session
+- `pnpm install` ✅ · `tsc --noEmit` ✅ · `next lint` ✅ · `next build` ✅ ·
+  `vitest run` ✅ **553 tests, 25 files** (was 506; +47 new).
+- Both ladders simulated day-by-day over a 14-day run and read back: dunning
+  fires on days 0/3/7, escalates once on day 10, then stays quiet; follow-ups
+  fire on days 1/4/10 and go dormant on 11.
+- Endpoints smoke-tested against a production server with no database and no
+  mail configured: `/api/pipeline/stop` returns a human page (400 without a
+  token, 500 with no DB — never a stack trace), `/api/cron/revenue` refuses
+  without `CRON_SECRET`, and `/api/reserve` still returns 200 with its mailto
+  fallback.
+- Not yet run against a live DB / Stripe — see the 🟡 items above.

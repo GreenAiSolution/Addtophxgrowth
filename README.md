@@ -336,11 +336,67 @@ the page actually offers.
   confidence is shown rather than hidden, and the client can mute any fact they
   disagree with — a refresh never un-mutes.
 
+## The revenue engine
+
+Three crons run the business side without anybody watching it, and the one that
+matters most is the newest: **the platform used to ignore
+`invoice.payment_failed` entirely.** A client's card expired, Stripe retried
+quietly, gave up, and the subscription flipped to `PAST_DUE` on a row nobody
+reads. The client was never told. The desk was never told. The work carried on
+being delivered for free. Involuntary churn is the largest single cause of lost
+revenue in any subscription business, and it was completely silent here.
+
+| Piece | File | What it defends |
+|---|---|---|
+| Dunning | `src/lib/dunning.ts` | Money already sold. A three-rung notice ladder (immediately, +3d, +7d), then one escalation to a human at +10d. |
+| Pipeline | `src/lib/pipeline.ts` | Money not sold yet. Every reservation is written down and chased three times (+1d, +4d, +10d), then left alone. |
+| Revenue | `src/lib/revenue.ts` | The number itself. MRR split into committed, at-risk and pipeline, plus a Monday digest. |
+
+Every decision in all three is a **pure function** — `planDunning`,
+`planFollowUp`, `computeRevenue` — tested without a database, a mail server or
+Stripe. **No model call anywhere in any of them:** what a client is told about
+their own money is arithmetic and a fixed template, and an Anthropic outage must
+not change whether somebody hears that their payment failed.
+
+Judgement calls worth knowing about:
+
+- **The first dunning notice is deliberately not alarming.** Stripe retries by
+  itself for about two weeks and most of these fix themselves, so the first
+  email says so and names the retry date. An emergency subject line on a problem
+  that usually resolves is how people learn to ignore the third one.
+- **Recovery is silent to the client.** "Your payment went through after all" is
+  a second email about a problem they no longer have.
+- **`PAST_DUE` still counts toward MRR.** The subscription exists and the work is
+  still being delivered. Dropping it would understate the total *and* hide it
+  from the at-risk figure that is meant to make somebody act.
+- **At-risk is never double-counted.** A subscription that is both failing and
+  cancelling is counted once. The number's only job is to be acted on, and
+  inflating it is how it stops being believed.
+- **The pipeline is weighted only by a measured win rate.** Below five closed
+  opportunities the board says so instead of showing a percentage — the same
+  evidence discipline `memory.ts` applies. A weighted pipeline built on an
+  invented close rate is the number somebody would plan their month around.
+- **Every prospect follow-up carries a working one-click opt-out**
+  (`/api/pipeline/stop`, no login, token in the URL), and the ladder halts on the
+  first sign of a human: a reply, a stage change, or that link. This is the only
+  loop that emails somebody who is not a client. A test reads the opt-out kinds
+  out of the ladder itself, and a second test asserts no client or agency email
+  can ever render one.
+
+`/admin/revenue` shows all of it, and the same `computeRevenue` renders the
+Monday digest — two implementations of MRR would eventually disagree.
+
 ## Unattended runs
 
 One hourly cron drives both lines: the night shift (agents → morning brief) and
 the Spend Watch (ad-ops → alerts). Each rosters off its own product line, so a
 client on one line, the other, or both is handled without special-casing.
+
+A third cron runs the revenue engine daily at 15:00 UTC (`/api/cron/revenue`):
+dunning, then follow-ups, then — on Mondays only — the digest, guarded by a
+`SystemRun` row so a retry cannot send it twice. Daily rather than hourly
+because every ladder in it is measured in days; running it hourly would do
+nothing 23 times out of 24 while giving a retry 24 chances a day to double-send.
 
 ```bash
 # Local: the cron route is a plain authenticated GET

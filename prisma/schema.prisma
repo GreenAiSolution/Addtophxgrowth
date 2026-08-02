@@ -261,6 +261,7 @@ model ClientProfile {
   entitlements     ClientEntitlement[]
   embeddings       Embedding[]
   pendingActions   PendingAction[]
+  paymentIssues    PaymentIssue[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -845,4 +846,164 @@ model Embedding {
   @@unique([clientId, sourceType, sourceId, chunkIndex, model])
   @@index([clientId, sourceType])
   @@index([clientId, model])
+}
+
+// ---------------------------------------------------------------------------
+// The revenue engine — the money already sold, and the money not sold yet
+// ---------------------------------------------------------------------------
+
+/// Where an open payment stands. Deliberately three states and no more:
+/// it is either still recoverable, recovered, or gone.
+enum PaymentIssueState {
+  OPEN
+  RECOVERED
+  LOST
+}
+
+enum OpportunityStage {
+  /// Captured, nobody has replied yet. The follow-up ladder only runs here.
+  NEW
+  /// A human has picked it up. The ladder stops the moment this is set.
+  WORKING
+  WON
+  LOST
+  /// The ladder ran out. Not dead, just not answering.
+  DORMANT
+}
+
+enum OpportunitySource {
+  RESERVATION
+  ENQUIRY
+  COCKPIT
+}
+
+/// A subscription invoice that failed.
+///
+/// WHY THIS IS A TABLE AND NOT A STRIPE LOOKUP
+///   Because the interesting question is "how long has this been failing and
+///   what have we already said about it", and that is state Stripe does not
+///   keep for us. A dunning ladder that cannot remember which rung it is on
+///   either says nothing or says the same thing every day, and both of those
+///   lose the account.
+///
+///   It is also the only durable record that the money went missing. A
+///   subscription that fails and then cancels leaves no trace in the
+///   Subscription row beyond a status change, so without this table the most
+///   expensive event in the business is invisible the day after it happens.
+model PaymentIssue {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  lineKey              ProductLineKey
+  /// Stripe's invoice id. Unique, so a webhook retry updates rather than
+  /// opening a second issue for the same money.
+  stripeInvoiceId      String         @unique
+  stripeSubscriptionId String?
+
+  amountCents Int
+  currency    String @default("usd")
+
+  state PaymentIssueState @default(OPEN)
+
+  /// Stripe's own attempt counter, carried across so our ladder and their
+  /// retry schedule can be reasoned about together.
+  attemptCount  Int       @default(1)
+  firstFailedAt DateTime
+  lastFailedAt  DateTime
+  /// When Stripe says it will try the card again, when it tells us.
+  nextAttemptAt DateTime?
+
+  /// The ladder's memory. `lastNoticeStep` is a step key from lib/dunning.ts.
+  noticesSent    Int       @default(0)
+  lastNoticeAt   DateTime?
+  lastNoticeStep String?
+  /// Set when the ladder has run out and a person has been asked to step in,
+  /// so it is asked exactly once.
+  escalatedAt    DateTime?
+
+  recoveredAt DateTime?
+  lostAt      DateTime?
+
+  /// Stripe's own hosted page. The one link in the email that can actually fix
+  /// the problem, and it works without a login.
+  hostedInvoiceUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([state, lastNoticeAt])
+  @@index([clientId, state])
+}
+
+/// Somebody who asked to be contacted and has not been sold to yet.
+///
+/// WHY IT HAS NO clientId
+///   Because they are not a tenant. Everything else in this schema hangs off
+///   ClientProfile because it belongs to a paying client; this is the table of
+///   people who are not one yet, which is exactly why it is the table that
+///   grows the business.
+///
+/// WHY THE QUOTE IS STORED
+///   `/api/reserve` prices the build server-side at capture. Keeping that
+///   number means a follow-up three days later can name the same figure the
+///   prospect saw, rather than a recomputed one that moved because the price
+///   list changed underneath them.
+model Opportunity {
+  id     String            @id @default(cuid())
+  source OpportunitySource
+  stage  OpportunityStage  @default(NEW)
+
+  name    String
+  email   String
+  phone   String?
+  company String?
+  note    String? @db.Text
+
+  /// Upgrade and bundle keys, as priced at capture.
+  items              String[] @default([])
+  quotedMonthlyCents Int      @default(0)
+  quotedOneTimeCents Int      @default(0)
+
+  /// The ladder's memory, same shape as PaymentIssue's for the same reason.
+  followUpsSent  Int       @default(0)
+  lastFollowUpAt DateTime?
+
+  /// Set the moment a human takes it over. The ladder reads this and stops.
+  respondedAt DateTime?
+
+  wonAt      DateTime?
+  lostAt     DateTime?
+  lostReason String?
+
+  /// One-click opt-out, in every automated follow-up. An unattended sequence
+  /// with no way off it is not something to point at a stranger's inbox.
+  stopToken String    @unique
+  stoppedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stage, createdAt])
+  @@index([email])
+}
+
+/// One row per unattended job, remembering when it last completed.
+///
+/// WHY IT EXISTS
+///   The night shift and the Spend Watch each gate their cadence on a
+///   timestamp hanging off ClientProfile, because both are per-tenant. The
+///   weekly revenue digest is not — it is one email about the whole business,
+///   and there is no per-client row to hang it on. Without somewhere to record
+///   that it went, a Vercel cron retry sends it twice.
+///
+///   Deliberately generic: any future agency-wide job gets idempotency by
+///   picking a key rather than by growing another column somewhere else.
+model SystemRun {
+  /// Stable job identifier, e.g. "revenue.digest".
+  key       String   @id
+  lastRunAt DateTime
+  /// Whatever the job wants to remember about its last pass.
+  detail    Json?
+  updatedAt DateTime @updatedAt
 }

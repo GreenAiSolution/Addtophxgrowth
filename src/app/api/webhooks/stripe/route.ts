@@ -5,6 +5,11 @@ import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { planByKey } from "@/lib/catalog";
 import { provisionPlan } from "@/lib/provisioning";
+import {
+  openPaymentIssue,
+  closePaymentIssue,
+  closeIssuesForSubscription,
+} from "@/lib/dunning";
 import type { ProductLineKey, SubscriptionStatus } from "@prisma/client";
 
 /**
@@ -35,17 +40,34 @@ export async function POST(req: Request) {
         }
         break;
       }
-      case "customer.subscription.updated":
-      case "customer.subscription.deleted": {
+      case "customer.subscription.updated": {
         await upsertSubscription(event.data.object as Stripe.Subscription);
+        break;
+      }
+      case "customer.subscription.deleted": {
+        const sub = event.data.object as Stripe.Subscription;
+        await upsertSubscription(sub);
+        // The subscription is gone, so anything still open against it is not
+        // going to be recovered. Marking it LOST is what stops the ladder
+        // chasing a customer who no longer has an account.
+        await closeIssuesForSubscription(sub.id, "LOST");
         break;
       }
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
+        // Close first. The money is in, and a recovered invoice must stop the
+        // dunning ladder even if the subscription re-sync below throws.
+        await closePaymentIssue(invoice.id, "RECOVERED");
         if (invoice.subscription) {
           const sub = await stripe().subscriptions.retrieve(invoice.subscription as string);
           await upsertSubscription(sub);
         }
+        break;
+      }
+      case "invoice.payment_failed": {
+        // The event this handler ignored, and the single largest cause of
+        // churn in any subscription business. See lib/dunning.ts.
+        await recordFailedInvoice(event.data.object as Stripe.Invoice);
         break;
       }
       default:
@@ -57,6 +79,47 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ received: true });
+}
+
+/**
+ * Turn a failed invoice into a tracked payment issue.
+ *
+ * Resolves the tenant through the subscription's metadata, exactly like
+ * `upsertSubscription` does, because the invoice itself does not carry it. An
+ * invoice with no subscription is a one-off charge and has no dunning ladder;
+ * it is logged rather than silently dropped, since a build fee failing is
+ * still something somebody wants to know about.
+ */
+async function recordFailedInvoice(invoice: Stripe.Invoice) {
+  if (!invoice.subscription) {
+    console.warn("[stripe] invoice failed with no subscription; not tracked:", invoice.id);
+    return;
+  }
+
+  const sub = await stripe().subscriptions.retrieve(invoice.subscription as string);
+  const clientId = sub.metadata?.clientId;
+  const lineKey = sub.metadata?.lineKey as ProductLineKey | undefined;
+  if (!clientId || !lineKey) {
+    console.warn("[stripe] failed invoice on a subscription with no metadata:", sub.id);
+    return;
+  }
+
+  await openPaymentIssue({
+    clientId,
+    lineKey,
+    stripeInvoiceId: invoice.id,
+    stripeSubscriptionId: sub.id,
+    amountCents: invoice.amount_due,
+    currency: invoice.currency,
+    attemptCount: invoice.attempt_count ?? 1,
+    nextAttemptAt: invoice.next_payment_attempt
+      ? new Date(invoice.next_payment_attempt * 1000)
+      : null,
+    hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
+  });
+
+  // Keep the subscription row in step — Stripe will have moved it to past_due.
+  await upsertSubscription(sub);
 }
 
 const STATUS_MAP: Record<string, SubscriptionStatus> = {

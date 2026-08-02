@@ -26,16 +26,55 @@ import { postWebhook } from "@/lib/webhooks";
 import { renderEmailHtml } from "@/lib/email-shell";
 import { FLIGHT_CHECK } from "@/lib/upgrades";
 
-export type NotificationKind =
-  | "ENQUIRY_RECEIPT"
-  | "REQUEST_FILED"
-  | "REQUEST_REPLY_TO_CLIENT"
-  | "REQUEST_REPLY_TO_AGENCY"
-  | "BRIEF_READY"
-  | "ALERT_CRITICAL"
-  | "COCKPIT_CONFIGURED"
-  | "RESERVATION"
-  | "MARKETING_LEAD";
+/**
+ * Who a notification is written for.
+ *
+ * This is not decoration. It decides three things that are easy to get wrong
+ * and expensive when you do: whether the subject line should name the business
+ * (essential when the desk juggles many clients, mail-merge spam when you send
+ * it to the client themselves), whether an opt-out link belongs on it, and
+ * whether the recipient has an account to link them to at all.
+ */
+export type Audience = "AGENCY" | "CLIENT" | "PROSPECT";
+
+/**
+ * Every notification this platform can send, and who reads it.
+ *
+ * A registry rather than a bare union, because the test suite has to be able
+ * to enumerate it. It used to be a union with a hand-copied list in
+ * `notify.test.ts`, and that list had already drifted — `ENQUIRY_RECEIPT`, the
+ * first email a prospect ever receives from us, was shipped completely
+ * untested because somebody added the kind and not the string. A list that has
+ * to be maintained in two places is a list that will be wrong in one of them.
+ */
+export const NOTIFICATION_KINDS = {
+  ENQUIRY_RECEIPT: "PROSPECT",
+  REQUEST_FILED: "AGENCY",
+  REQUEST_REPLY_TO_CLIENT: "CLIENT",
+  REQUEST_REPLY_TO_AGENCY: "AGENCY",
+  BRIEF_READY: "CLIENT",
+  ALERT_CRITICAL: "CLIENT",
+  COCKPIT_CONFIGURED: "AGENCY",
+  RESERVATION: "AGENCY",
+  MARKETING_LEAD: "AGENCY",
+
+  // The revenue engine. Three rungs of the dunning ladder, its escalation,
+  // three rungs of the prospect follow-up ladder, and the weekly digest.
+  PAYMENT_FAILED_FIRST: "CLIENT",
+  PAYMENT_FAILED_REMINDER: "CLIENT",
+  PAYMENT_FAILED_FINAL: "CLIENT",
+  PAYMENT_ESCALATED: "AGENCY",
+  FOLLOW_UP_NUDGE: "PROSPECT",
+  FOLLOW_UP_SECOND: "PROSPECT",
+  FOLLOW_UP_LAST: "PROSPECT",
+  REVENUE_WEEKLY: "AGENCY",
+} as const satisfies Record<string, Audience>;
+
+export type NotificationKind = keyof typeof NOTIFICATION_KINDS;
+
+export function audienceOf(kind: NotificationKind): Audience {
+  return NOTIFICATION_KINDS[kind];
+}
 
 export interface NotificationPayload {
   businessName: string;
@@ -47,6 +86,12 @@ export interface NotificationPayload {
   path?: string;
   /** Extra lines, rendered as bullets. */
   lines?: string[];
+  /**
+   * One-click opt-out, for the only sequence that emails somebody who is not a
+   * client. Rendered as a footer line whenever it is present, so a template
+   * cannot forget it.
+   */
+  unsubscribeUrl?: string;
 }
 
 export interface RenderedNotification {
@@ -79,6 +124,12 @@ export function renderNotification(
   const url = link(payload.path);
   const bullets = (payload.lines ?? []).map((l) => `• ${l}`).join("\n");
   const sign = `\n\n— ${BRAND.teamName}\n${url}`;
+  // Appended by the templates that email a non-client. Empty for everything
+  // else, so a transactional message to a paying client never grows a footer
+  // inviting them to unsubscribe from their own service.
+  const optOut = payload.unsubscribeUrl
+    ? `\n\nDon't want these? One click and they stop: ${payload.unsubscribeUrl}`
+    : "";
 
   switch (kind) {
     case "REQUEST_FILED":
@@ -250,6 +301,129 @@ export function renderNotification(
           payload.detail ?? "",
           bullets ? `\n${bullets}` : "",
         ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
+    // ---- Dunning. Escalating in urgency, never in blame. ----
+    //
+    // The card belongs to a client who is paying us and has done nothing
+    // wrong; banks reissue cards. Every one of these is written to be
+    // forwardable to a bookkeeper without embarrassing anybody.
+
+    case "PAYMENT_FAILED_FIRST":
+      return {
+        // Deliberately not alarming. Stripe retries by itself, and most of
+        // these fix themselves — an emergency subject line on a problem that
+        // usually resolves is how people learn to ignore the third email.
+        subject: `A payment didn't go through — no action needed yet`,
+        text: [
+          `Hello ${payload.businessName},`,
+          `\nWe couldn't take your latest payment. This is almost always an expired or reissued card rather than anything wrong at your end.`,
+          bullets ? `\n${bullets}` : "",
+          // Deliberately does not restate the retry date — it is already in
+          // the bullets above, and saying it twice in six lines reads as a
+          // template rather than a message.
+          `\nIf you'd rather not wait for that attempt, update the card now and it'll settle straight away.`,
+          `\nNothing about your service changes today.`,
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
+    case "PAYMENT_FAILED_REMINDER":
+      return {
+        subject: `Still can't take payment for ${payload.businessName}`,
+        text: [
+          `Hello ${payload.businessName},`,
+          `\nOur second attempt didn't go through either, so this one probably does need a new card.`,
+          bullets ? `\n${bullets}` : "",
+          `\nYour service is still running normally. Updating the card is the whole fix.`,
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
+    case "PAYMENT_FAILED_FINAL":
+      return {
+        // The first subject that states the consequence, because by this rung
+        // it is real and not saying so would be the dishonest choice.
+        subject: `Action needed to keep ${payload.businessName} running`,
+        text: [
+          `Hello ${payload.businessName},`,
+          `\nWe still haven't been able to take payment, and we're near the end of the automatic retries.`,
+          bullets ? `\n${bullets}` : "",
+          `\nIf the card can't be updated, reply to this email and we'll sort something out — we'd much rather hear from you than switch anything off.`,
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
+    case "PAYMENT_ESCALATED":
+      return {
+        subject: `⚠ Unrecovered payment — ${payload.businessName}`,
+        text: [
+          `The dunning ladder is finished and ${payload.businessName} still hasn't paid.`,
+          "",
+          payload.title,
+          payload.detail ? `\n${payload.detail}` : "",
+          bullets ? `\n${bullets}` : "",
+          `\nAutomation has done everything it can here. This one needs a phone call.`,
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
+    // ---- Prospect follow-up. Short, specific, easy to end. ----
+
+    case "FOLLOW_UP_NUDGE":
+      return {
+        subject: `Your build — anything you want changed?`,
+        text: [
+          `Hello,`,
+          `\nYou put a build together on our site yesterday and we haven't managed to reach you yet.`,
+          `\n${payload.title}`,
+          bullets ? `\n${bullets}` : "",
+          `\nIf the shape of it is roughly right, reply and we'll put the exact scope and the exact number in writing. If it isn't, tell me what's wrong with it and I'll re-cut it.`,
+          `\nNothing has been charged.`,
+        ]
+          .filter(Boolean)
+          .join("\n") + sign + optOut,
+      };
+
+    case "FOLLOW_UP_SECOND":
+      return {
+        subject: `Still worth a conversation?`,
+        text: [
+          `Hello,`,
+          `\nFollowing up on the build you configured. No pressure either way — I'd just rather know than keep wondering.`,
+          `\n${payload.title}`,
+          bullets ? `\n${bullets}` : "",
+          `\nTwo useful questions if it helps: is the timing wrong, or is the scope wrong? Both are fixable.`,
+        ]
+          .filter(Boolean)
+          .join("\n") + sign + optOut,
+      };
+
+    case "FOLLOW_UP_LAST":
+      return {
+        // The last one says it is the last one. A sequence that claims to stop
+        // and then doesn't is the reason people distrust every sequence.
+        subject: `Closing this off`,
+        text: [
+          `Hello,`,
+          `\nThis is the last time I'll email you about this — I'll assume the timing isn't right and leave you alone.`,
+          `\n${payload.title}`,
+          `\nThe door stays open. If it comes back around, reply to this and we'll pick it straight up.`,
+        ]
+          .filter(Boolean)
+          .join("\n") + sign + optOut,
+      };
+
+    case "REVENUE_WEEKLY":
+      return {
+        subject: payload.title, // the headline number is the subject
+        text: [payload.detail ?? "", bullets ? `\n${bullets}` : ""]
           .filter(Boolean)
           .join("\n") + sign,
       };

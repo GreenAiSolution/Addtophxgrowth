@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/gate",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/revenue",
+      "schedule": "0 15 * * *"
     }
   ]
 }

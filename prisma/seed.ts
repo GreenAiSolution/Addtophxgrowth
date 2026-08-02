@@ -256,6 +256,123 @@ async function seedSampleConversation(clientId: string) {
  * webhook has fired. Guarded on lead count — re-running the seed must not
  * duplicate the history the memory is computed from.
  */
+/**
+ * The revenue engine's demo data.
+ *
+ * Three things, chosen so `/admin/revenue` shows each of its states rather
+ * than one populated row and two empty panels: a payment that is currently
+ * failing and part-way up the dunning ladder, one that failed and came back,
+ * and a small pipeline of prospects at different rungs of the follow-up
+ * sequence.
+ *
+ * Deliberately does NOT seed five closed opportunities to manufacture a win
+ * rate. Below `MIN_PIPELINE_EVIDENCE` the board says so plainly, and a demo
+ * that shows the honest "not enough evidence yet" state is worth more than one
+ * that shows an invented percentage — that rule is the point of the feature.
+ */
+async function seedRevenueDemo(failingClientId: string, recoveredClientId: string) {
+  const now = new Date();
+  const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000);
+
+  // Deterministic invoice ids, so re-running the seed updates rather than
+  // stacking up a new failing invoice every time.
+  await prisma.paymentIssue.upsert({
+    where: { stripeInvoiceId: "in_seed_failing" },
+    update: {},
+    create: {
+      clientId: failingClientId,
+      lineKey: "AI_AGENTS",
+      stripeInvoiceId: "in_seed_failing",
+      amountCents: 299_700,
+      state: "OPEN",
+      attemptCount: 2,
+      firstFailedAt: daysAgo(4),
+      lastFailedAt: daysAgo(1),
+      nextAttemptAt: new Date(now.getTime() + 3 * 86_400_000),
+      // Four days in with one notice sent puts it exactly where the ladder
+      // would have it, rather than in a state the engine cannot produce.
+      noticesSent: 2,
+      lastNoticeAt: daysAgo(1),
+      lastNoticeStep: "REMINDER",
+    },
+  });
+
+  await prisma.paymentIssue.upsert({
+    where: { stripeInvoiceId: "in_seed_recovered" },
+    update: {},
+    create: {
+      clientId: recoveredClientId,
+      lineKey: "AI_AGENTS",
+      stripeInvoiceId: "in_seed_recovered",
+      amountCents: 499_700,
+      state: "RECOVERED",
+      attemptCount: 2,
+      firstFailedAt: daysAgo(12),
+      lastFailedAt: daysAgo(11),
+      noticesSent: 1,
+      lastNoticeAt: daysAgo(11),
+      lastNoticeStep: "FIRST",
+      recoveredAt: daysAgo(10),
+    },
+  });
+
+  const prospects = [
+    {
+      email: "dana@summitexteriors.example",
+      name: "Dana Whitfield",
+      company: "Summit Exteriors",
+      note: "Booked out through spring but want this running before storm season.",
+      items: ["job-runner"],
+      quotedMonthlyCents: 490_000,
+      ageDays: 1,
+      followUpsSent: 0,
+    },
+    {
+      email: "marcus@vertexhvac.example",
+      name: "Marcus Adeyemi",
+      company: "Vertex HVAC",
+      note: null,
+      items: ["comeback", "motion-unit"],
+      quotedMonthlyCents: 660_000,
+      ageDays: 5,
+      followUpsSent: 2,
+    },
+    {
+      email: "priya@lumenmedspa.example",
+      name: "Priya Raghavan",
+      company: "Lumen Med Spa",
+      note: "Asked to be left alone for now.",
+      items: ["job-runner"],
+      quotedMonthlyCents: 490_000,
+      ageDays: 8,
+      followUpsSent: 2,
+      stopped: true,
+    },
+  ];
+
+  for (const p of prospects) {
+    const existing = await prisma.opportunity.findFirst({ where: { email: p.email } });
+    if (existing) continue;
+    await prisma.opportunity.create({
+      data: {
+        source: "RESERVATION",
+        stage: "NEW",
+        name: p.name,
+        email: p.email,
+        company: p.company,
+        note: p.note,
+        items: p.items,
+        quotedMonthlyCents: p.quotedMonthlyCents,
+        followUpsSent: p.followUpsSent,
+        lastFollowUpAt: p.followUpsSent > 0 ? daysAgo(1) : null,
+        stoppedAt: p.stopped ? daysAgo(2) : null,
+        createdAt: daysAgo(p.ageDays),
+        stopToken: randomBytes(24).toString("base64url"),
+      },
+    });
+  }
+}
+
 async function seedNightShiftDemo(clientId: string) {
   const already = await prisma.lead.count({ where: { clientId } });
   if (already > 0) return;
@@ -559,6 +676,9 @@ async function main() {
     adAccounts: [{ platform: "GOOGLE", name: "Ironclad — Google Ads" }],
   });
   await seedNightShiftDemo(c3.id);
+
+  console.log("→ Seeding the revenue engine (a failure, a recovery, a pipeline)…");
+  await seedRevenueDemo(c1.id, c3.id);
 
   console.log("✓ Seed complete.");
 }

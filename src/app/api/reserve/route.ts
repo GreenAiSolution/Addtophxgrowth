@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendNotification, agencyAddress } from "@/lib/notify";
+import { captureOpportunity } from "@/lib/pipeline";
 import {
   UPGRADES,
   BUNDLES,
@@ -121,6 +122,31 @@ export async function POST(req: Request) {
   ]
     .filter(Boolean)
     .join("\n");
+
+  // Write the prospect down before telling anybody about them.
+  //
+  // This endpoint's whole design is that it survives an unconfigured deploy, so
+  // the capture is best-effort by construction: `captureOpportunity` swallows
+  // its own failures and returns null. A missing database costs the follow-up
+  // ladder and nothing else — the notification below still goes, and the
+  // visitor still sees a confirmation.
+  const opportunity = await captureOpportunity({
+    source: bundle ? "COCKPIT" : "RESERVATION",
+    name,
+    email,
+    phone,
+    company,
+    note,
+    items: bundle ? [bundle.key] : picked.map((u) => u.key),
+    quotedMonthlyCents: monthly,
+    quotedOneTimeCents: oneTime,
+  });
+
+  if (!opportunity) {
+    // Worth a loud line: the enquiry still reaches a human, but nothing will
+    // chase it if they don't act, so the safety net is off for this one.
+    console.warn(`[reserve] ${email} was not captured — no follow-up will be scheduled.`);
+  }
 
   const result = await sendNotification({
     kind: "RESERVATION",
