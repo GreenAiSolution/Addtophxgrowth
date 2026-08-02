@@ -767,6 +767,37 @@ export const UPGRADES: Upgrade[] = [
   },
 
   // ---- On Website Creation ----
+  //
+  // THE TRANSACTION GAP
+  //   Answer Engine Visibility and Citation & Authority between them fight for
+  //   one thing: getting a model to say your name. Neither of them, and nothing
+  //   on the parent's board, does anything about what happens in the second
+  //   after it does.
+  //
+  //   That second used to belong to a human — hear the name, open a tab, fill a
+  //   form. It is being handed to software, and software cannot fill in a form
+  //   it was never given a handle on. Herald's pages, the desk's landing work
+  //   and the answer stack all terminate at a human reader. This is the first
+  //   thing either property has sold that assumes the reader is not one.
+  {
+    key: "agentic-commerce",
+    name: "The Agentic Commerce Desk",
+    attachesTo: "website-creation",
+    promise:
+      "Answer Engine Visibility gets a model to name you. This lets it finish the errand.",
+    demandCase:
+      "Being named is only half a transaction, and the other half has quietly stopped being human. The major assistants now ship commerce and reservation protocols, and the errand people delegate is not “who should I call” but the whole thing — find someone, check they can do it, get a price, put it in the diary. Software completing that errand can only complete it with businesses whose systems it is able to call directly. A firm reachable solely through a form a person types into is skipped at the last step no matter how well it ranks or how often it gets cited, and the skip is silent — it never appears as a lost enquiry because the enquiry was never made. The window is open because almost nobody has published the machine-side of their business yet, and it will shut the way mobile shut: quietly, then all at once.",
+    delivers: [
+      "Your prices, opening times and what you actually do, published as a contract an outside agent can read",
+      "Reservation and deposit handles the assistants can call, scoped to the jobs you want taken",
+      "Licence, insurance and identity records exposed in the form an agent checks before it recommends anybody",
+      "Every agent-driven request kept — what it asked, what it was quoted, what it took",
+      "A monthly read of which assistants sent work through, and what they sent",
+    ],
+    price: 340000,
+    billing: "monthly",
+    fixes: "Recommended, then skipped at the last step",
+  },
   {
     key: "answer-engine",
     name: "Answer Engine Visibility",
@@ -867,11 +898,11 @@ export const BUNDLES: Bundle[] = [
   {
     key: "answer-stack",
     name: "The Answer Stack",
-    members: ["answer-engine", "citation-authority"],
-    promise: "Own what the assistants say about you — on your pages and everyone else's.",
+    members: ["answer-engine", "citation-authority", "agentic-commerce"],
+    promise: "Be found by the assistants, be believed by them, and be bookable through them.",
     rationale:
-      "These two are one job split in half. Structured facts on your own site tell a model what you are; independent mentions elsewhere are what make it believe you. Run either alone and you are either uncorroborated or uncited. Run both and each makes the other worth more, which is why they are priced to be taken together.",
-    price: 390000,
+      "These three are one errand cut into thirds, and an errand only pays when it finishes. Structured facts on your own site tell a model what you are; independent mentions elsewhere are what make it believe you; a machine-readable desk is what lets it act once it does. Any two leave a dead end — cited but unreachable, or reachable but never raised in the first place. Taken together the model can name you, check you, and hand you the job without a person in the middle, which is the only version of this that ends in work.",
+    price: 690000,
   },
   {
     key: "response-stack",
@@ -902,11 +933,12 @@ export const BUNDLES: Bundle[] = [
       "tuning-lab",
       "answer-engine",
       "citation-authority",
+      "agentic-commerce",
     ],
     promise: "Every gap on the board, closed at once — and nowhere else to buy it.",
     rationale:
       "The whole point of the coverage map is that a fixed, knowable number of things are left over once the flight plan is flying. This is all of them, run as one engagement with one point of contact, at a price the main site has no shelf for. It is the largest ticket either property carries and the only one that leaves nothing uncovered.",
-    price: 1590000,
+    price: 1850000,
     apex: true,
   },
 ];

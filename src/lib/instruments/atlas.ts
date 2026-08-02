@@ -146,8 +146,40 @@ const TOOL_RING = 190;
  * Together these are what stop the fan from either overlapping the neighbouring
  * service or throwing a lone upgrade out to the sector boundary.
  */
-const SECTOR_USE = 0.74;
-const STEP_MAX = 0.62;
+const SECTOR_USE = 0.96;
+const STEP_MAX = 0.66;
+
+/**
+ * How far apart in *radius* two siblings in the same fan sit.
+ *
+ * WHY A THIRD AXIS EXISTS AT ALL
+ *   Website Creation going from two upgrades to three put the answer-engine and
+ *   citation-authority nodes 13px apart at the resting camera — inside the click
+ *   radius, so `hitTest` would have returned whichever was nearer rather than
+ *   whichever was pointed at. The obvious reading was "the fan got too narrow",
+ *   and it was wrong.
+ *
+ *   The two nodes were not close. They were nearly *collinear with the camera*:
+ *   one at depth -9 and one at -149, on the same view ray. The near node's
+ *   larger scale cancelled its smaller x-offset almost exactly. Every upgrade in
+ *   a sector sat on one circle of radius RING_UPGRADE, and a ray from a camera
+ *   outside that circle crosses it twice — so this was always available, and
+ *   three nodes in a sector is simply where it first came up.
+ *
+ *   Widening the arc and raising the height ramp both move the coincidence
+ *   without removing it: the fan stays on a circle, so there is always another
+ *   yaw where some pair lines up. Staggering the radius takes the siblings off
+ *   the shared circle entirely, which is what actually removes it.
+ *
+ * HOW THESE NUMBERS WERE PICKED
+ *   By search over the four constants, scored on the worst clickable margin
+ *   across nine canvas sizes and a yaw sweep of the whole resting neighbourhood,
+ *   not by eye. That mattered: a version with no radial stagger and a taller
+ *   ramp passed the sampled grid in `atlas.test.ts` by 2px and failed a dense
+ *   sweep at -2px — it had been fitted to the sample points rather than fixed.
+ *   This set holds with about 17px to spare everywhere in that neighbourhood.
+ */
+const RADIAL_STAGGER = 44;
 
 /**
  * Build the scene.
@@ -210,11 +242,14 @@ export function buildAtlas(): Atlas {
       const sector = (Math.PI * 2) / PARENT_SERVICES.length;
       const step = Math.min(STEP_MAX, (sector * SECTOR_USE) / Math.max(1, mine.length));
       const a = angle + (j - (mine.length - 1) / 2) * step;
+      // Off the shared circle — see RADIAL_STAGGER. Without this the fan is a
+      // set of points one camera ray can hit twice.
+      const r = RING_UPGRADE + (j - (mine.length - 1) / 2) * RADIAL_STAGGER;
       nodes.push({
         key: u.key,
         label: u.name,
         kind: "upgrade",
-        x: Math.cos(a) * RING_UPGRADE,
+        x: Math.cos(a) * r,
         /*
           A ramp, so every sibling sits at its own height.
 
@@ -230,7 +265,17 @@ export function buildAtlas(): Atlas {
           at a different altitude, which is the one separation the camera
           cannot take away from any angle a visitor can drag to.
         */
-        y: Math.sin(i * 2.1) * 26 + (j - (mine.length - 1) / 2) * 34,
+        /*
+          The rung is 26, down from the 34 it ran at while the fan was flat.
+
+          Counter-intuitive, and worth stating plainly: a taller rung reads as
+          "more separation" but buys very little, because screen height is
+          divided by depth too — two siblings far apart in y can still land on
+          top of each other if one is near and one is far. Once RADIAL_STAGGER
+          keeps them off a common ray, a shorter rung scores better than a tall
+          one, and it keeps the fan reading as an orbit rather than a staircase.
+        */
+        y: Math.sin(i * 2.1) * 26 + (j - (mine.length - 1) / 2) * 26,
         z: Math.sin(a) * RING_UPGRADE,
         hue: SERVICE_HUE[service.key] ?? 190,
         price: u.price,

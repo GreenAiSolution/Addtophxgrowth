@@ -570,6 +570,62 @@ better ad costs the same to run and can return several times more).
 
 ---
 
+## Phase 9 — The Agentic Commerce Desk (and the upgrade that didn't survive)
+
+Two upgrades were scoped for the 2027 catalogue. One shipped; the other was
+killed by the additive rules, which is the more useful half of the entry.
+
+**Shipped — The Agentic Commerce Desk** (`agentic-commerce`, Website Creation,
+$3,400/mo). The Answer Stack fights to get a model to *say* the client's name;
+nothing on either property does anything about the second after it does. The
+assistants now ship commerce and reservation protocols, and a business
+reachable only through a form a human types into is skipped at the last step —
+silently, because the enquiry is never made. Sells the machine-side of the
+business: prices and terms as a callable contract, reservation and deposit
+handles, identity records in the form an agent checks, and a log of what the
+agents asked, were quoted, and took.
+
+It clears the additive checks with room rather than by a hair — worst overlap
+is 1 of 3 allowed against the crew (Tower, on "checks") and **0 of 2** against
+the Manifest, levers, loops, node chains, launch clock, flagship and results
+copy. Added to The Answer Stack (now a three-member "found → believed →
+bookable" chain, $6,900) and to The Deluxe Deck ($18,500).
+
+**Cut — "The Wind Tunnel"** (synthetic-audience pre-testing of creative and
+offers before spend). It reads as an obvious gap and it is not one. The parent
+already publishes it in three places: `RESULTS_WORK` carries "Every concept is
+tested on synthetic buyers before it spends", and the launch clock does it
+twice inside the first half-hour — T+8m "builds synthetic buyer personas",
+T+21m "every concept pre-tested on synthetic buyers before a dollar moves".
+That is the eighth upgrade these rules have removed, and it failed the same way
+all seven others did: it looked additive right up until the parent's own words
+were sitting in the same file.
+
+### The map had a latent bug, and the new node found it
+
+Adding a third upgrade to Website Creation broke
+`atlas.test.ts` — two nodes 13px apart at the resting camera, inside the click
+radius. The obvious diagnosis ("the fan got too narrow") was wrong, and both
+obvious fixes — widen the arc, raise the height ramp — moved the collision
+without removing it.
+
+The nodes were not close; they were **collinear with the camera**, at depths -9
+and -149, the near one's larger scale cancelling its smaller x-offset. Every
+upgrade in a sector sat on one circle, and a ray from a camera outside a circle
+crosses it twice, so this was always available — three nodes in a sector is
+merely where it first came up. The fix is a third axis: `RADIAL_STAGGER` takes
+siblings off the shared circle.
+
+Constants were picked by search over nine canvas sizes and a dense yaw sweep of
+the whole resting neighbourhood, not by eye — which mattered, because a
+tall-ramp/no-stagger variant **passed the sampled grid in the test by 2px and
+failed a dense sweep at -2px**. It had been fitted to the sample points rather
+than fixed. The shipped set holds with ~17px to spare across ±0.5 rad. Note the
+height ramp went *down* (34 → 26): screen height is divided by depth too, so a
+taller rung buys less than it looks like it does once the stagger exists.
+
+---
+
 ## Verified this session
 - `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
   pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (260 tests, 11 files).

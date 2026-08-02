@@ -6,9 +6,9 @@ The upgrade counter for [PHX/GROWTH](https://phxgrowth.com).
 flies your ad spend to profit" — sells three à la carte services (Premium AI
 Ads, AI Employees, Website Creation) and three managed flight plans on top of
 them (Pilot, Squadron, Fleet Command), flown by a roster of ten named
-operators. This property is the branch site: it sells five specialised
+operators. This property is the branch site: it sells eight specialised
 upgrades that bolt onto those services, chosen because demand for each is
-visibly rising into 2027, **and three deluxe stacks that the main site does not
+visibly rising into 2027, **and four deluxe stacks that the main site does not
 carry** — including the largest ticket either property sells.
 
 `src/lib/upgrades.ts` is the entire public catalogue, and it carries a copy of
@@ -172,7 +172,7 @@ two catalogues, and only one of them is the business.
 
 | | What it is | Prices | Who sees it |
 |---|---|---|---|
-| `src/lib/upgrades.ts` | **The business.** Five upgrades and three bundles bolting onto the parent's services. | $1,600–$9,900/mo | Everyone. The page, the emails, the contract, `/api/catalogue`. |
+| `src/lib/upgrades.ts` | **The business.** Eight upgrades and four bundles bolting onto the parent's services. | $1,600–$18,500/mo | Everyone. The page, the emails, the contract, `/api/catalogue`. |
 | `src/lib/catalog.ts` | **Legacy console.** Six plans on two product lines that no longer exist. | $1,297–$7,997/mo | Signed-in users only. |
 
 The console's plan keys are woven through the entitlement, capacity,
