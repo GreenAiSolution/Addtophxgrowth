@@ -192,6 +192,50 @@ the page actually offers.
 
 ---
 
+## The follow-up deck (`/present`)
+
+The presentation we screen-share on the Zoom that follows a cold call. It is a
+routine rather than a bespoke pitch — the same 24 slides, in the same five acts,
+every time:
+
+| Act | Covers |
+|---|---|
+| The recap | What was promised on the phone, repeated out loud |
+| The house | phxgrowth.com page by page — services, flight plans, the ten operators, the twelve-item Manifest, the four automation loops with their published node chains, zero-to-live, the flagship |
+| The money | The three mechanisms revenue moves through (marginal-return budget allocation, AOV, LTV), then the exact sentence where the parent's coverage stops |
+| The counter | PHX/GROWTH PLUS page by page — the instrument deck, the price list, `/api/catalogue`, the client console — plus the upgrades, the stacks and a worked total |
+| The path | The fair questions, what happens after the call, one ask |
+
+Eleven of the twenty-four slides describe the parent's product and sell nothing.
+That is the structure, not an oversight: the hinge slide ("And then it stops")
+only lands if the coverage before it was demonstrated rather than asserted.
+
+- **Every figure resolves from `upgrades.ts`.** `presentation.test.ts` reads
+  `presentation.ts` and fails on a hand-typed dollar amount or percentage, on a
+  missing upgrade, service, operator, manifest item or loop, and on any
+  percentage that is not one of the parent's own fee rates. It also asserts the
+  worked example's total equals the sum of its rows — the first draft had an
+  entry price sitting in the same table the total deliberately excluded, so the
+  column read as a sum that was short by exactly that row while every individual
+  number was correct.
+- **Nothing is priced before act four.** A test walks the recap and house acts
+  and fails if an upgrade price appears in either.
+- **The talk track is a separate document.** `/present/run-sheet` carries the
+  per-slide script, the objection handling and our own economics; it is printable
+  and meant for a phone or second monitor. The stage cannot import it — a test
+  enforces the ban, because the run sheet holds what an account is worth to us
+  and the presenter is one keystroke from the wrong panel all call.
+- **Unlisted, not authenticated.** A rep opening this on a borrowed laptop thirty
+  seconds before a call cannot be stopped by a login screen, so `/present` is
+  `noindex`, absent from the sitemap and disallowed in `robots.txt` instead.
+  Tests assert all three.
+
+Keys: `←` `→` or space to move, `G` for the overview, `F` for fullscreen. The URL
+hash tracks the slide id, so a reload mid-call is free and `#ceiling` is a
+sendable link.
+
+---
+
 ## Architecture notes
 
 - **The public catalogue** (`src/lib/upgrades.ts`) — the three PHX/GROWTH
