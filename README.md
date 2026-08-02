@@ -336,11 +336,48 @@ the page actually offers.
   confidence is shown rather than hidden, and the client can mute any fact they
   disagree with — a refresh never un-mutes.
 
+## The desk — AI employees
+
+The agent workspace is five chat windows: you open one, paste something in, read
+the answer, do the work. The desk is the other arrangement — a role with a
+shift, tools, a written ceiling on what it may commit the business to, and a row
+for everything it did. Nobody opens it.
+
+Two employees, staffing the two automation builds the catalogue already sells:
+**The Foreman** (The Job Runner — quote, schedule, tell the customer, invoice,
+chase) and **The Diary** (The Comeback — remind whoever is due, re-approach who
+went quiet). They are not a new product; they are the crew for builds that
+previously had seven gated action kinds and nothing proposing them.
+
+| File | What it decides |
+| --- | --- |
+| `lib/connectors.ts` | What an employee can see and touch. **Every write names a gate action kind, and the module throws at import if one does not** — there is no code path by which an employee changes something directly. |
+| `lib/employees.ts` | The roster: duties, shifts, and the declared authority every tool is cross-checked against. |
+| `lib/context.ts` | What the employee is allowed to know, under a token budget, with the brief and the authority never evictable and everything dropped written onto the run. |
+| `lib/resilience.ts` | What happens when the model is wrong: repair the output, back off, or hand it to a person with the question at the top. |
+| `lib/desk.ts` | The only impure file — fetches, calls, dispatches, writes rows. Every judgement in it was made by one of the four above. |
+| `lib/delivery.ts` | Where a released action actually goes: the client's own n8n / Make / Zapier endpoint, signed, with the timestamp inside the signed material. |
+
+A client sees all of it at `/app/employees` — the escalations waiting on them,
+each employee's authority printed in full, every shift worked, and the whole
+connector stack with what is wired and what is not. New hires start
+**supervised**: in `TRIAL` every proposal is forced to a manual hold, including
+the ones that would normally send on a timer.
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" localhost:3000/api/cron/desk
+```
+
 ## Unattended runs
 
-One hourly cron drives both lines: the night shift (agents → morning brief) and
-the Spend Watch (ad-ops → alerts). Each rosters off its own product line, so a
-client on one line, the other, or both is handled without special-casing.
+Three crons. Hourly drives both original lines — the night shift (agents →
+morning brief) and the Spend Watch (ad-ops → alerts) — and the desk shift, which
+walks every hired employee and runs the duties that are due. Every five minutes,
+the gate sweep closes review windows and delivers what has been released.
+
+Kept apart on purpose: the sweep is honouring a countdown a client is watching,
+so it must never wait behind an employee thinking, and a slow model call must
+never delay somebody's held invoice.
 
 ```bash
 # Local: the cron route is a plain authenticated GET

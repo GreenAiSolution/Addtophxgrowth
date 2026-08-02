@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { sweep, SWEEP_INTERVAL_MINUTES } from "@/lib/gate";
+import { registerDeliveryExecutors } from "@/lib/delivery";
 import { checkDb } from "@/lib/db-health";
 
 /**
@@ -48,6 +49,12 @@ function authorized(req: Request): boolean {
 
 export async function GET(req: Request) {
   if (!authorized(req)) return json({ error: "Unauthorized" }, 401);
+
+  // Wired here rather than at import, and on every invocation because a serverless
+  // instance may be cold. Idempotent: registration skips a kind that already has
+  // an executor. Doing it inside the authorized path means an unauthenticated
+  // request cannot even cause senders to be constructed.
+  registerDeliveryExecutors();
 
   const startedAt = new Date();
   try {

@@ -129,6 +129,31 @@ enum AdAlertStatus {
   RESOLVED
 }
 
+/// Whether an employee a client has hired is actually working.
+enum EmploymentState {
+  /// Runs, but every duty escalates instead of proposing. The supervised week.
+  TRIAL
+  ACTIVE
+  /// Stopped by a person. Nothing runs; nothing is deleted.
+  SUSPENDED
+}
+
+enum EmployeeRunStatus {
+  RUNNING
+  COMPLETE
+  /// Finished, and handed the outcome to a person rather than the gate.
+  ESCALATED
+  FAILED
+  /// Not due, not hired, or the tier does not include it.
+  SKIPPED
+}
+
+enum EscalationState {
+  OPEN
+  ANSWERED
+  DISMISSED
+}
+
 // ---------------------------------------------------------------------------
 // Auth.js (NextAuth) core models
 // ---------------------------------------------------------------------------
@@ -261,6 +286,12 @@ model ClientProfile {
   entitlements     ClientEntitlement[]
   embeddings       Embedding[]
   pendingActions   PendingAction[]
+
+  // The desk — see the AI employee section at the foot of this file.
+  employments       Employment[]
+  employeeRuns      EmployeeRun[]
+  escalations       Escalation[]
+  connectorAccounts ConnectorAccount[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -845,4 +876,213 @@ model Embedding {
   @@unique([clientId, sourceType, sourceId, chunkIndex, model])
   @@index([clientId, sourceType])
   @@index([clientId, model])
+}
+
+// ---------------------------------------------------------------------------
+// The desk — AI employees, their shifts, and everything they did
+//
+// `agents.ts` is five prompts a person opens. This is the other arrangement: a
+// role with a shift, tools, a written ceiling on what it may commit, and a row
+// for every single thing it did. The four tables below are the accountability
+// half of that — an employee whose work cannot be read afterwards is not an
+// employee, it is an unattended script with a personality.
+// ---------------------------------------------------------------------------
+
+/// One employee, hired by one client.
+///
+/// A row here is what makes an employee real for a tenant. The roster in
+/// lib/employees.ts is a definition; this is the employment. Written by an
+/// admin once the build the employee staffs has been scoped and billed — the
+/// same flow the capacity add-ons use — so an employee can never start working
+/// for a business that has not bought the build it belongs to.
+model Employment {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// Resolves through EMPLOYEES in lib/employees.ts.
+  employeeSlug String
+  state        EmploymentState @default(TRIAL)
+
+  /// Overrides the roster default when a client wants a tighter or looser
+  /// ceiling. Null means "use what the roster says".
+  moneyCeilingCents Int?
+
+  /// Who did the hiring, for the audit trail.
+  hiredBy String?
+  hiredAt DateTime @default(now())
+  note    String?  @db.Text
+
+  runs        EmployeeRun[]
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([clientId, employeeSlug])
+  @@index([clientId, state])
+}
+
+/// One duty, run once.
+///
+/// `runKey` is the shift's idempotency. It buckets a run by duty and by the
+/// interval the duty is scheduled on, so a cron that fires twice — and Vercel
+/// does retry — cannot produce two runs of the same shift, and therefore cannot
+/// double-propose everything that shift proposes.
+model EmployeeRun {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  employmentId String?
+  employment   Employment? @relation(fields: [employmentId], references: [id], onDelete: SetNull)
+
+  employeeSlug String
+  dutyKey      String
+  /// SHIFT | SIGNAL | ASKED
+  trigger      String            @default("SHIFT")
+  status       EmployeeRunStatus @default(RUNNING)
+
+  /// How many model turns it took, including repairs after a bad reply.
+  attempts Int @default(1)
+
+  /// From the duty report.
+  reviewed   Int?
+  summary    String? @db.Text
+  confidence Float?
+
+  /// How many proposals actually reached the gate. Distinct from what the
+  /// employee claims in its summary, and the number worth trusting.
+  proposed Int @default(0)
+
+  /// What the context budget did. `contextDropped` is why an investigation can
+  /// tell "it saw the job and judged badly" from "it never saw the job".
+  contextTokens  Int?
+  contextDropped Json?
+
+  inputTokens  Int @default(0)
+  outputTokens Int @default(0)
+
+  error String? @db.Text
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  toolCalls   EmployeeToolCall[]
+  escalations Escalation[]
+
+  /// employeeSlug:dutyKey:bucket — one run per duty per scheduled interval.
+  runKey String
+
+  @@unique([clientId, runKey])
+  @@index([clientId, employeeSlug, startedAt])
+  @@index([clientId, status])
+}
+
+/// One tool call an employee made.
+///
+/// Reads are recorded as well as writes, and that is not padding. "Why did it
+/// not chase that invoice?" is usually answered by the reads: it never looked,
+/// or it looked and the record said something else. A log of writes alone shows
+/// what happened and never why.
+model EmployeeToolCall {
+  id    String      @id @default(cuid())
+  runId String
+  run   EmployeeRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  clientId String
+
+  /// Resolves through OPERATIONS in lib/connectors.ts.
+  operationKey String
+  /// READ | WRITE
+  direction    String
+
+  /// OK | REFUSED | ESCALATED | FAILED | UNAVAILABLE
+  status String
+
+  input  Json
+  result Json?
+  error  String? @db.Text
+
+  /// WRITE calls that were accepted: the queue row this became. A write with
+  /// no pending action here either never reached the gate or was refused, and
+  /// which one is in `status`.
+  pendingActionId String?
+
+  tookMs    Int?
+  createdAt DateTime @default(now())
+
+  @@index([runId])
+  @@index([clientId, createdAt])
+}
+
+/// A question an employee stopped to ask a person.
+///
+/// Deliberately its own table rather than a flag on the run. An escalation
+/// outlives the run that raised it — it is open until somebody answers it —
+/// and it is the one thing in this system that is *waiting on a human* rather
+/// than the other way round, which is exactly what a console needs to surface.
+model Escalation {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  runId String?
+  run   EmployeeRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  employeeSlug String
+  dutyKey      String
+
+  /// LOW_CONFIDENCE | OVER_CEILING | NO_AUTHORITY | INVALID_OUTPUT |
+  /// MODEL_ERROR | TOOL_ERROR | ASKED
+  reason String
+
+  title    String
+  body     String @db.Text
+  /// The specific thing a person has to decide.
+  question String @db.Text
+
+  state      EscalationState @default(OPEN)
+  answer     String?         @db.Text
+  answeredBy String?
+  answeredAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId, state, createdAt])
+}
+
+/// A connector one client has actually wired up.
+///
+/// WHAT IS NOT HERE
+///   Secrets. `config` holds the parts that are not sensitive — an endpoint
+///   URL, a calendar id, a from-address — and `secretRef` names where the
+///   credential lives (an environment variable, or a key in whatever secret
+///   store is in front of this deployment). Nothing in this database is a
+///   token.
+///
+///   That is a deliberate limitation rather than a gap to fill later. A row in
+///   an application database is readable by every query in the application,
+///   appears in backups nobody encrypts separately, and shows up in the logs of
+///   the first person who debugs a Prisma query with `include`. A connector
+///   table holding live CRM tokens for every tenant is the highest-value target
+///   in the product, and it is not worth building for the convenience of a
+///   settings screen.
+model ConnectorAccount {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// Resolves through CONNECTORS in lib/connectors.ts.
+  connectorKey String
+  label        String  @default("Primary")
+  enabled      Boolean @default(true)
+
+  /// Non-sensitive fields only.
+  config Json?
+  /// The name of the secret, never the secret.
+  secretRef String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, connectorKey])
+  @@index([clientId])
 }

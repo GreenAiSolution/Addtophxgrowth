@@ -11,6 +11,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CapacityGrants } from "@/components/admin/capacity-grants";
 import { ClientSystems } from "@/components/admin/client-systems";
+import { EmploymentControls } from "@/components/admin/employment-controls";
 
 /**
  * The admin's view of one client: what they see, plus the one mutation the
@@ -99,7 +100,8 @@ export default async function AdminClientViewPage({ params }: { params: { client
       <ClientSystems clientId={client.id} />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div>
+        <div className="space-y-6">
+          <EmploymentControls clientId={client.id} />
           <CapacityGrants clientId={client.id} />
         </div>
         <div>

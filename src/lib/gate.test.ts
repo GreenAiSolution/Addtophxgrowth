@@ -298,11 +298,16 @@ describe("a release always has a name on it", () => {
 });
 
 describe("an action nobody can perform never looks performed", () => {
-  it("has no executors wired yet, and says so", () => {
-    // Neither loop is built. The gate shipped first on purpose — a gate
-    // retrofitted onto a running automation is a gate with a bypass. What
-    // matters is that this state is visible rather than silently successful:
-    // `sweep` marks such an action FAILED with a plain reason.
+  it("wires nothing by importing the gate alone", () => {
+    // Delivery is registered by an explicit call in the sweep route (see
+    // `delivery.ts`), never as an import side-effect. A module that wires
+    // senders merely by being imported is a module that eventually gets
+    // imported by a test, a script, or a page that only wanted a type — and
+    // then a process nobody meant to give hands has them.
+    //
+    // What matters either way is that an unwired kind is visible rather than
+    // silently successful: `sweep` marks such an action FAILED with a plain
+    // reason instead of reporting a send that never happened.
     for (const k of ACTION_KINDS) {
       expect(hasExecutor(k.key), `${k.key} claims an executor that does not exist`).toBe(false);
     }

@@ -570,19 +570,144 @@ better ad costs the same to run and can return several times more).
 
 ---
 
+## Phase 16 — The desk: AI employees, not chat windows ✅
+
+Everything up to here gave a model *words*. It read a prompt, a brand voice and
+a digest of what the client's closed deals taught it, and wrote an answer into a
+chat window. Good assistant; not an employee — a person you hire does not hand
+you a paragraph about the invoice, they raise the invoice.
+
+This phase is that distance, and it is four concrete things: **context** (it
+reads the business's own records before it acts), **hands** (it can propose real
+actions), **authority** (a written, enforced limit on which ones and how much),
+and **accountability** (every run, tool call and escalation is a row somebody
+can read).
+
+### It staffs what was already sold, rather than being a new product
+The catalogue sells two automation builds — The Job Runner and The Comeback —
+and `gate.ts` was built first, deliberately, with seven gated action kinds and
+**nothing proposing any of them**. So the roster is the crew for those builds:
+**The Foreman** (quote → schedule → tell the customer → invoice → chase) and
+**The Diary** (remind whoever is due → re-approach who went quiet). A test holds
+it there: every employee names a build the catalogue actually sells, every
+gated action kind is some duty's responsibility, and no employee can reach into
+the other build's actions.
+
+### The connector registry (`src/lib/connectors.ts`)
+Tier PROTOCOL (the client's own records), BUSINESS (quoting, scheduling,
+messaging, the ledger), BROWSER (the systems that never got an API).
+
+- **Every WRITE names a gate action kind, and the module throws at import if one
+  does not.** That is the whole safety argument and it is structural rather than
+  remembered: there is no code path by which an employee changes something
+  directly. A write is not a call, it is a proposal, and the gate decides.
+- The read tier is **in-process rather than an MCP server**, and the file argues
+  it: a separate process has to be *told* which tenant is asking, which turns the
+  boundary between two clients' data into a string passed across a process edge.
+  The worst bug this product has available is another business's leads rendered
+  plausibly, with nothing erroring.
+- Browser tier is **read-only on purpose** — a browser write cannot be dry-run,
+  undone, or described precisely enough in a queue for a human to approve.
+- Writes are told the truth in their own tool description: the gate's terms are
+  appended verbatim from the action kind, because a model that thinks it is
+  sending writes differently from one that knows it is proposing.
+
+### The roster (`src/lib/employees.ts`)
+Authority is **declared, not derived**. Deriving it from the tools would mean
+adding a tool silently widens what an employee may commit the business to; the
+two are cross-checked at import instead, so that change is loud.
+
+The money ceiling is deliberately *not* the approval step — the gate already
+holds every money action for a named human. Above the ceiling the employee does
+not get to draft at all: what reaches a person is a question, not a pre-written
+quote with a number in it. Approving is easy; disagreeing with something already
+drafted is not.
+
+### Context engineering (`src/lib/context.ts`)
+A budget, a priority order, and a record of what was left out. The brief and the
+authority are **pinned and never evictable** — an employee that dropped its
+ceiling because it was a busy Tuesday is the worst failure available, and
+nothing about the run would say so. What *was* dropped is written onto the run,
+because "it saw the job and judged badly" and "it never saw the job" need
+completely different fixes and every investigation otherwise starts by guessing.
+
+### Graceful degradation (`src/lib/resilience.ts`)
+Malformed output → hand the model its own validation error and the text it
+actually sent (without it, models reproduce the identical mistake). Transient
+error → bounded backoff. **Low confidence → never retry**: a second attempt at a
+judgement the employee already doubts produces a more confident version of the
+same doubt. Confidence can only ever *stop* a run, never authorise one, which is
+what makes it safe to ask for.
+
+Escalation is a first-class outcome with the question on the first line — an
+escalation that opens with provenance gets read once and skimmed forever after,
+and a queue of ignored escalations is worse than none because everybody believes
+somebody is watching.
+
+### Delivery (`src/lib/delivery.ts`)
+The gate's executors were empty, which was right while nothing proposed
+anything and is a to-do list now that something does. A released action is
+handed to **the client's own automation endpoint** — n8n, Make, Zapier, their
+own route — signed with HMAC over `timestamp.body` so a captured request cannot
+be replayed. The decisions stay here where they are gated and audited; the
+credentials stay there where they already were. Registration is an explicit call
+in the sweep route, never an import side-effect.
+
+### Why the orchestrator is here and not in n8n
+The gate is here, the state is here, and the audit is the product — the
+catalogue promises loops "inspectable node by node", which is much easier to
+keep when the nodes are rows in the client's own console rather than an
+execution log in an account only the agency can open. None of that argues
+against n8n as *transport*, which is exactly what delivery uses it for.
+
+### Surfaces
+- `/app/employees` — escalations first (the only part where the business is the
+  bottleneck), then each employee's authority **printed in full** (a ceiling
+  shown as "configured" is a ceiling nobody has read), then every shift worked,
+  then the connector stack with what is wired and what is not.
+- Admin hiring on the client detail page. New hires start **supervised**: in
+  `TRIAL` every proposal is forced to a manual hold, including the ones that
+  would normally send on a timer — the same shape as the pilot week Launch
+  sells, and the only week in which a mis-set ceiling is cheap.
+- `/api/cron/desk`, hourly. `isOnShift` decides what is due, not the schedule —
+  a cron firing more often than any duty needs makes the real cadence invisible.
+
+### Schema
+`Employment`, `EmployeeRun` (idempotent per duty per interval via `runKey`),
+`EmployeeToolCall` (**reads as well as writes** — "why did it not chase that
+invoice?" is usually answered by what it looked at), `Escalation` (its own table,
+because it outlives the run and is the one thing waiting on a human), and
+`ConnectorAccount` — which deliberately **holds no secrets**, only non-sensitive
+config and the *name* of a credential. A table of live CRM tokens for every
+tenant is the highest-value target in the product and is not worth building for
+the convenience of a settings screen.
+
+95 tests across five new files.
+
+---
+
 ## Verified this session
-- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ (40 static
-  pages: 6 plan systems + 6 vertical packs + 3 legal) · `pnpm test` ✅ (260 tests, 11 files).
-- Landing page, both new plan pages and `/cockpit` rendered against a production
-  server and read back — and `/cockpit` screenshotted at desktop and mobile
-  widths, which is how the sticky-rail defect above was found.
+- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ ·
+  `pnpm test` ✅ (595 tests, 28 files — 95 of them new in Phase 16).
+- `prisma validate` ✅ against the extended schema; `prisma generate` ✅.
 - Not yet run against a live DB / Stripe / Anthropic (no credentials in this
-  environment) — those are the 🟡 items above.
+  environment) — those are the 🟡 items above, and the desk is now among them:
+  no employee has worked a real shift, because a shift needs a database, an API
+  key and a hired employment row.
 
 ## Suggested next steps
 1. Provision Neon/Vercel Postgres, set `DATABASE_URL`, `pnpm prisma:push && pnpm db:seed`.
 2. Run `pnpm stripe:setup`, wire the webhook, verify checkout → gating.
 3. Set `ANTHROPIC_API_KEY`, exercise a real agent run + monthly report.
-4. Deploy to Vercel; run Lighthouse against the live URL.
-5. Wire Resend for the notification stubs; replace testimonial placeholders
+4. **Work a real shift.** Hire The Foreman for a seeded client from
+   `/admin/clients/[id]`, seed a few won leads, and call `/api/cron/desk` with
+   the `CRON_SECRET`. Read `/app/employees` afterwards: the run, its tool calls,
+   what it proposed into `/app/gate`, and anything it escalated. This is the
+   first thing that will find the gap between the roster's prose and what a
+   model actually does with real records.
+5. Point one client's `WebhookConfig` at an n8n instance and release a held
+   action, so a proposal completes the whole journey rather than stopping at
+   the gate.
+6. Deploy to Vercel; run Lighthouse against the live URL.
+7. Wire Resend for the notification stubs; replace testimonial placeholders
    with real client results.

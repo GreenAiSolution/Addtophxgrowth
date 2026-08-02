@@ -33,6 +33,7 @@ export type NotificationKind =
   | "REQUEST_REPLY_TO_AGENCY"
   | "BRIEF_READY"
   | "ALERT_CRITICAL"
+  | "ESCALATION_RAISED"
   | "COCKPIT_CONFIGURED"
   | "RESERVATION"
   | "MARKETING_LEAD";
@@ -142,6 +143,23 @@ export function renderNotification(
           "",
           payload.title,
           payload.detail ? `\n${payload.detail}` : "",
+          bullets ? `\n${bullets}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n") + sign,
+      };
+
+    // An employee stopped and asked for a person. The subject leads with the
+    // question rather than the machinery, because the recipient is an owner
+    // between jobs and "AI escalation" in a notification bar reads as something
+    // to deal with later — which is exactly what an escalation cannot be.
+    case "ESCALATION_RAISED":
+      return {
+        subject: `${payload.businessName}: ${payload.title}`,
+        text: [
+          payload.detail ?? payload.title,
+          "",
+          "Nothing was sent and nothing was committed. It is waiting on you.",
           bullets ? `\n${bullets}` : "",
         ]
           .filter(Boolean)

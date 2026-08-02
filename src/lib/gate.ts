@@ -314,14 +314,32 @@ export function describeWait(action: GateAction, now: Date): string {
 
 /**
  * An executor actually performs a released action — sends the SMS, raises the
- * invoice. Registered by the build that owns the kind.
+ * invoice. Registered by the build that owns the kind; `delivery.ts` registers
+ * every kind against the tenant's own automation endpoint.
  *
- * Nothing is registered yet, because neither loop is built. That is deliberate
- * and it is why `runReleased` records FAILED with a plain reason rather than
- * quietly reporting success: an action nobody can perform must never look like
- * one that was performed.
+ * Nothing is registered at import. Registration is an explicit call, so a
+ * process that has not wired delivery cannot accidentally send: `sweep` records
+ * FAILED with a plain reason instead, because an action nobody can perform must
+ * never look like one that was performed.
+ *
+ * It receives the whole action rather than just the payload. An executor given
+ * only the payload cannot say which action it performed, cannot re-read the row
+ * it is acting on, and cannot record anything against it — which makes the
+ * audit trail stop precisely where the action leaves the building.
  */
-export type Executor = (payload: unknown) => Promise<Record<string, unknown>>;
+export interface ExecutorAction {
+  id: string;
+  clientId: string;
+  kind: string;
+  summary: string;
+  subject: string | null;
+  movesMoney: boolean;
+  payload: unknown;
+  releasedBy: string | null;
+  releasedAt: Date | null;
+}
+
+export type Executor = (action: ExecutorAction) => Promise<Record<string, unknown>>;
 
 const EXECUTORS = new Map<string, Executor>();
 
@@ -508,7 +526,7 @@ export async function sweep(now = new Date()): Promise<SweepResult> {
     }
 
     try {
-      const result = await run(action.payload);
+      const result = await run(action as ExecutorAction);
       await prisma.pendingAction.update({
         where: { id: action.id },
         data: { state: "EXECUTED", executedAt: now, result: result as never, error: null },
