@@ -145,17 +145,30 @@ feature gating.
 
 ## Deploy to Vercel
 
+> **Taking this live for the first time?** [`GOLIVE.md`](./GOLIVE.md) is the
+> full ordered walkthrough — database, email, sign-in, secrets, Stripe (including
+> the one webhook event the dunning ladder depends on), crons, and how to prove
+> each piece works. The steps below are the short version.
+
 1. Push this repo; import this repository as the Vercel
    project root.
 2. Add a Postgres database (Vercel Postgres or Neon) and set `DATABASE_URL`.
 3. Set every variable from `.env.example` in Vercel project settings
    (Production + Preview). Set `NEXT_PUBLIC_APP_URL` to your deployed URL.
 4. Add the Stripe webhook endpoint `https://<your-app>/api/webhooks/stripe`
-   in the Stripe dashboard and set `STRIPE_WEBHOOK_SECRET`.
-5. Add a build step to run migrations: set the Vercel build command to
-   `prisma migrate deploy && next build` (or run `prisma db push` once).
+   in the Stripe dashboard and set `STRIPE_WEBHOOK_SECRET`. Select five events:
+   `checkout.session.completed`, `customer.subscription.updated`,
+   `customer.subscription.deleted`, `invoice.paid` and — the one the dunning
+   ladder depends on — **`invoice.payment_failed`**.
+5. **Leave the build command alone.** `pnpm build` already runs
+   `prisma generate && node scripts/db-sync.mjs && next build`, and `db-sync`
+   pushes the schema on every deploy. (This step used to say to set the build
+   command to `prisma migrate deploy && next build`; that predates `db-sync.mjs`
+   and there is no migration history in this repo, so it would fail.)
 6. Configure the Google OAuth redirect URI:
    `https://<your-app>/api/auth/callback/google`.
+7. Set `CRON_SECRET`, or every unattended loop refuses to run. Confirm all three
+   crons are listed under Settings → Cron Jobs after the deploy.
 
 `NEXT_PUBLIC_APP_URL` is no longer load-bearing for identity: `env.siteUrl`
 falls back to Vercel's own `VERCEL_PROJECT_PRODUCTION_URL`, so a deploy
