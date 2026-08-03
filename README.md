@@ -73,6 +73,7 @@ existing clients and are not part of the pitch.
 | AI          | Anthropic API (`claude-sonnet-4-6`) via server-side route handlers only |
 | UI          | Tailwind CSS + shadcn/ui-style primitives + Recharts |
 | Integrations| Zapier Catch Hook → HubSpot via outbound webhooks |
+| Agent surface| MCP over HTTP at `/api/mcp` + a stdio wrapper, no SDK dependency |
 
 The Anthropic key is **never** exposed client-side — all model calls flow
 through `/api/agents/[agentSlug]/run` and `/api/reports/generate`.
@@ -330,6 +331,57 @@ the page actually offers.
   `x-intake-token` or `?token=`, compared in constant time. Leads land unscored;
   scoring happens on the night shift so a slow model call can never make a
   client's website form time out.
+- **The Creative Genome** (`src/lib/genome/`) — the part of the creative loop
+  that compounds. Every ad is coded against a **closed vocabulary** of six axes
+  (`taxonomy.ts`); an open one cannot be pooled, because "question hook" and
+  "asks the reader something" are the same ad and two rows. Effects are
+  estimated **within each account first** — that account's creatives carrying a
+  device against its own creatives without it — and only then pooled across
+  accounts by DerSimonian-Laird random effects (`pool.ts`). That ordering is
+  the whole design: the naive between-account comparison is not merely noisier
+  but can be *backwards*, and `assemble.test.ts` builds exactly that book of
+  business and asserts both that the estimator recovers the true direction and
+  that the naive version gets it wrong. Nothing is stated below
+  `MIN_ACCOUNTS` (4) independent advertisers — one shop's habit is not a fact
+  about advertising — every result carries its interval, and `describeEffect`
+  says "associated with" and never "causes", because creatives are not randomly
+  assigned and no amount of pooling fixes that. A client's own contrast is
+  shrunk toward the book by empirical Bayes, so a young account is told what
+  the book knows and a mature one is told what it has proven; where the two
+  genuinely disagree the client is told to trust their own. Feeds MUSE-9 ahead
+  of every copywriting run, exactly as system memory feeds the qualifier.
+- **The eval harness** (`src/lib/evals/`) — this repo will fail a build over one
+  fabricated percentage on the marketing page, and had **nothing** with an
+  opinion about what the model writes into a client's advertisement. That
+  asymmetry is what the harness closes: `noFabricatedStats` is the same rule
+  from `upgrades.test.ts`, ported onto model output. Four surfaces are graded —
+  the qualifier reply, the qualifier against deals that actually closed, the
+  creative coder, and ad copy. Scorers are pure, and where there is ground
+  truth they use it: `discrimination` is AUC, because "did it say 82 when a
+  human would have said 85" punishes disagreement rather than error, and a
+  qualifier that scores every lead 70 has perfect schema compliance and no
+  opinion. `calibration` is separate because a model can rank perfectly and
+  still be confidently wrong about the rate. CI replays fixtures — deterministic,
+  no API key, and honest that it measures *this repository's* parsers and
+  scorers rather than the model. `pnpm evals:live` is the half that measures the
+  model. Every scorer has a non-vacuity test proving it fails on the thing it
+  exists to catch, and `gate` itself has one proving it can fail.
+- **The MCP server** (`src/lib/mcp.ts`, `/api/mcp`,
+  `phxgrowth-plus-mcp-server/`) — the catalogue route has named this directory
+  since the day it shipped and the README called it "the single source the MCP
+  server reads". There was no server and no such directory. A component
+  described in a README and absent from the repository is the same defect as a
+  Terms page quoting a fee the business does not charge, so `mcp.test.ts` now
+  enforces the claim. Six tools over the same facts the page renders; JSON-RPC
+  hand-rolled rather than pulling in an SDK, because three methods is cheaper
+  than a dependency in a codebase that installs and runs with nothing
+  configured. `proof_posture` is a tool of its own so an assistant can find the
+  no-results-claims position *before* inventing a figure to go with a price,
+  and a test asserts no tool output can quote a percentage that is not one of
+  the real 8/6/4% fee rates. The stdio wrapper holds no prices — it proxies, so
+  a price change on the site is live in it with no reinstall — and it refuses
+  to start without an explicit URL rather than defaulting to a guessed host,
+  which is the sitemap-serving-localhost bug in its next available disguise.
 - **System memory** (`src/lib/memory.ts`) — closed deals a client logs are
   distilled into `MemoryEntry` rows by a pure `computeCalibration`, then injected
   ahead of every agent run. Nothing is stated below `MIN_EVIDENCE` closed deals,

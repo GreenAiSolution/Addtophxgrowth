@@ -12,12 +12,17 @@ import { env } from "@/lib/env";
  * whole file wasted. `siteUrl` reads Vercel's own domain variables, so a deploy
  * identifies itself correctly with no dashboard step.
  *
- * `/api/catalogue` is the one deliberate exception to the `/api/` block. This
- * site sells Answer Engine Visibility — being the business a model can
- * describe accurately — and blocking the one endpoint that states our offer in
- * clean machine-readable form would be arguing against our own product.
- * Crawlers resolve allow/disallow by longest match, so the specific allow
- * beats the general block.
+ * `/api/catalogue` and `/api/mcp` are the deliberate exceptions to the `/api/`
+ * block. This site sells Answer Engine Visibility — being the business a model
+ * can describe accurately — and blocking the two endpoints that state our
+ * offer in clean machine-readable form would be arguing against our own
+ * product. Crawlers resolve allow/disallow by longest match, so the specific
+ * allows beat the general block.
+ *
+ * Neither carries anything a client owns. Both serve the same facts as the
+ * page, and `/api/mcp` in particular holds no tenant data and touches no
+ * database — see the note at the top of its route. Anything tenant-scoped
+ * belongs behind auth on a different path and stays inside the block.
  */
 /**
  * Resolved per request, not at build time.
@@ -39,7 +44,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/api/catalogue"],
+        allow: ["/", "/api/catalogue", "/api/mcp"],
         disallow: ["/app/", "/admin/", "/api/", "/login"],
       },
     ],

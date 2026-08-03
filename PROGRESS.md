@@ -586,3 +586,170 @@ better ad costs the same to run and can return several times more).
 4. Deploy to Vercel; run Lighthouse against the live URL.
 5. Wire Resend for the notification stubs; replace testimonial placeholders
    with real client results.
+
+---
+
+## Phase 16 — What learns, what checks the learning, and what can read it ✅
+
+Three subsystems, chosen to fit together rather than to be three things. One
+learns across every advertiser, one proves the learning did not regress, and
+one is how a human or an assistant reaches either.
+
+### 1. The Creative Genome (`src/lib/genome/`)
+
+`creative.ts` sells creative as a loop — Write → Test → Watch → Refresh →
+Produce — and every stage of it existed except the one that compounds. MUSE-9
+wrote the same way on day 400 as on day 1, because the only thing feeding back
+was one client's own numbers and one client never has enough.
+
+- **A closed vocabulary** (`taxonomy.ts`): six axes, fixed values, each with the
+  observable `tell` that decides it. Open vocabularies cannot be pooled —
+  "question hook" and "asks the reader something" are one ad and two rows, and
+  every estimate over them is diluted by an amount nobody can measure. Axes are
+  split by the funnel stage they can *possibly* act on (hook/visual/pacing →
+  click-through; offer/proof/CTA → click-to-lead), and `STAGE_OF` is enforced
+  rather than documented, because an axis scored at the wrong stage produces a
+  real-looking number that means nothing.
+- **Within-account contrasts, then random-effects pooling** (`pool.ts`,
+  `assemble.ts`). The naive version — pool every impression and compare ads
+  with a device against ads without — produces a confident number that is
+  mostly a fact about *which accounts happened to use that device*.
+  Contrasts are built inside one account, where trade, geography, budget,
+  season and landing page are all held constant by construction, then combined
+  by DerSimonian-Laird. Fixed-effect pooling was the alternative and is wrong:
+  it assumes advertisers are replicates of each other and returns a hairline
+  interval around a number no real account will see.
+- **The load-bearing test** builds a book where the naive answer is *backwards*
+  — a device that wins in all six accounts and loses badly when pooled blind,
+  because it is concentrated in the weak ones. It asserts the estimator
+  recovers the true direction **and** that the naive comparison really is
+  inverted, because a test that passes for a design that was never in danger
+  proves nothing.
+- **Honesty gates**, mirroring `memory.ts` and `recall.ts`: nothing below
+  `MIN_ACCOUNTS` (4) independent advertisers, thin arms refused rather than
+  admitted with a wide interval, zero cells corrected rather than dropped
+  (discarding the arms where something failed hardest biases every estimate
+  upward) and the correction counted, and an interval spanning zero reported as
+  "no detectable difference" rather than as a small effect.
+- **Never causal.** Creatives are not randomly assigned, so `describeEffect`
+  says "associated with" and a test asserts it never says "causes" or "drives".
+  The route to a causal claim is randomised rotation, which is the allocator,
+  and the allocator does not exist yet.
+- **Per-client shrinkage** by empirical Bayes: a young account is told what the
+  book knows, a mature one what it has proven, and nobody had to pick a cutoff
+  because the arithmetic is the cutoff. The interesting output is `divergent` —
+  a device the book likes that this account's own data contradicts with enough
+  behind it to be taken seriously. That is the one thing a cross-client system
+  can say that a "here's what works" table never can, having already averaged
+  the disagreement away.
+- Wired live: `refreshGenome` runs on the hourly cron **after** the per-tenant
+  work, so its failure can never cost a client their brief; `creativeBriefing`
+  is injected ahead of MUSE-9 runs only, because a lead qualifier reasoning
+  about click-through correlations would be applying a fact about advertising
+  to a decision about a person.
+- New models: `Creative`, `CreativeMetricDaily`, `GenomeEstimate`. The estimate
+  row deliberately has **no `clientId`** — it is not owned by anybody, it is
+  what the book knows.
+- 61 tests.
+
+### 2. The eval harness (`src/lib/evals/`)
+
+This repository fails a build over one fabricated percentage on the marketing
+page. It had nothing at all with an opinion about what MUSE-9 writes into an
+advertisement that goes out under a client's name. `noFabricatedStats` is that
+same rule, ported onto model output, and it is weighted highest of anything
+here because it is the only scorer whose failure is a legal problem rather than
+a quality one.
+
+- Four graded surfaces: the qualifier reply, the qualifier **against deals that
+  actually closed**, the creative coder, and ad copy.
+- Scorers are pure — no model grading a model, because that is a second
+  ungraded surface and grading the grader is a problem this harness declines to
+  have.
+- Where there is ground truth it is used. `discrimination` is AUC, not
+  agreement with a reference score: "did it say 82 when a human would have said
+  85" punishes disagreement rather than error and goes green when both are
+  wrong the same way. A qualifier that scores every lead 70 has perfect schema
+  compliance, perfect tier coherence, and no opinion — AUC is the only scorer
+  that can see it, and it scores exactly 0.5 rather than accidentally winning.
+- `calibration` is separate on purpose: a model can rank perfectly and still
+  tell a client a 90 is nearly certain when 90s close a third of the time.
+- **Two modes, and the difference is not decoration.** CI replays fixtures:
+  deterministic, no API key, and honest in the file header that it measures
+  *this repository's* parsers and scorers rather than the model. `pnpm
+  evals:live` calls the real model and is the actual measurement; it is a
+  script and not a test because it needs a key, costs money and is
+  non-deterministic, and CI must stay runnable by somebody with no credentials.
+- **Every scorer has a non-vacuity test** proving it fails on the thing it
+  exists to catch, and `gate` has one proving it can fail at all. A harness of
+  scorers that all return 1.0 would pass forever and be worse than no harness,
+  because the green build would be evidence.
+- The live script deliberately cannot write `baselines.json`. Raising a
+  baseline to turn a red build green is the one edit this subsystem exists to
+  make somebody think twice about.
+- 20 tests.
+
+### 3. The MCP server (`src/lib/mcp.ts`, `/api/mcp`, `phxgrowth-plus-mcp-server/`)
+
+`src/app/api/catalogue/route.ts` had said this since it shipped: *"the MCP
+server in `phxgrowth-plus-mcp-server/`"*. The README called the catalogue
+endpoint *"the single source the MCP server reads"*. There was no server and no
+such directory — in the file most likely to be read first by somebody deciding
+whether to trust the rest of it.
+
+- Six tools over the same facts the page renders. `mcp.test.ts` now fails the
+  build if the directory goes missing again, if the route stops naming it, if
+  the wrapper grows a price of its own, or if it starts defaulting to a guessed
+  hostname.
+- **JSON-RPC hand-rolled.** Three methods matter; an SDK would be the larger
+  cost in a codebase whose posture is that it installs and runs with nothing
+  configured. Notifications correctly return 202 with no body — answering one
+  produces a message the client never asked for, which some clients drop the
+  connection over.
+- `proof_posture` is a tool of its own rather than a field buried in the
+  catalogue payload, because an assistant that fetches a price list and never
+  reads the proof posture is exactly the reader most likely to invent a results
+  claim to go with the price. A test asserts no tool output can quote a
+  percentage that is not one of the real 8/6/4% fee rates.
+- `quote_stack` surfaces a cheaper bundle rather than quietly returning the à
+  la carte sum. Quoting the list price when a bundle contains exactly what was
+  asked for is a quiet overcharge — it costs a client rather than a sale.
+- The stdio wrapper **proxies and holds no prices**, so a price change on the
+  site is live in it with no reinstall. It refuses to start without an explicit
+  `PHX_MCP_URL` rather than defaulting to a guessed host: this repo already paid
+  for that lesson when `sitemap.xml` shipped serving `localhost` to Googlebot,
+  and the recorded conclusion was that a URL must never borrow anything.
+- 31 tests.
+
+### A bug found by walking it
+
+The stdio wrapper exited on stdin's `end` event, which fires when the writer
+closes the pipe — not when the work is done. Piping a batch of messages in
+produced exit code 0 and **zero bytes of output**. It worked whenever a human
+typed, because a human is slow enough that the response lands before the pipe
+closes, which is exactly why it would have reached production. Fixed by
+draining in-flight forwards before exiting, and pinned by a test.
+
+### Verified this session
+- `pnpm install` ✅ · `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ ·
+  `pnpm test` ✅ (612 tests, 27 files — up from 260).
+- `/api/mcp` walked end-to-end against a production server: handshake,
+  `tools/list`, `tools/call`, a 202 on a notification, and the bundle upsell
+  correctly catching $4,700 à la carte versus $3,900 bundled.
+- The stdio wrapper walked against that same server, and its no-URL refusal
+  path checked.
+- Not run against a live DB / Stripe / Anthropic — no credentials in this
+  environment. The genome's estimator, the coder's parser and every scorer are
+  pure and fully covered; what is unexercised is the DB read in `refreshGenome`
+  and the model call in `codeCreative`.
+
+### Suggested next steps
+1. `pnpm prisma:push` for the three new models, then backfill `Creative` rows
+   from a Meta/Google creative-level sync — the genome has a schema, a
+   vocabulary and an estimator, and no data yet.
+2. Set `ANTHROPIC_API_KEY` and run `pnpm evals:live`; promote anything it
+   catches into `fixtures.ts` as a permanent case.
+3. Set `PHX_MCP_URL` to the deployed origin and add the stdio server to a
+   desktop client.
+4. A `/app/genome` page. The findings are computed and injected into MUSE-9,
+   but no client can currently read them.

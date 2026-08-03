@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { nightShiftRoster, runNightShift } from "@/lib/night-shift";
 import { spendWatchRoster, runSpendWatch } from "@/lib/spend-watch";
+import { refreshGenome } from "@/lib/genome/genome";
 
 /**
  * Hourly cron (see vercel.json). Drives both unattended passes:
@@ -68,15 +69,29 @@ export async function GET(req: Request) {
     }
   }
 
+  // The genome is recomputed once per tick, after the per-tenant work rather
+  // than before it. It reads across every account, so it is the one job here
+  // whose failure must not be able to cost a single client their brief — and
+  // running it last is the cheapest way to guarantee that ordering.
+  let genome = null;
+  try {
+    genome = await refreshGenome();
+  } catch (err) {
+    console.error("[cron/night-shift] genome refresh threw:", err);
+  }
+
   const produced = briefs.filter((r) => r.status === "COMPLETE").length;
   const swept = sweeps.filter((r) => r.status === "COMPLETE").length;
   console.info(
-    `[cron/night-shift] ${produced}/${agentRoster.length} briefs, ${swept}/${adOpsRoster.length} sweeps`,
+    `[cron/night-shift] ${produced}/${agentRoster.length} briefs, ${swept}/${adOpsRoster.length} sweeps, genome ${
+      genome ? `${genome.decisive}/${genome.findings} decisive on ${genome.accounts} accounts` : "failed"
+    }`,
   );
 
   return json({
     ok: true,
     nightShift: { checked: agentRoster.length, produced, results: briefs },
     spendWatch: { checked: adOpsRoster.length, swept, results: sweeps },
+    genome,
   });
 }

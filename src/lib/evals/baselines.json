@@ -1,0 +1,36 @@
+{
+  "_readme": [
+    "Recorded scores for the replay suites. The build fails if a suite drops below these.",
+    "Raise a number here only alongside the change that earned it, and never to make a red build green — that is the one edit this file exists to make somebody think twice about.",
+    "`scorers` are per-scorer floors. `completeness` deliberately has none: the coder is told to omit rather than guess, so ratcheting completeness upward would train the guessing the taxonomy forbids.",
+    "These describe this repository's deterministic code, not the model. See fixtures.ts."
+  ],
+  "qualifier": {
+    "overall": 1.0,
+    "scorers": {
+      "schema": 1.0,
+      "coherence": 1.0
+    }
+  },
+  "outcomes": {
+    "overall": 0.8555,
+    "scorers": {
+      "discrimination": 0.8687,
+      "calibration": 0.829
+    }
+  },
+  "coder": {
+    "overall": 0.9827,
+    "scorers": {
+      "vocabulary": 1.0,
+      "agreement": 0.9667
+    }
+  },
+  "copy": {
+    "overall": 1.0,
+    "scorers": {
+      "noFabricatedStats": 1.0,
+      "noFakeTestimonial": 1.0
+    }
+  }
+}

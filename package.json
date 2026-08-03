@@ -16,6 +16,7 @@
     "stripe:setup": "tsx scripts/setup-stripe.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "evals:live": "tsx scripts/evals.ts",
     "db:sync": "node scripts/db-sync.mjs"
   },
   "prisma": {

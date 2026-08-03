@@ -261,6 +261,7 @@ model ClientProfile {
   entitlements     ClientEntitlement[]
   embeddings       Embedding[]
   pendingActions   PendingAction[]
+  creatives        Creative[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -427,8 +428,9 @@ model AdAccount {
   targetCpaCents     Int?
   targetRoas         Float?
 
-  metrics AdMetricDaily[]
-  alerts  AdAlert[]
+  metrics   AdMetricDaily[]
+  alerts    AdAlert[]
+  creatives Creative[]
 
   createdAt DateTime @default(now())
 
@@ -845,4 +847,133 @@ model Embedding {
   @@unique([clientId, sourceType, sourceId, chunkIndex, model])
   @@index([clientId, sourceType])
   @@index([clientId, model])
+}
+
+// ---------------------------------------------------------------------------
+// The Creative Genome — what the whole book of business has learned about ads
+// ---------------------------------------------------------------------------
+
+/// One advertisement, coded against the closed vocabulary in lib/genome/taxonomy.ts.
+///
+/// WHY THE CODING IS A COLUMN AND NOT A JOIN TABLE
+///   Every axis is answered at most once per creative, the vocabulary is
+///   closed, and the estimator reads whole codings rather than querying by
+///   attribute. A join table would buy referential integrity on values that
+///   `sanitizeCoding` already enforces at the only boundary that matters —
+///   the point where a model's output enters the system.
+///
+/// `codedBy` matters more than it looks. A human coding is worth more than a
+/// model coding as evidence, and the eval harness grades the model against
+/// the human set. Losing which is which would end that.
+model Creative {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  adAccountId String
+  adAccount   AdAccount @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+
+  /// Native id on the platform, when it came from an API sync.
+  externalId String?
+  name       String
+  /// IMAGE | VIDEO | CAROUSEL | TEXT
+  format     String  @default("IMAGE")
+
+  /// What the coder read. Kept so a vocabulary change can re-code without
+  /// going back to the platform.
+  headline  String? @db.Text
+  body      String? @db.Text
+  assetNote String? @db.Text
+
+  /// The coding. Axis key → value key, already sanitized.
+  coding   Json?
+  /// MODEL | HUMAN. Never inferred from whether a user id is present.
+  codedBy  String?
+  codedAt  DateTime?
+  /// Which vocabulary revision produced it. A coding made against an older
+  /// axis set is not comparable and is re-coded rather than trusted.
+  codedRev Int?
+
+  metrics CreativeMetricDaily[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([adAccountId, externalId])
+  @@index([clientId])
+  @@index([adAccountId])
+}
+
+/// Delivery for one creative on one day. Mirrors AdMetricDaily deliberately —
+/// same grain, same units, same source tagging — so the two can be reconciled
+/// and a creative-level total can be checked against the account-level one.
+model CreativeMetricDaily {
+  id         String   @id @default(cuid())
+  creativeId String
+  creative   Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+
+  date        DateTime
+  spend       Int      @default(0) // cents
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  leads       Int      @default(0)
+  conversions Int      @default(0)
+  revenue     Int      @default(0) // cents
+  source      String   @default("MANUAL") // MANUAL | CSV | API
+
+  @@unique([creativeId, date])
+  @@index([creativeId, date])
+}
+
+/// A pooled finding: one attribute value, measured across every account that
+/// ever varied it.
+///
+/// WHY THIS IS CACHED RATHER THAN COMPUTED ON READ
+///   The pool is over the whole book. Computing it per page view would mean
+///   every client's dashboard scanning every other client's delivery, which is
+///   both slow and the exact shape of query that eventually leaks a tenancy
+///   bug. It is computed once by the night shift, and what a client reads is
+///   this row plus their own contrast — their own data being the only
+///   per-tenant part.
+///
+/// There is deliberately no `clientId`. This row is not owned by anybody; it
+/// is what the book knows. Only `studies` carries account identifiers, and it
+/// is never served to a client.
+model GenomeEstimate {
+  id    String @id @default(cuid())
+  axis  String
+  value String
+  /// CLICK | LEAD — which funnel stage this was measured against.
+  stage String
+
+  /// Pooled log odds ratio and its interval.
+  effect  Float
+  se      Float
+  ciLow   Float
+  ciHigh  Float
+  /// Between-account variance. Zero means accounts looked like replicates.
+  tau2    Float
+  i2      Float
+  /// Independent accounts behind it.
+  accounts Int
+  /// The control arms' pooled rate — what the lift is a lift from.
+  baselineRate Float
+  /// How many contributing accounts needed the zero-cell correction.
+  corrected Int   @default(0)
+  /// Whether the interval excluded no-effect.
+  decisive  Boolean @default(false)
+
+  /// Per-account contrasts, so a client's own read can be shrunk toward this
+  /// without recomputing the book. Never served to a client.
+  studies Json?
+
+  /// The sentence, rendered once by describeEffect so every surface quotes the
+  /// same words with the same hedging.
+  sentence String @db.Text
+
+  /// Vocabulary revision this was computed against.
+  rev       Int      @default(1)
+  computedAt DateTime @default(now())
+
+  @@unique([axis, value, rev])
+  @@index([decisive])
 }
