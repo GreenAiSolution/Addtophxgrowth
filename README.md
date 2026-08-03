@@ -1,6 +1,31 @@
 # PHX/GROWTH PLUS
 
-The upgrade counter for [PHX/GROWTH](https://phxgrowth.com).
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![Next.js 14](https://img.shields.io/badge/Next.js-14-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)
+![CI](https://img.shields.io/badge/CI-typecheck%20%C2%B7%20lint%20%C2%B7%20test%20%C2%B7%20build-informational)
+
+**The upgrade counter for [PHX/GROWTH](https://phxgrowth.com) — a production
+Next.js storefront plus a multi-tenant client platform, built on one rule:
+every number on the page is resolved from a single tested catalogue, never
+typed by hand.** Deployed on Vercel with a Neon Postgres database.
+
+## At a glance
+
+- **One-page public storefront** selling upgrades that bolt onto the parent
+  brand's services, with machine-checked honesty rules (below).
+- **Signed-in client platform** — agent workspace, ad dashboards, Spend Watch
+  alerts, morning brief, requests, reports, Stripe billing — multi-tenant with
+  `CLIENT`/`ADMIN` roles.
+- **Autonomous night shift** — an hourly cron runs agents, distills a morning
+  brief, and watches ad spend, gated behind `CRON_SECRET`.
+- **Semantic recall** — pgvector embeddings + hybrid search over client data.
+- **AI-native by design** — the whole offer is machine-readable at
+  `/api/catalogue`, served over MCP at `/api/mcp`, and the codebase itself is
+  explorable through a bundled [repo-introspection MCP server](mcp-server/).
+- **Guardrail test suite** — 27 test files that fail the build on hand-typed
+  prices, catalogue overlap with the parent, missing security headers, or a
+  README claim the repo doesn't honour.
 
 **The public site is one page.** PHX/GROWTH — "the autonomous media buyer that
 flies your ad spend to profit" — sells three à la carte services (Premium AI
@@ -77,6 +102,61 @@ existing clients and are not part of the pitch.
 
 The Anthropic key is **never** exposed client-side — all model calls flow
 through `/api/agents/[agentSlug]/run` and `/api/reports/generate`.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Public
+        M["/(marketing) one-page site"]
+        U["/upgrades price list"]
+        CAT["/api/catalogue JSON"]
+        MCP["/api/mcp (MCP over HTTP)"]
+    end
+    subgraph Catalogue["src/lib/upgrades.ts — single source of truth"]
+        T["upgrades.test.ts + consistency.test.ts\n(attached · additive · no hand-typed prices)"]
+    end
+    subgraph Platform["Signed-in platform"]
+        APP["/app client console"]
+        ADM["/admin console"]
+        CRON["/api/cron hourly night shift + Spend Watch"]
+    end
+    DB[("Postgres + pgvector\n(Prisma, Neon)")]
+    STRIPE["Stripe subscriptions + webhooks"]
+    AI["Anthropic API (server-side only)"]
+
+    Catalogue --> M & U & CAT & MCP
+    APP & ADM & CRON --> DB
+    CRON --> AI
+    APP --> STRIPE --> DB
+```
+
+The public storefront and the signed-in platform share a deploy but not a
+price list — tests enforce the wall between them (see below).
+
+---
+
+## MCP servers (AI-native repo)
+
+This repository exposes **two** Model Context Protocol surfaces, one for the
+business and one for the codebase:
+
+| Server | What it serves | Transport |
+| --- | --- | --- |
+| `/api/mcp` (`src/lib/mcp.ts`) + [`phxgrowth-plus-mcp-server/`](phxgrowth-plus-mcp-server) | The **live catalogue**: `list_catalogue`, `get_upgrade`, `quote_bundle`, `quote_stack`, `upgrades_for_service`, `proof_posture`. The stdio wrapper proxies the deployed endpoint so a price is never copied. | HTTP + stdio proxy |
+| [`mcp-server/`](mcp-server) | The **codebase**: `get_project_overview`, `get_route_map`, `get_db_schema`, `list_guardrail_tests`, `get_env_reference`, `search_source` — every tool reads the working tree at call time. | stdio |
+
+```bash
+# Explore the codebase from Claude Code
+cd mcp-server && npm install && cd ..
+claude mcp add addtophxgrowth -- node mcp-server/server.mjs
+```
+
+A root [`.mcp.json`](.mcp.json) registers the introspection server for clients
+that support project-scoped MCP config. See
+[`mcp-server/README.md`](mcp-server/README.md) for the full tool reference.
 
 ---
 
@@ -416,3 +496,9 @@ The client's own URL is shown to them on `/app/brief`.
 
 See [`PROGRESS.md`](./PROGRESS.md) for the phase-by-phase build log and the
 current state of each phase.
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 GreenAI Solutions.
