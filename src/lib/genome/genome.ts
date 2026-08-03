@@ -152,6 +152,58 @@ export async function codeCreative(creativeId: string): Promise<CodeResult | nul
 }
 
 // ---------------------------------------------------------------------------
+// The coding sweep
+// ---------------------------------------------------------------------------
+
+/**
+ * Per cron tick, not per night. The cap exists for the same reason the night
+ * shift runs sequentially: a backlog of a thousand imported creatives must
+ * become a few days of quiet catch-up, not one tick that spends the model
+ * budget in a burst and trips a rate limit for every tenant at once.
+ */
+export const CODING_SWEEP_LIMIT = 25;
+
+export interface SweepResult {
+  /** How many uncoded creatives were waiting, up to the cap. */
+  attempted: number;
+  coded: number;
+  /** Vocabulary violations the sanitizer dropped — a nonzero count here is
+   *  the coder drifting, and worth a look before it costs data. */
+  problems: number;
+}
+
+/**
+ * Code whatever has arrived uncoded, oldest first.
+ *
+ * This is the missing stage between ingestion and estimation: creatives enter
+ * by CSV or manual entry with no coding, and `refreshGenome` reads only coded
+ * rows — without this sweep, an imported creative would simply never exist as
+ * far as the book is concerned. Also picks up creatives coded against an old
+ * vocabulary revision, which is what makes bumping CODING_REV safe: the next
+ * few ticks re-code the book instead of anybody re-importing anything.
+ */
+export async function codingSweep(limit = CODING_SWEEP_LIMIT): Promise<SweepResult> {
+  const waiting = await prisma.creative.findMany({
+    where: { OR: [{ codedAt: null }, { codedRev: { not: CODING_REV } }] },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
+
+  let coded = 0;
+  let problems = 0;
+  // Sequential on purpose — see the cap's comment.
+  for (const c of waiting) {
+    const res = await codeCreative(c.id);
+    if (!res) continue;
+    coded += 1;
+    problems += res.problems.length;
+  }
+
+  return { attempted: waiting.length, coded, problems };
+}
+
+// ---------------------------------------------------------------------------
 // Refreshing the book
 // ---------------------------------------------------------------------------
 

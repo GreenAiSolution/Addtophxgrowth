@@ -12,6 +12,7 @@ import {
   Target,
   Activity,
   ShieldCheck,
+  Dna,
 } from "lucide-react";
 
 export interface NavItem {
@@ -29,6 +30,7 @@ export const CLIENT_NAV: NavItem[] = [
   { href: "/app/recall", label: "Recall", icon: Brain },
   { href: "/app/memory", label: "System Memory", icon: Brain },
   { href: "/app/ads", label: "Ad Ops", icon: BarChart3 },
+  { href: "/app/genome", label: "Creative Genome", icon: Dna },
   { href: "/app/requests", label: "Requests", icon: Inbox },
   { href: "/app/reports", label: "Reports", icon: FileText },
   { href: "/app/billing", label: "Billing", icon: CreditCard },

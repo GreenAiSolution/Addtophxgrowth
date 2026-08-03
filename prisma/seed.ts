@@ -476,6 +476,182 @@ async function seedCapacityGrants(clientId: string) {
   console.log("   \u00b7 granted 2 capacity add-ons (extra agent + run pack)");
 }
 
+/**
+ * The Creative Genome demo: coded creatives with delivery history across every
+ * demo ad account, and then the book computed from them by the production
+ * estimator — never hand-written findings, for the same reason the memory demo
+ * calls refreshMemory instead of inserting facts.
+ *
+ * WHY THE CODINGS ARE WRITTEN HERE RATHER THAN MODEL-CODED
+ *   The seed must run with no Anthropic key. These creatives are authored by
+ *   the seed, so their codings are known by construction — that is a human
+ *   coding in the schema's sense (`codedBy: "HUMAN"`), and the ad text is
+ *   generated *from* the coding so the two can never disagree. The coding
+ *   sweep in the night shift is what codes creatives that arrive without one.
+ *
+ * WHY EVERY ACCOUNT RUNS A PORTFOLIO WITH VARIATION ON EVERY AXIS
+ *   An account that never varied a device contributes nothing about it — that
+ *   is the estimator's rule, so a demo where each account ran one style of ad
+ *   would seed a thousand rows and produce an empty book. One account gets a
+ *   smaller portfolio deliberately, so the page also shows what "not enough
+ *   independent accounts" looks like — the gates being visible is the point.
+ */
+async function seedCreativeGenomeDemo(clientIds: string[]) {
+  const accounts = await prisma.adAccount.findMany({
+    where: { clientId: { in: clientIds } },
+    orderBy: { id: "asc" },
+    select: { id: true, clientId: true },
+  });
+  if (accounts.length === 0) return;
+
+  const already = await prisma.creative.count({
+    where: { adAccountId: { in: accounts.map((a) => a.id) } },
+  });
+  if (already > 0) return;
+
+  const { CODING_REV, refreshGenome } = await import("../src/lib/genome/genome");
+
+  const HOOK_LINE: Record<string, string> = {
+    question: "What is a missed call costing you every week?",
+    problem: "Leads go quiet the moment you're out on a job.",
+    callout: "Phoenix home-service owners —",
+    claim: "Every enquiry answered in under five minutes.",
+    urgency: "Peak season is weeks away.",
+  };
+  const OFFER_LINE: Record<string, string> = {
+    quote: "Get a free quote today.",
+    inspection: "Book a free inspection.",
+    discount: "$200 off any job booked this month.",
+    availability: "Same-week appointments available.",
+    none: "See how it works.",
+  };
+  const PROOF_LINE: Record<string, string> = {
+    review: "“They answered before I could hang up.” — recent customer",
+    credential: "Licensed, bonded and insured for 12 years.",
+    volume: "Over 1,400 jobs completed.",
+    "visual-proof": "",
+    none: "",
+  };
+  const CTA_LINE: Record<string, string> = {
+    call: "Call now.",
+    form: "Tell us about the job.",
+    book: "Pick a time that suits.",
+    soft: "Learn more.",
+  };
+  const ASSET_NOTE: Record<string, string> = {
+    "before-after": "Split frame: the same job site before and after the work.",
+    operator: "The owner speaking straight to camera in the yard.",
+    work: "Crew mid-job, no presenter.",
+    artifact: "The finished product, isolated on a plain background.",
+    text: "Bold text on a flat colour, no photography.",
+    ugc: "Handheld phone footage shot from a customer's porch.",
+  };
+
+  const PORTFOLIO = [
+    { key: "A", format: "VIDEO", coding: { hook: "question", visual: "before-after", pacing: "immediate", offer: "quote", proof: "review", cta: "call" } },
+    { key: "B", format: "IMAGE", coding: { hook: "claim", visual: "artifact", pacing: "build", offer: "discount", proof: "none", cta: "form" } },
+    { key: "C", format: "VIDEO", coding: { hook: "question", visual: "work", pacing: "immediate", offer: "quote", proof: "credential", cta: "call" } },
+    { key: "D", format: "IMAGE", coding: { hook: "problem", visual: "before-after", pacing: "build", offer: "inspection", proof: "review", cta: "form" } },
+    { key: "E", format: "VIDEO", coding: { hook: "claim", visual: "operator", pacing: "immediate", offer: "quote", proof: "review", cta: "book" } },
+    { key: "F", format: "IMAGE", coding: { hook: "urgency", visual: "text", pacing: "immediate", offer: "discount", proof: "volume", cta: "call" } },
+    { key: "G", format: "VIDEO", coding: { hook: "question", visual: "ugc", pacing: "slow", offer: "availability", proof: "none", cta: "form" } },
+    { key: "H", format: "IMAGE", coding: { hook: "callout", visual: "before-after", pacing: "build", offer: "none", proof: "visual-proof", cta: "soft" } },
+  ] as const;
+
+  // The ground truth the estimator should recover. Multiplicative on the
+  // baseline rate; CLICK axes act on click-through, LEAD axes on click→lead.
+  const CTR_MULT: Record<string, Record<string, number>> = {
+    hook: { question: 1.28, problem: 1.08, callout: 1.0, claim: 0.92, urgency: 0.85 },
+    visual: { "before-after": 1.35, operator: 1.05, work: 1.0, artifact: 0.95, text: 0.85, ugc: 1.1 },
+    pacing: { immediate: 1.12, build: 1.0, slow: 0.8 },
+  };
+  const LEAD_MULT: Record<string, Record<string, number>> = {
+    offer: { quote: 1.3, inspection: 1.1, discount: 0.95, availability: 1.05, none: 0.6 },
+    proof: { review: 1.25, credential: 1.1, volume: 1.0, "visual-proof": 1.05, none: 0.8 },
+    cta: { call: 1.15, form: 1.0, book: 1.05, soft: 0.7 },
+  };
+
+  // Accounts differ in baseline and in how strongly each device acts — that
+  // between-account variance is what random effects exist to pool over.
+  const CTR_BASE = [0.024, 0.031, 0.027, 0.022];
+  const LEAD_BASE = [0.11, 0.14, 0.12, 0.1];
+  const STRENGTH = [0.85, 1.0, 1.1, 0.95];
+
+  let creatives = 0;
+  for (let ai = 0; ai < accounts.length; ai++) {
+    const account = accounts[ai];
+    // The second account runs a thinner portfolio; devices only it dropped
+    // fall below MIN_ACCOUNTS and demonstrate the gate.
+    const portfolio = ai === 1 ? PORTFOLIO.slice(0, 6) : PORTFOLIO;
+
+    for (let ci = 0; ci < portfolio.length; ci++) {
+      const p = portfolio[ci];
+      const strength = STRENGTH[ai % STRENGTH.length];
+
+      let ctr = CTR_BASE[ai % CTR_BASE.length];
+      for (const [axis, table] of Object.entries(CTR_MULT)) {
+        const v = (p.coding as Record<string, string>)[axis];
+        if (v && table[v]) ctr *= table[v] ** strength;
+      }
+      let leadRate = LEAD_BASE[ai % LEAD_BASE.length];
+      for (const [axis, table] of Object.entries(LEAD_MULT)) {
+        const v = (p.coding as Record<string, string>)[axis];
+        if (v && table[v]) leadRate *= table[v] ** strength;
+      }
+
+      const creative = await prisma.creative.create({
+        data: {
+          clientId: account.clientId,
+          adAccountId: account.id,
+          name: `Creative ${p.key} — ${p.coding.hook} hook, ${p.coding.visual}`,
+          format: p.format,
+          headline: HOOK_LINE[p.coding.hook],
+          body: [OFFER_LINE[p.coding.offer], PROOF_LINE[p.coding.proof], CTA_LINE[p.coding.cta]]
+            .filter(Boolean)
+            .join(" "),
+          assetNote: ASSET_NOTE[p.coding.visual],
+          coding: p.coding as object,
+          codedBy: "HUMAN",
+          codedAt: new Date(),
+          codedRev: CODING_REV,
+        },
+      });
+      creatives += 1;
+
+      const rows = [];
+      for (let d = 0; d < 60; d++) {
+        const date = new Date();
+        date.setUTCHours(0, 0, 0, 0);
+        date.setUTCDate(date.getUTCDate() - d);
+
+        // Deterministic curve, same policy as the account-level seed.
+        const wave = 1 + 0.25 * Math.sin((d + ci * 3) / 6);
+        const impressions = Math.round((1200 + ci * 90) * wave);
+        const clicks = Math.round(impressions * ctr);
+        const leads = Math.round(clicks * leadRate * (1 + 0.2 * Math.sin((d + ci) / 9)));
+        const conversions = Math.round(leads * 0.2);
+        rows.push({
+          creativeId: creative.id,
+          date,
+          spend: Math.round((impressions / 1000) * 800), // ~$8 CPM, cents
+          impressions,
+          clicks,
+          leads,
+          conversions,
+          revenue: conversions * 42_000,
+          source: "MANUAL",
+        });
+      }
+      await prisma.creativeMetricDaily.createMany({ data: rows });
+    }
+  }
+
+  const genome = await refreshGenome();
+  console.log(
+    `   · genome: ${genome.findings} findings (${genome.decisive} decisive) pooled from ${creatives} creatives across ${genome.accounts} accounts`,
+  );
+}
+
 async function main() {
   console.log("→ Seeding catalog (product lines + plans)…");
   await seedCatalog();
@@ -529,7 +705,7 @@ async function main() {
   await seedCapacityGrants(c1.id);
 
   console.log("→ Seeding demo client #2 (Launch)…");
-  await upsertClient({
+  const c2 = await upsertClient({
     email: "demo2@phxgrowth.com",
     name: "Sam Okafor",
     businessName: "Bright Home Solar",
@@ -559,6 +735,9 @@ async function main() {
     adAccounts: [{ platform: "GOOGLE", name: "Ironclad — Google Ads" }],
   });
   await seedNightShiftDemo(c3.id);
+
+  console.log("→ Seeding the Creative Genome (creatives + the book computed from them)…");
+  await seedCreativeGenomeDemo([c1.id, c2.id, c3.id]);
 
   console.log("✓ Seed complete.");
 }
