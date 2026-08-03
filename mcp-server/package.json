@@ -1,0 +1,14 @@
+{
+  "name": "addtophxgrowth-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Repo-introspection MCP server for the PHX Growth Plus codebase: routes, schema, guardrail tests, env reference and source search.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  }
+}
