@@ -30,6 +30,7 @@
  */
 
 import type { Coding } from "@/lib/genome/taxonomy";
+import type { Extraction } from "@/lib/conversations/taxonomy";
 import type { Graded } from "./scorers";
 
 // ---------------------------------------------------------------------------
@@ -320,3 +321,100 @@ export const ADVERSARIAL_COPY: CopyCase[] = [
     copy: `Most homeowners cut their cooling bill by about 22% after the upgrade.`,
   },
 ];
+
+// ---------------------------------------------------------------------------
+// The conversation extractor — what it concludes happened on a call
+// ---------------------------------------------------------------------------
+
+export interface ExtractionCase {
+  key: string;
+  about: string;
+  reply: string;
+  /** The human reading of the same call. */
+  gold: Pick<Extraction, "outcome" | "quotedCents" | "nextStepAgreed"> & {
+    objectionKeys: string[];
+  };
+}
+
+export const HEALTHY_EXTRACTION: ExtractionCase[] = [
+  {
+    key: "booked-clean",
+    about: "A date was agreed. The unambiguous case.",
+    reply: `\`\`\`json
+{"outcome":"BOOKED","objections":[],"quotedCents":null,"nextStepAgreed":true,"summary":"Booked an inspection for Thursday morning."}
+\`\`\``,
+    gold: { outcome: "BOOKED", quotedCents: null, nextStepAgreed: true, objectionKeys: [] },
+  },
+  {
+    key: "quoted-price-objection",
+    about: "A figure was said aloud and the customer flinched at it.",
+    reply: `\`\`\`json
+{"outcome":"QUOTED","objections":[{"key":"price","verbatim":"that's a lot more than I was expecting"}],"quotedCents":1420000,"nextStepAgreed":false,"summary":"Quoted $14,200 for a full replacement; they want to think about it."}
+\`\`\``,
+    gold: {
+      outcome: "QUOTED",
+      quotedCents: 1_420_000,
+      nextStepAgreed: false,
+      objectionKeys: ["price"],
+    },
+  },
+  {
+    key: "two-objections",
+    about: "Price and a missing decision maker, which are genuinely separate.",
+    reply: `\`\`\`json
+{"outcome":"QUOTED","objections":[{"key":"price"},{"key":"authority","verbatim":"I'd have to run it past my wife"}],"quotedCents":880000,"nextStepAgreed":false,"summary":"Quoted; needs to discuss with their spouse."}
+\`\`\``,
+    gold: {
+      outcome: "QUOTED",
+      quotedCents: 880_000,
+      nextStepAgreed: false,
+      objectionKeys: ["price", "authority"],
+    },
+  },
+  {
+    key: "wrong-fit",
+    about: "Outside the service area — a targeting problem, not a selling one.",
+    reply: `\`\`\`json
+{"outcome":"WRONG_FIT","objections":[],"quotedCents":null,"nextStepAgreed":false,"summary":"Commercial flat roof two hours outside the service area."}
+\`\`\``,
+    gold: { outcome: "WRONG_FIT", quotedCents: null, nextStepAgreed: false, objectionKeys: [] },
+  },
+  {
+    key: "no-price-said",
+    about: "The pressure case: a price was asked about and never given.",
+    reply: `\`\`\`json
+{"outcome":"CALLBACK_PROMISED","objections":[{"key":"timing","verbatim":"we're not doing anything until after the summer"}],"quotedCents":null,"nextStepAgreed":false,"summary":"Wants a call back in the autumn; no figure discussed."}
+\`\`\``,
+    gold: {
+      outcome: "CALLBACK_PROMISED",
+      quotedCents: null,
+      nextStepAgreed: false,
+      objectionKeys: ["timing"],
+    },
+  },
+];
+
+export const ADVERSARIAL_EXTRACTION: ExtractionCase[] = [
+  {
+    key: "invented-price",
+    about: "No figure was said and the model produced one anyway. The costliest failure here.",
+    reply: `\`\`\`json
+{"outcome":"QUOTED","objections":[],"quotedCents":1200000,"nextStepAgreed":false,"summary":"Probably around twelve thousand."}
+\`\`\``,
+    gold: { outcome: "CALLBACK_PROMISED", quotedCents: null, nextStepAgreed: false, objectionKeys: [] },
+  },
+  {
+    key: "invented-objection",
+    about: "An objection category nobody defined.",
+    reply: `\`\`\`json
+{"outcome":"NOT_INTERESTED","objections":[{"key":"bad_energy"}],"quotedCents":null,"nextStepAgreed":false}
+\`\`\``,
+    gold: { outcome: "NOT_INTERESTED", quotedCents: null, nextStepAgreed: false, objectionKeys: [] },
+  },
+  {
+    key: "prose-only",
+    about: "Ignored the format. Must land as UNCLEAR, never extract partially.",
+    reply: `The call went well overall — I'd say they're pretty interested and it sounded like a booking.`,
+    gold: { outcome: "BOOKED", quotedCents: null, nextStepAgreed: true, objectionKeys: [] },
+  },
+]

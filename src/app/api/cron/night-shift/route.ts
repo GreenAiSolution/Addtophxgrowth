@@ -3,6 +3,12 @@ import { env } from "@/lib/env";
 import { nightShiftRoster, runNightShift } from "@/lib/night-shift";
 import { spendWatchRoster, runSpendWatch } from "@/lib/spend-watch";
 import { codingSweep, refreshGenome } from "@/lib/genome/genome";
+import {
+  conversationRoster,
+  extractConversation,
+  extractionBacklog,
+  foldIntoMemory,
+} from "@/lib/conversations/ingest";
 
 /**
  * Hourly cron (see vercel.json). Drives both unattended passes:
@@ -69,6 +75,30 @@ export async function GET(req: Request) {
     }
   }
 
+  // Conversations: read whatever has been ingested and not yet read, then fold
+  // the conclusions into system memory. Both are capped and both roster off
+  // their own criteria rather than off tier — conversations arrive for every
+  // client regardless of what they pay, and a tier-gated roster is how a
+  // Launch client's data ends up extracted and silently never used.
+  const conversations = { extracted: 0, failed: 0, folded: 0 };
+  for (const id of await extractionBacklog()) {
+    try {
+      await extractConversation(id);
+      conversations.extracted += 1;
+    } catch (err) {
+      console.error(`[cron/night-shift] extraction for ${id} threw:`, err);
+      conversations.failed += 1;
+    }
+  }
+  for (const clientId of await conversationRoster()) {
+    try {
+      const result = await foldIntoMemory(clientId);
+      conversations.folded += result.applied;
+    } catch (err) {
+      console.error(`[cron/night-shift] memory fold for ${clientId} threw:`, err);
+    }
+  }
+
   // Genome work runs after the per-tenant work rather than before it. It reads
   // across every account, so it is the one job here whose failure must not be
   // able to cost a single client their brief — and running it last is the
@@ -95,13 +125,14 @@ export async function GET(req: Request) {
       sweep ? `${sweep.coded}/${sweep.attempted}` : "failed"
     }, genome ${
       genome ? `${genome.decisive}/${genome.findings} decisive on ${genome.accounts} accounts` : "failed"
-    }`,
+    }, conversations ${conversations.extracted} read / ${conversations.folded} folded`,
   );
 
   return json({
     ok: true,
     nightShift: { checked: agentRoster.length, produced, results: briefs },
     spendWatch: { checked: adOpsRoster.length, swept, results: sweeps },
+    conversations,
     codingSweep: sweep,
     genome,
   });

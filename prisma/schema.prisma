@@ -262,6 +262,7 @@ model ClientProfile {
   embeddings       Embedding[]
   pendingActions   PendingAction[]
   creatives        Creative[]
+  customerConversations CustomerConversation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -585,7 +586,8 @@ model Lead {
   nextAction String?    @db.Text
   scoredAt   DateTime?
 
-  outcomes DealOutcome[]
+  outcomes      DealOutcome[]
+  conversations CustomerConversation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -976,4 +978,80 @@ model GenomeEstimate {
 
   @@unique([axis, value, rev])
   @@index([decisive])
+}
+
+// ---------------------------------------------------------------------------
+// Conversation intelligence — what happens after the phone rings
+// ---------------------------------------------------------------------------
+
+/// One conversation with a customer: a call, an SMS thread, an email exchange.
+///
+/// NAMED `CustomerConversation` DELIBERATELY
+///   `AgentConversation` already exists and is a chat between a client and one
+///   of our agents. These are the opposite direction — a client's own customer
+///   talking to the client's own staff — and confusing the two would put a
+///   customer's transcript on the agent workspace screen.
+///
+/// CONSENT IS REQUIRED, NOT OPTIONAL
+///   `consentBasis` has no default. A recording with no recorded basis for
+///   holding it is refused at ingestion rather than stored and flagged —
+///   the flagged version means the audio is already on our disk, which is
+///   precisely the thing that was supposed to require a basis. See
+///   lib/conversations/taxonomy.ts.
+///
+/// TRANSCRIPTS ARE STORED REDACTED
+///   `redact()` runs before the write, never before the render. Redacting at
+///   display time leaves the raw text on disk and one missing call site away
+///   from a screen.
+model CustomerConversation {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// Groups conversations with the same person. A phone number, usually.
+  /// Not a foreign key: most callers never become a Lead row.
+  contactKey  String
+  contactName String?
+
+  /// INBOUND | OUTBOUND
+  direction String
+  /// CALL | SMS | EMAIL | CHAT
+  channel   String
+  startedAt DateTime
+  durationSec Int?
+
+  /// Why we are permitted to hold this. No default — see above.
+  consentBasis String
+
+  /// Redacted before write. Null when only metadata was ingested (a missed
+  /// call has no transcript and is still the most valuable row in this table).
+  transcript String? @db.Text
+  /// What redaction removed, so a client can be shown it rather than told.
+  redactions Json?
+
+  // --- What the extractor concluded. Null until it has run.
+  /// BOOKED | QUOTED | CALLBACK_PROMISED | NOT_INTERESTED | WRONG_FIT | NO_ANSWER | UNCLEAR
+  outcome        String?
+  /// Array of { key, verbatim? } against the closed objection vocabulary.
+  objections     Json?
+  /// Cents. Null means no figure was said — never zero as a stand-in.
+  quotedCents    Int?
+  nextStepAgreed Boolean  @default(false)
+  summary        String?  @db.Text
+  extractedAt    DateTime?
+
+  /// Set when this conversation has been folded into system memory, so a
+  /// re-run cannot double-count one lost deal.
+  memoryAppliedAt DateTime?
+
+  /// The lead this conversation belongs to, where one exists.
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId, startedAt])
+  @@index([clientId, contactKey])
+  @@index([clientId, outcome])
+  @@index([leadId])
 }

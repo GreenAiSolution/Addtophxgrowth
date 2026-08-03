@@ -273,3 +273,69 @@ export function completeness(coding: Coding): Score {
   const c = codingCompleteness(coding);
   return { score: c, detail: `${Math.round(c * 100)}% of axes coded` };
 }
+
+// ---------------------------------------------------------------------------
+// The conversation extractor
+// ---------------------------------------------------------------------------
+
+/**
+ * Did it invent a price?
+ *
+ * The costliest failure in the whole extraction path, and the reason it gets a
+ * scorer of its own rather than being folded into general accuracy. A quoted
+ * figure flows straight into `foldIntoMemory`, which hands it to
+ * `computeCalibration`, which tells the client what their average won deal is
+ * worth. One hallucinated number becomes a fact on a dashboard, and there is
+ * no stage between here and there that could catch it.
+ *
+ * Scored asymmetrically on purpose. Missing a price that was said is a lost
+ * data point; reporting one that was never said is a fabrication, and the two
+ * are not equally bad.
+ */
+export function priceFidelity(
+  got: number | null,
+  expected: number | null,
+): Score {
+  if (expected == null && got == null) return ok("no figure claimed, none was said");
+  if (expected == null && got != null) {
+    return bad(`invented a price of ${(got / 100).toFixed(0)} that was never said`);
+  }
+  if (expected != null && got == null) {
+    return { score: 0.5, detail: `missed the quoted figure of ${(expected / 100).toFixed(0)}` };
+  }
+  if (got === expected) return ok("matched the figure said");
+  return bad(`reported ${(got! / 100).toFixed(0)}, the transcript said ${(expected! / 100).toFixed(0)}`);
+}
+
+/** Did it reach the same conclusion about what happened as a human reader? */
+export function outcomeMatch(got: string, expected: string): Score {
+  if (got === expected) return ok(`${got}`);
+  // UNCLEAR is the honest answer when the reply was unusable, and is scored
+  // above a confident wrong answer for the same reason the coder is told to
+  // omit rather than guess.
+  if (got === "UNCLEAR") return { score: 0.25, detail: `gave up; a human read it as ${expected}` };
+  return bad(`said ${got}, a human read it as ${expected}`);
+}
+
+/** Overlap between the objections found and the objections a human found. */
+export function objectionMatch(got: string[], expected: string[]): Score {
+  if (expected.length === 0 && got.length === 0) return ok("none raised, none reported");
+  if (expected.length === 0) return bad(`reported ${got.join(", ")} where a human found none`);
+
+  const found = new Set(got);
+  const hits = expected.filter((e) => found.has(e)).length;
+  const spurious = got.filter((g) => !expected.includes(g)).length;
+
+  // Jaccard rather than recall: a model that returns every objection in the
+  // vocabulary would score perfect recall and be useless.
+  const union = new Set([...got, ...expected]).size;
+  const score = union === 0 ? 1 : hits / union;
+
+  return {
+    score,
+    detail:
+      spurious > 0
+        ? `${hits}/${expected.length} found, ${spurious} spurious`
+        : `${hits}/${expected.length} found`,
+  };
+}

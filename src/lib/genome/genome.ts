@@ -39,6 +39,7 @@ import { prisma } from "@/lib/prisma";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import {
   AXIS_KEYS,
+  axisByKey,
   coderInstruction,
   sanitizeCoding,
   type Coding,
@@ -315,26 +316,43 @@ export async function genomeForClient(clientId: string): Promise<ClientFinding[]
 
   const mine = accounts.map((a) => a.id);
 
-  const findings = estimates.map((e) => ({
-    axis: e.axis,
-    axisLabel: e.axis,
-    value: e.value,
-    valueLabel: e.value,
-    stage: e.stage as "CLICK" | "LEAD",
-    pooled: {
-      effect: e.effect,
-      se: e.se,
-      ci: [e.ciLow, e.ciHigh] as [number, number],
-      tau2: e.tau2,
-      q: 0,
-      i2: e.i2,
-      k: e.accounts,
-    },
-    baselineRate: e.baselineRate,
-    studies: ((e.studies ?? []) as unknown as Study[]).filter((s) => mine.includes(s.accountId)),
-    correctedCount: e.corrected,
-    described: { sentence: e.sentence, decisive: e.decisive, direction: "flat" as const },
-  }));
+  const findings = estimates.map((e) => {
+    // Labels are resolved from the vocabulary rather than stored on the row.
+    // A stored label is a second copy of a name, and the row outlives the
+    // vocabulary edit that renames it — the page would then show the old word
+    // for an estimate computed under the new one.
+    const axis = axisByKey(e.axis);
+    const value = axis?.values.find((v) => v.key === e.value);
+
+    return {
+      axis: e.axis,
+      axisLabel: axis?.label ?? e.axis,
+      value: e.value,
+      valueLabel: value?.label ?? e.value,
+      stage: e.stage as "CLICK" | "LEAD",
+      pooled: {
+        effect: e.effect,
+        se: e.se,
+        ci: [e.ciLow, e.ciHigh] as [number, number],
+        tau2: e.tau2,
+        q: 0,
+        i2: e.i2,
+        k: e.accounts,
+      },
+      baselineRate: e.baselineRate,
+      studies: ((e.studies ?? []) as unknown as Study[]).filter((s) => mine.includes(s.accountId)),
+      correctedCount: e.corrected,
+      described: {
+        // The sentence is quoted as stored — rendered once by `describeEffect`
+        // so every surface hedges identically. Direction is derived rather
+        // than stored, and is `flat` unless the interval excluded no-effect,
+        // so an arrow can never point somewhere the sentence does not.
+        sentence: e.sentence,
+        decisive: e.decisive,
+        direction: (e.decisive ? (e.effect > 0 ? "up" : "down") : "flat") as "up" | "down" | "flat",
+      },
+    };
+  });
 
   return clientView(findings, mine);
 }

@@ -331,6 +331,29 @@ the page actually offers.
   `x-intake-token` or `?token=`, compared in constant time. Leads land unscored;
   scoring happens on the night shift so a slow model call can never make a
   client's website form time out.
+- **Conversation intelligence** (`src/lib/conversations/`) — every system here
+  stopped at the lead. The Spend Watch measured what it cost to make the phone
+  ring, the qualifier scored whoever filled the form, and `memory.ts` learned
+  from the handful of outcomes somebody remembered to type in. Between the ring
+  and the typed-in outcome is where a home-services business actually loses its
+  month, and nothing was looking. **The leak rules use no model at all** — a
+  missed inbound call nobody returned, a promised callback that never happened,
+  a quote gone quiet — which means they survive an outage, cannot hallucinate,
+  and can be handed to an owner as fact. One customer produces at most one leak;
+  three reminders about the same lost job is how a list stops getting worked.
+  Nothing is stored without a recorded `ConsentBasis` — refused, not
+  stored-and-flagged, because the flagged version means the transcript is
+  already on disk. Card numbers, government IDs and addresses are stripped
+  before the write, never before the render; names are kept and `redact.ts`
+  says plainly why claiming otherwise would be the more dangerous position. The
+  objection vocabulary is closed for the same reason the genome's is, and
+  extracted outcomes fold into `memory.ts` behind a `memoryAppliedAt` guard so
+  a re-run cannot turn one lost deal into three. `QUOTED` and `WRONG_FIT` are
+  deliberately never folded — a live opportunity is not a loss, and a call
+  outside the service area is a targeting problem, not a failed sale. The
+  telephony integration is the one thing not here: `ingestConversation` is the
+  provider-agnostic boundary they all land on, drawn deliberately rather than
+  for want of time.
 - **The Creative Genome** (`src/lib/genome/`) — the part of the creative loop
   that compounds. Every ad is coded against a **closed vocabulary** of six axes
   (`taxonomy.ts`); an open one cannot be pooled, because "question hook" and

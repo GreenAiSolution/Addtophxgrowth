@@ -753,3 +753,122 @@ draining in-flight forwards before exiting, and pinned by a test.
    desktop client.
 4. A `/app/genome` page. The findings are computed and injected into MUSE-9,
    but no client can currently read them.
+
+---
+
+## Phase 17 — The genome made visible, and the gap after the phone rings ✅
+
+### 1. `/app/genome`, and a bug in it
+
+Built in parallel with another session, which got there first with a better
+version of it — theirs was verified against real seeded data and a live model
+call, mine was not. Theirs is what shipped; mine was discarded on the merge.
+
+What survived from this side is the `genomeForClient` fix, and it turned out to
+matter more than the page did. That function was reconstructing each finding
+from its stored row and **hard-coding `direction: "flat"`**, because at the
+time nothing read the field. The page that shipped reads it:
+
+```
+{f.described.direction === "up" ? "works" : "hurts"}
+```
+
+So every decisive finding on the live page would have rendered **"hurts"** —
+including every device the book had just concluded works. Direction is now
+derived from the stored effect's sign, and only when the interval excluded
+no-effect, so a badge can never contradict the sentence beside it.
+
+Labels are also resolved from the vocabulary rather than stored on the row: a
+stored label is a second copy of a name, and the row outlives the edit that
+renames it.
+
+### 2. Conversation intelligence (`src/lib/conversations/`)
+
+Ads make the phone ring; the money is lost on the phone. Every system in this
+codebase stopped at the lead.
+
+**The leaks need no model.** A missed inbound call nobody returned, somebody
+who rang three times and never got through, a promised callback that never
+happened, a quote gone quiet. All arithmetic over call records — so they
+survive an Anthropic outage, cannot hallucinate, and can be handed to an owner
+as fact rather than as an opinion the software formed. One customer produces at
+most one leak, because three reminders about the same lost job is how a list
+stops getting worked.
+
+**No leak value is invented.** `valueCents` is populated only from a figure
+somebody said out loud, and the count of unpriced leaks is returned alongside
+the total rather than folded in at an assumed job value. `leak.ts` makes the
+same choice on the marketing side.
+
+**Consent is a required field, not a settings checkbox.** A conversation with
+no `ConsentBasis` is refused. Stored-and-flagged was the alternative and it is
+worse: it means the audio is already on our disk, which is precisely the thing
+that was supposed to require a basis. Call recording law is not uniform and
+Arizona's one-party rule does not travel, so the default is conservative and
+the judgement is written down where a lawyer can find and loosen it.
+
+**Redaction runs before storage, never before display.** Card numbers,
+government IDs, emails, phones, addresses and labelled account references.
+Names are kept, and `redact.ts` argues why rather than implying otherwise —
+names have no shape, and a redactor confident enough to strip them would either
+destroy transcripts or miss most of them.
+
+A real false positive was caught in the process: the account-reference pattern
+matched ordinary words under the case-insensitive flag, so "insurance claim
+being processed" redacted as "insurance [account removed] processed" — and
+storm-damage roofing transcripts say "claim" in almost every call. Fixed with a
+digit lookahead and pinned by a test.
+
+**The loop back closes.** Extracted outcomes fold into `memory.ts`, which has
+always been able to learn a client's real close rate, killer objections and
+average deal value — and has been doing it on the handful of outcomes somebody
+typed into a form. `memoryAppliedAt` guards the fold so a re-run cannot turn
+one lost deal into three. `QUOTED` and `CALLBACK_PROMISED` are never folded
+(nothing has happened yet, and filing a live opportunity as a loss teaches the
+qualifier that its best leads fail) and neither is `WRONG_FIT` (a targeting
+problem, not a failed sale — counting it would make the close rate a fact about
+the media buying).
+
+**The roster is deliberately not tier-gated.** Conversations arrive for every
+client regardless of what they pay, and rostering off the night shift would
+mean a Launch client's calls were extracted, stored and silently never used —
+the exact shape of the bug that once let a Launch client's leads land in a
+table with no screen. Extraction is capped at 40 per tick, because an
+unattended job that will happily make five hundred model calls after an
+overnight backfill is how a month's budget disappears before anybody is awake.
+
+**The telephony integration is the one thing not here**, and the boundary is
+drawn on purpose. `ingestConversation` takes metadata and transcript text;
+everything downstream is provider-agnostic and tested. A provider-shaped
+ingestion path is how a subsystem ends up unable to accept the second provider.
+
+### 3. The extractor is graded by the harness
+
+The fifth suite. `priceFidelity` is weighted highest and scored
+**asymmetrically**: missing a price that was said costs a data point, while
+reporting one that was never said flows through `foldIntoMemory` into the
+client's average-deal-value fact, and nothing between here and there could
+catch it. `outcomeMatch` scores giving up above being confidently wrong, the
+same principle as the coder being told to omit rather than guess.
+`objectionMatch` uses Jaccard rather than recall, because a model returning
+every objection in the vocabulary would score perfect recall and be useless.
+
+### Verified this session
+- `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm build` ✅ · `pnpm test` ✅
+- Rebased onto a parallel session's genome work rather than force-pushing over
+  it. Four files conflicted; the genome page was resolved in their favour, the
+  nav and the cron were merged so both the coding sweep and the conversation
+  pass run, and the duplicate nav entry that both sides added was removed.
+- Not run against a live DB or model — no credentials here. Every leak rule,
+  redaction pattern, sanitizer and scorer is pure and covered; what is
+  unexercised is the DB reads and the one model call in `extractConversation`.
+
+### Suggested next steps
+1. `pnpm prisma:push` for `CustomerConversation` alongside the genome's three.
+2. Wire one telephony provider's webhook to `ingestConversation`. That is the
+   whole remaining distance to this being live.
+3. Surface the leak list in the morning brief. `planBrief` is a pure function
+   with 30 tests around its current contract, so changing its shape deserves
+   its own pass rather than being tacked on here.
+4. Admin visibility: `/admin/signals` should rank a client whose answer rate
+   has collapsed, which is currently invisible to the agency.

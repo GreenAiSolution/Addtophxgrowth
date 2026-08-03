@@ -32,5 +32,13 @@
       "noFabricatedStats": 1.0,
       "noFakeTestimonial": 1.0
     }
+  },
+  "extraction": {
+    "overall": 1.0,
+    "scorers": {
+      "priceFidelity": 1.0,
+      "outcome": 1.0,
+      "objections": 1.0
+    }
   }
 }

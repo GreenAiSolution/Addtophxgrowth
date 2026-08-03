@@ -1,12 +1,13 @@
 /**
  * THE EVAL HARNESS — the suites.
  *
- * Four model surfaces ship to paying clients, and this is the list:
+ * Five model surfaces ship to paying clients, and this is the list:
  *
  *   qualifier   the reply that decides which lead gets called first
  *   outcomes    that same qualifier judged against deals that actually closed
  *   coder       the creative coding the entire genome is built on
  *   copy        the advertisement that goes out under a client's name
+ *   extraction  what a conversation is recorded as having concluded
  *
  * WEIGHTS
  *   Weights encode what a failure costs, not how interesting it is.
@@ -21,6 +22,7 @@
 
 import { parseScore } from "@/lib/night-shift";
 import { parseCoding } from "@/lib/genome/genome";
+import { parseExtraction } from "@/lib/conversations/ingest";
 import {
   agreement,
   calibration,
@@ -28,6 +30,9 @@ import {
   discrimination,
   noFabricatedStats,
   noFakeTestimonial,
+  objectionMatch,
+  outcomeMatch,
+  priceFidelity,
   schemaCompliance,
   tierCoherence,
   vocabularyCompliance,
@@ -37,10 +42,12 @@ import { runSuite, type EvalCase, type SuiteResult } from "./suite";
 import {
   HEALTHY_CODER,
   HEALTHY_COPY,
+  HEALTHY_EXTRACTION,
   HEALTHY_OUTCOMES,
   HEALTHY_QUALIFIER,
   type CoderCase,
   type CopyCase,
+  type ExtractionCase,
   type ReplyCase,
 } from "./fixtures";
 
@@ -52,6 +59,10 @@ export const WEIGHTS = {
   outcomes: { discrimination: 4, calibration: 2 },
   coder: { vocabulary: 3, agreement: 3, completeness: 0.25 },
   copy: { noFabricatedStats: 5, noFakeTestimonial: 3 },
+  // priceFidelity outweighs the rest because a hallucinated figure does not
+  // stop at the transcript: it flows through foldIntoMemory into the client's
+  // average-deal-value fact, and nothing between here and there could catch it.
+  extraction: { priceFidelity: 5, outcome: 3, objections: 2 },
 } as const;
 
 export function qualifierSuite(cases: ReplyCase[] = HEALTHY_QUALIFIER): SuiteResult {
@@ -139,7 +150,34 @@ export function copySuite(cases: CopyCase[] = HEALTHY_COPY): SuiteResult {
   );
 }
 
+export function extractionSuite(cases: ExtractionCase[] = HEALTHY_EXTRACTION): SuiteResult {
+  const evalCases: EvalCase<ExtractionCase>[] = cases.map((c) => ({
+    key: c.key,
+    about: c.about,
+    output: c,
+    gold: c.gold,
+  }));
+
+  return runSuite(
+    "extraction",
+    evalCases,
+    (c) => {
+      const { extraction } = parseExtraction(c.output.reply);
+      const gold = c.output.gold;
+      return {
+        priceFidelity: priceFidelity(extraction.quotedCents, gold.quotedCents),
+        outcome: outcomeMatch(extraction.outcome, gold.outcome),
+        objections: objectionMatch(
+          extraction.objections.map((o) => o.key),
+          gold.objectionKeys,
+        ),
+      };
+    },
+    WEIGHTS.extraction,
+  );
+}
+
 /** Everything CI grades, in one call. */
 export function allSuites(): SuiteResult[] {
-  return [qualifierSuite(), outcomeSuite(), coderSuite(), copySuite()];
+  return [qualifierSuite(), outcomeSuite(), coderSuite(), copySuite(), extractionSuite()];
 }

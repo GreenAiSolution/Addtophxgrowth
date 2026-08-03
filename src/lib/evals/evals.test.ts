@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import baselines from "./baselines.json";
 import { gate, report, TOLERANCE, type Baseline } from "./suite";
-import { allSuites, coderSuite, copySuite, outcomeSuite, qualifierSuite } from "./suites";
+import { allSuites, coderSuite, copySuite, extractionSuite, outcomeSuite, qualifierSuite } from "./suites";
 import {
   ADVERSARIAL_CODER,
   ADVERSARIAL_COPY,
+  ADVERSARIAL_EXTRACTION,
   ADVERSARIAL_FLAT_OUTCOMES,
   ADVERSARIAL_INVERTED_OUTCOMES,
   ADVERSARIAL_QUALIFIER,
@@ -16,6 +17,9 @@ import {
   discrimination,
   noFabricatedStats,
   noFakeTestimonial,
+  objectionMatch,
+  outcomeMatch,
+  priceFidelity,
   tierCoherence,
 } from "./scorers";
 
@@ -169,6 +173,51 @@ describe("non-vacuity — every scorer catches what it exists to catch", () => {
     const adversarial = copySuite(ADVERSARIAL_COPY);
     expect(adversarial.overall).toBeLessThan(0.5);
     expect(copySuite().overall).toBe(1);
+  });
+
+  it("priceFidelity punishes an invented figure harder than a missed one", () => {
+    // Asymmetric on purpose. Missing a price that was said costs a data point;
+    // reporting one that was never said flows through foldIntoMemory into the
+    // client's average-deal-value fact, and nothing downstream could catch it.
+    expect(priceFidelity(1_200_000, null).score).toBe(0);
+    expect(priceFidelity(null, 1_200_000).score).toBe(0.5);
+    expect(priceFidelity(null, null).score).toBe(1);
+    expect(priceFidelity(1_420_000, 1_420_000).score).toBe(1);
+  });
+
+  it("outcomeMatch scores giving up above being confidently wrong", () => {
+    // Same principle as the coder being told to omit rather than guess.
+    const gaveUp = outcomeMatch("UNCLEAR", "BOOKED").score;
+    const confidentlyWrong = outcomeMatch("NOT_INTERESTED", "BOOKED").score;
+    expect(gaveUp).toBeGreaterThan(confidentlyWrong);
+    expect(outcomeMatch("BOOKED", "BOOKED").score).toBe(1);
+  });
+
+  it("objectionMatch does not reward returning everything", () => {
+    // Recall alone would score a model that reports every objection in the
+    // vocabulary as perfect. Jaccard does not.
+    const exact = objectionMatch(["price"], ["price"]).score;
+    const shotgun = objectionMatch(
+      ["price", "timing", "trust", "competitor", "scope"],
+      ["price"],
+    ).score;
+    expect(exact).toBe(1);
+    expect(shotgun).toBeLessThan(0.3);
+  });
+
+  it("objectionMatch catches objections invented where a human found none", () => {
+    expect(objectionMatch(["price"], []).score).toBe(0);
+    expect(objectionMatch([], []).score).toBe(1);
+  });
+
+  it("the extraction suite scores adversarial replies below healthy ones", () => {
+    const adversarial = extractionSuite(ADVERSARIAL_EXTRACTION);
+    expect(adversarial.overall).toBeLessThan(extractionSuite().overall);
+
+    // The invented price specifically has to be the thing that fails.
+    const price = adversarial.byScorer.find((s) => s.key === "priceFidelity")!;
+    expect(price.failures.map((f) => f.caseKey)).toContain("invented-price");
+    expect(price.worst.detail).toContain("invented a price");
   });
 });
 
